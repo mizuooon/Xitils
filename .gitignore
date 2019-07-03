@@ -1,0 +1,4 @@
+/.vs/*
+Build/*
+**/x64
+**/imgui.ini
