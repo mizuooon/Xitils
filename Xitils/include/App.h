@@ -4,47 +4,72 @@
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 #include <thread>
+#include <memory>
 
-#define XITILS_APP(x) CINDER_APP(x, RendererGl)
+#define XITILS_APP(x) CINDER_APP(Xitils::App::_XApp<x>, RendererGl)
 
 namespace Xitils::App {
 
+	template<typename T> class UpdateThread {
+	public:
+		virtual void onSetup() {};
+		virtual void onUpdate(T* frameData) {};
+		virtual void onCleanup() {};
+	};
+
+	template<typename T> class DrawThread {
+	public:
+		virtual void onSetup() {};
+		virtual void onDraw(const T& frameData) {};
+		virtual void onCleanup() {};
+	};
+
 	template<typename T> class XApp : public ci::app::App {
 	public:
-		virtual void OnSetup(T* frameParams) {}
-		virtual void OnCleanUp() {}
-		virtual void OnUpdate(T* frameParams) {} // メインスレッド以外から呼ばれるので注意
-		virtual void OnDraw(const T& frameParams) {} // こちらはメインスレッドから呼ばれる
-
 		void setup() override;
 		void draw() override;
 		void cleanup() override;
-		void update() override;
 
 		void mainLoop();
 
 	protected:
+		virtual void onSetup() {};
+		virtual void onCleanup() {};
+		T frameData;
+
+		virtual std::shared_ptr<UpdateThread<T>> createUpdateThread() = 0;
+		virtual std::shared_ptr<DrawThread<T>> createDrawThread() = 0;
+
 	private:
-		// 更新用スレッドと描画用スレッドが情報をやり取りする際、
-		// frameParams 内のメンバ変数としてデータを渡す必要がある。
-		// frameParams はバッファされてスレッドセーフに処理される。
-		// これ以外の情報を OnUpdate と OnDraw でまたいで使ってはいけない。
-		T frameParams;
+		std::shared_ptr<UpdateThread<T>> updateThread;
+		std::shared_ptr<DrawThread<T>> drawThread;
 
-		T frameParamsBuffer;
+		T frameDataBuffer;
 		std::mutex mtx;
-
-		ci::Surface surfaceBuffer;
-		ci::gl::TextureRef texture;
-		float elapsedBuffer = 0.0f;
 
 		std::shared_ptr<std::thread> mainLoopThread;
 		bool threadClosing = false;
-
 	};
 
+	template<typename T>class _XApp : public T {
+	protected:
+		std::shared_ptr<UpdateThread<decltype(T::frameData)>> createUpdateThread() override {
+			return std::make_shared<T::UpdateThread>();
+		}
+
+		std::shared_ptr<DrawThread<decltype(T::frameData)>> createDrawThread() override {
+			return std::make_shared<T::DrawThread>();
+		}
+	};
+
+
 	template<typename T> void XApp<T>::setup() {
-		OnSetup(&frameParams);
+		updateThread = createUpdateThread();
+		drawThread = createDrawThread();
+
+		onSetup();
+		updateThread->onSetup();
+		drawThread->onSetup();
 
 		mainLoopThread = std::make_shared<std::thread>([&] {
 			this->mainLoop();
@@ -53,7 +78,7 @@ namespace Xitils::App {
 
 	template<typename T> void XApp<T>::draw() {
 		std::lock_guard lock(mtx);
-		OnDraw(frameParamsBuffer);
+		drawThread->onDraw(frameDataBuffer);
 	}
 
 	template<typename T> void XApp<T>::cleanup() {
@@ -61,20 +86,20 @@ namespace Xitils::App {
 			threadClosing = true;
 			mainLoopThread->join();
 		}
-	}
-
-	template<typename T> void XApp<T>::update() {
+		drawThread->onCleanup();
+		updateThread->onCleanup();
+		onCleanup();
 	}
 
 	template<typename T> void XApp<T>::mainLoop() {
 		float elapsed = 0.0f;
 
 		while (true) {
-			OnUpdate(&frameParams);
+			updateThread->onUpdate(&frameData);
 
 			{
 				std::lock_guard lock(mtx);
-				frameParamsBuffer = frameParams;
+				frameDataBuffer = frameData;
 			}
 
 			std::this_thread::yield();
