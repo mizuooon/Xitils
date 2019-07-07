@@ -6,54 +6,26 @@
 #include <thread>
 #include <memory>
 
-#define XITILS_APP(x) CINDER_APP(Xitils::App::_XApp<x>, RendererGl)
+#define XITILS_APP(x) CINDER_APP(x, RendererGl)
 
 namespace Xitils::App {
 
-	template<typename T> class XApp;
-
-	template<typename T> class UpdateThread {
-	public:
-		void setApp(XApp<T>* app) { this->app = app; }
-
-		virtual void onSetup() {};
-		virtual void onUpdate(T* frameData) {};
-		virtual void onCleanup() {};
-	protected:
-		XApp<T>* app;
-	};
-
-	template<typename T> class DrawThread {
-	public:
-		void setApp(XApp<T>* app) { this->app = app; }
-
-		virtual void onSetup() {};
-		virtual void onDraw(const T& frameData) {};
-		virtual void onCleanup() {};
-	protected:
-		XApp<T>* app;
-	};
-
 	template<typename T> class XApp : public ci::app::App {
 	public:
-		void setup() override;
-		void draw() override;
-		void cleanup() override;
+		void setup() override final;
+		void draw() override final;
+		void cleanup() override final;
 
 		void mainLoop();
 
 	protected:
-		virtual void onSetup() {};
-		virtual void onCleanup() {};
-		T frameData;
-
-		virtual std::shared_ptr<UpdateThread<T>> createUpdateThread() = 0;
-		virtual std::shared_ptr<DrawThread<T>> createDrawThread() = 0;
+		virtual void onSetup(T* frameData) {}
+		virtual void onCleanup(T* frameData) {}
+		virtual void onUpdate(T* frameData) {}
+		virtual void onDraw(const T& frameData) {}
 
 	private:
-		std::shared_ptr<UpdateThread<T>> updateThread;
-		std::shared_ptr<DrawThread<T>> drawThread;
-
+		T frameData;
 		T frameDataBuffer;
 		std::mutex mtx;
 
@@ -61,27 +33,8 @@ namespace Xitils::App {
 		bool threadClosing = false;
 	};
 
-	template<typename T>class _XApp : public T {
-	protected:
-		std::shared_ptr<UpdateThread<decltype(T::frameData)>> createUpdateThread() override {
-			return std::make_shared<T::UpdateThread>();
-		}
-
-		std::shared_ptr<DrawThread<decltype(T::frameData)>> createDrawThread() override {
-			return std::make_shared<T::DrawThread>();
-		}
-	};
-
-
 	template<typename T> void XApp<T>::setup() {
-		updateThread = createUpdateThread();
-		drawThread = createDrawThread();
-		updateThread->setApp(this);
-		drawThread->setApp(this);
-
-		onSetup();
-		updateThread->onSetup();
-		drawThread->onSetup();
+		onSetup(&frameData);
 
 		mainLoopThread = std::make_shared<std::thread>([&] {
 			this->mainLoop();
@@ -90,7 +43,7 @@ namespace Xitils::App {
 
 	template<typename T> void XApp<T>::draw() {
 		std::lock_guard lock(mtx);
-		drawThread->onDraw(frameDataBuffer);
+		onDraw(frameDataBuffer);
 	}
 
 	template<typename T> void XApp<T>::cleanup() {
@@ -98,16 +51,14 @@ namespace Xitils::App {
 			threadClosing = true;
 			mainLoopThread->join();
 		}
-		drawThread->onCleanup();
-		updateThread->onCleanup();
-		onCleanup();
+		onCleanup(&frameData);
 	}
 
 	template<typename T> void XApp<T>::mainLoop() {
 		float elapsed = 0.0f;
 
 		while (true) {
-			updateThread->onUpdate(&frameData);
+			onUpdate(&frameData);
 
 			{
 				std::lock_guard lock(mtx);

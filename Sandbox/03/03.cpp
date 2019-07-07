@@ -26,33 +26,23 @@ struct MyFrameData {
 
 class MyApp : public Xitils::App::XApp<MyFrameData> {
 public:
-	void onSetup() override;
+	void onSetup(MyFrameData* frameData) override;
+	void onUpdate(MyFrameData* frameData) override;
+	void onDraw(const MyFrameData& frameData) override;
 
-	class UpdateThread : public Xitils::App::UpdateThread<MyFrameData> {
-	public:
-		void onSetup() override;
-		void onUpdate(MyFrameData* frameData) override;
-	private:
-		int frameCount = 0;
-	};
+	int frameCount = 0;
 
-	class DrawThread : public Xitils::App::DrawThread<MyFrameData> {
-	public:
-		void onDraw(const MyFrameData& frameData) override;
-	private:
-		gl::TextureRef texture;
-		int frameCount = 0;
-	};
+	gl::TextureRef texture;
 
 	std::shared_ptr<TriMesh> mesh;
 	std::shared_ptr<BVH<Triangle>> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(600, 600);
 };
 
-void MyApp::onSetup() {
-	frameData.surface = Surface(ImageSize.x, ImageSize.y, false);
-	frameData.elapsed = 0.0f;
-	frameData.triNum = 0;
+void MyApp::onSetup(MyFrameData* frameData) {
+	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
+	frameData->elapsed = 0.0f;
+	frameData->triNum = 0;
 
 	getWindow()->setTitle("Xitils");
 	setWindowSize(ImageSize.x*2, ImageSize.y);
@@ -74,13 +64,8 @@ void MyApp::onSetup() {
 	ui::initialize();
 }
 
-void MyApp::UpdateThread::onSetup() {
-}
-
-void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
+void MyApp::onUpdate(MyFrameData* frameData) {
 	auto time_start = std::chrono::system_clock::now();
-	auto mesh = static_cast<MyApp*>(this->app)->mesh;
-	auto bvh = static_cast<MyApp*>(this->app)->bvh;
 
 #pragma omp parallel for schedule(dynamic, 1)
 	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
@@ -134,15 +119,12 @@ void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
 	frameData->elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::DrawThread::onDraw(const MyFrameData& frameData) {
+void MyApp::onDraw(const MyFrameData& frameData) {
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));
 	
-	auto windowSize = app->getWindowSize();
-	
-	auto mesh = static_cast<MyApp*>(this->app)->mesh;
-	auto bvh = static_cast<MyApp*>(this->app)->bvh;
+	auto windowSize = getWindowSize();
 
 	auto lambert = gl::ShaderDef().lambert().color();
 	gl::GlslProgRef shader = gl::getStockShader(lambert);
@@ -188,7 +170,6 @@ void MyApp::DrawThread::onDraw(const MyFrameData& frameData) {
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::End();
 
-	++frameCount;
 }
 
 
