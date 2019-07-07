@@ -1,17 +1,21 @@
 
 #include "Xitils/include/App.h"
 #include "Xitils/include/Geometry.h"
+#include "Xitils/include/ObjectStructure.h"
 #include "CinderImGui.h"
 
+#include "cinder/gl/Batch.h"
 
 #pragma comment(lib, "cinder")
 #pragma comment(lib, "cinder_imgui")
 
 
 using namespace Xitils;
+using namespace Xitils::Geometry;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
+
 
 
 struct MyFrameData {
@@ -30,7 +34,6 @@ public:
 		void onUpdate(MyFrameData* frameData) override;
 	private:
 		int frameCount = 0;
-		std::shared_ptr<TriMesh> mesh;
 	};
 
 	class DrawThread : public Xitils::App::DrawThread<MyFrameData> {
@@ -38,9 +41,12 @@ public:
 		void onDraw(const MyFrameData& frameData) override;
 	private:
 		gl::TextureRef texture;
+		int frameCount = 0;
 	};
 
-	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
+	std::shared_ptr<TriMesh> mesh;
+	std::shared_ptr<BVH<Triangle>> bvh;
+	inline static const glm::ivec2 ImageSize = glm::ivec2(600, 600);
 };
 
 void MyApp::onSetup() {
@@ -49,23 +55,32 @@ void MyApp::onSetup() {
 	frameData.triNum = 0;
 
 	getWindow()->setTitle("Xitils");
-	setWindowSize(ImageSize);
+	setWindowSize(ImageSize.x*2, ImageSize.y);
 	setFrameRate(60);
+
+	const int subdivision = 10;
+	auto teapot = std::make_shared<Teapot>();
+	teapot->subdivisions(subdivision);
+	mesh = std::make_shared<TriMesh>(*teapot);
+
+	std::vector<Triangle> tris(mesh->getNumTriangles());
+	for (int i = 0; i < mesh->getNumTriangles(); ++i) {
+		auto& tri = tris[i];
+		mesh->getTriangleVertices(i, &tri.p[0], &tri.p[1], &tri.p[2]);
+	}
+
+	bvh = std::make_shared<BVH<Triangle>>(tris, [](const Triangle& tri) { return getAABB(tri); });
 
 	ui::initialize();
 }
 
 void MyApp::UpdateThread::onSetup() {
-	const int subdivision = 10;
-
-	auto teapot = std::make_shared<Teapot>();
-	teapot->subdivisions(subdivision);
-
-	mesh = std::make_shared<TriMesh>(*teapot);
 }
 
 void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
 	auto time_start = std::chrono::system_clock::now();
+	auto mesh = static_cast<MyApp*>(this->app)->mesh;
+	auto bvh = static_cast<MyApp*>(this->app)->bvh;
 
 #pragma omp parallel for schedule(dynamic, 1)
 	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
@@ -76,7 +91,7 @@ void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
 
 			Vector2 cameraRange;
 			cameraRange.x = 4.0f;
-			cameraRange.y = cameraRange.x * 3.0f / 4.0f;
+			cameraRange.y = cameraRange.x * 1.0f;
 
 			Vector2 cameraOffset(0,0.5f);
 
@@ -87,15 +102,10 @@ void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
 			ray.o = Vector3( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, -100 );
 			ray.d =  normalize(Vector3(0,0,1));
 			
-			int triNum = mesh->getNumTriangles();
-			std::optional< Xitils::Geometry::Intersection::RayTriangle::Intersection> intersection;
-			for (int i = 0; i < triNum; ++i) {
-				Xitils::Geometry::Triangle tri;
-
-				mesh->getTriangleVertices(i, &tri.p[0],&tri.p[1],&tri.p[2]);
-
-				auto tmpIntsct = Xitils::Geometry::Intersection::RayTriangle::getIntersection(ray,tri);
-
+			std::optional<Intersection::RayTriangle::Intersection> intersection;
+			
+			for (auto it = bvh->traverse(ray); !it->end(); it->next()) {
+				auto tmpIntsct = Intersection::RayTriangle::getIntersection(ray, **it);
 				if (tmpIntsct && (!intersection || tmpIntsct->t < intersection->t)) {
 					intersection = tmpIntsct;
 				}
@@ -113,7 +123,8 @@ void MyApp::UpdateThread::onUpdate(MyFrameData* frameData) {
 			colA8u.a = 255;
 
 			frameData->surface.setPixel(ivec2(x, y), colA8u);
-			frameData->triNum = triNum;
+
+			frameData->triNum = mesh->getNumTriangles();
 		}
 	}
 
@@ -128,14 +139,56 @@ void MyApp::DrawThread::onDraw(const MyFrameData& frameData) {
 
 	gl::clear(Color::gray(0.5f));
 	
-	auto windowSize = ci::app::getWindowSize();
-	gl::draw(texture, (windowSize - ImageSize) / 2);
+	auto windowSize = app->getWindowSize();
+	
+	auto mesh = static_cast<MyApp*>(this->app)->mesh;
+	auto bvh = static_cast<MyApp*>(this->app)->bvh;
+
+	auto lambert = gl::ShaderDef().lambert().color();
+	gl::GlslProgRef shader = gl::getStockShader(lambert);
+	auto batch = gl::Batch::create(*mesh, shader);
+	auto camera = CameraPersp();
+	camera.setAspectRatio(1.0f);
+	camera.lookAt(vec3(3, 2, 4.5), vec3(0,0.5f,0), vec3(0, 1, 0));
+
+	gl::enableDepthRead();
+	gl::enableDepthWrite();
+	gl::pushViewport();
+	gl::pushMatrices();
+	gl::pushModelMatrix();
+	gl::viewport(vec2(windowSize.x / 2, 0), vec2(windowSize.x / 2, windowSize.y));
+	gl::color(Color(1.0f, 1.0f, 1.0f));
+	gl::setMatrices(camera);
+	gl::setModelMatrix(rotate(frameCount * ToRad, vec3(0,1,0)));
+	batch->draw();
+	for (auto it = bvh->getNodeIterator(); !it->end(); it->next()) {
+		auto node = **it;
+		float t = clamp01(node->depth / 12.0f);
+		gl::color(Color(1.0f, 1.0f-t,1.0f-t));
+		gl::drawStrokedCube( (node->aabb.start+node->aabb.end)/2.0f, node->aabb.end-node->aabb.start );
+	}
+	gl::popModelMatrix();
+	gl::popMatrices();
+	gl::popViewport();
+
+
+	gl::disableDepthRead();
+	gl::disableDepthWrite();
+	gl::pushViewport();
+	gl::viewport(vec2(0, 0), vec2(windowSize.x / 2, windowSize.y));
+	gl::setMatricesWindow(windowSize);
+	gl::color(Color(1.0f, 1.0f, 1.0f));
+	gl::draw(texture, Rectf(vec2(0,0), vec2(windowSize.x, windowSize.y)));
+	gl::popViewport();
+
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
 	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::End();
+
+	++frameCount;
 }
 
 

@@ -10,18 +10,28 @@
 
 namespace Xitils::App {
 
+	template<typename T> class XApp;
+
 	template<typename T> class UpdateThread {
 	public:
+		void setApp(XApp<T>* app) { this->app = app; }
+
 		virtual void onSetup() {};
 		virtual void onUpdate(T* frameData) {};
 		virtual void onCleanup() {};
+	protected:
+		XApp<T>* app;
 	};
 
 	template<typename T> class DrawThread {
 	public:
+		void setApp(XApp<T>* app) { this->app = app; }
+
 		virtual void onSetup() {};
 		virtual void onDraw(const T& frameData) {};
 		virtual void onCleanup() {};
+	protected:
+		XApp<T>* app;
 	};
 
 	template<typename T> class XApp : public ci::app::App {
@@ -66,6 +76,8 @@ namespace Xitils::App {
 	template<typename T> void XApp<T>::setup() {
 		updateThread = createUpdateThread();
 		drawThread = createDrawThread();
+		updateThread->setApp(this);
+		drawThread->setApp(this);
 
 		onSetup();
 		updateThread->onSetup();

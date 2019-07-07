@@ -4,5 +4,6 @@
     <ClInclude Include="include\App.h" />
     <ClInclude Include="include\Geometry.h" />
     <ClInclude Include="include\Utils.h" />
+    <ClInclude Include="include\ObjectStructure.h" />
   </ItemGroup>
 </Project>

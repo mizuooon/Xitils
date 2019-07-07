@@ -43,18 +43,18 @@ namespace Xitils::Geometry {
 		Vector3 d;
 	};
 
+	inline AABB getAABB(const Triangle& triangle) {
+		return AABB(min(triangle.p[0], triangle.p[1], triangle.p[2]), max(triangle.p[0], triangle.p[1], triangle.p[2]));
+	}
+	inline AABB getAABB(const Sphere& sphere) {
+		return AABB(
+			sphere.center - Vector3(sphere.radius, sphere.radius, sphere.radius),
+			sphere.center + Vector3(sphere.radius, sphere.radius, sphere.radius)
+		);
+	}
+
 
 	namespace Intersection {
-
-		inline AABB getAABB(const Triangle& triangle) {
-			return AABB(min(triangle.p[0], triangle.p[1], triangle.p[2]), max(triangle.p[0], triangle.p[1], triangle.p[2]));
-		}
-		inline AABB getAABB(const Sphere& sphere) {
-			return AABB(
-				sphere.center - Vector3(sphere.radius, sphere.radius, sphere.radius),
-				sphere.center + Vector3(sphere.radius, sphere.radius, sphere.radius)
-				);
-		}
 
 		namespace PointAABB {
 			struct Intersection {
