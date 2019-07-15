@@ -1,13 +1,10 @@
 
-#include "Xitils/include/App.h"
-#include "Xitils/include/Geometry.h"
-#include "Xitils/include/ObjectStructure.h"
-#include "CinderImGui.h"
+#include <Xitils/App.h>
+#include <Xitils/Geometry.h>
+#include <Xitils/ObjectStructure.h>
+#include <CinderImGui.h>
 
-#include "cinder/gl/Batch.h"
-
-#pragma comment(lib, "cinder")
-#pragma comment(lib, "cinder_imgui")
+#include <cinder/gl/Batch.h>
 
 
 using namespace Xitils;

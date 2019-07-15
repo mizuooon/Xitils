@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.8)
+
+find_library(lib_cinderd NAMES cinderd)
+find_library(lib_cinder_imguid NAMES cinder_imguid)
+find_library(lib_cinder NAMES cinder)
+find_library(lib_cinder_imgui NAMES cinder_imgui)
+
+target_link_libraries(${ProjectName}
+	debug ${lib_cinderd}
+	debug ${lib_cinder_imguid}
+	optimized ${lib_cinder}
+	optimized ${lib_cinder_imgui}
+	)
+
+target_include_directories(${ProjectName}
+	PRIVATE ../../Include
+	)
+
+target_compile_features(${ProjectName}
+	PRIVATE cxx_std_17
+	)
+
+set(CMAKE_CXX_FLAGS_RELEASE "/MT")
+set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
+
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
+
+set(CMAKE_CXX_FLAGS "/openmp")

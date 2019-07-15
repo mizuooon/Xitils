@@ -1,12 +1,7 @@
 
-#include "Xitils/include/App.h"
-#include "Xitils/include/Geometry.h"
-#include "CinderImGui.h"
-
-
-#pragma comment(lib, "cinder")
-#pragma comment(lib, "cinder_imgui")
-
+#include <Xitils/App.h>
+#include <Xitils/Geometry.h>
+#include <CinderImGui.h>
 
 using namespace Xitils;
 using namespace ci;

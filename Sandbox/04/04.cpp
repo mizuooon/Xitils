@@ -3,20 +3,12 @@
 #include <embree3/rtcore.h>
 #include <embree3/rtcore_ray.h>
 
-#include "Xitils/include/App.h"
-#include "Xitils/include/Geometry.h"
-#include "Xitils/include/ObjectStructure.h"
-#include "CinderImGui.h"
+#include <Xitils/App.h>
+#include <Xitils/Geometry.h>
+#include <Xitils/ObjectStructure.h>
+#include <CinderImGui.h>
 
-#include "cinder/gl/Batch.h"
-
-#pragma comment(lib, "cinder")
-#pragma comment(lib, "cinder_imgui")
-
-#pragma comment(lib, "embree3")
-#pragma comment(lib, "tbb")
-#pragma comment(lib, "tbbmalloc")
-
+#include <cinder/gl/Batch.h>
 
 using namespace Xitils;
 using namespace Xitils::Geometry;
@@ -24,9 +16,6 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-
-struct XVertex { float x, y, z, r; }; // FIXME: rename to Vertex4f
-struct XTriangle { int v0, v1, v2; };
 
 struct MyFrameData {
 	float elapsed;

@@ -1,10 +1,6 @@
 
-#include "Xitils/include/App.h"
-#include "CinderImGui.h"
-
-#pragma comment(lib, "cinder")
-#pragma comment(lib, "cinder_imgui")
-
+#include <Xitils/App.h>
+#include <CinderImGui.h>
 
 using namespace ci;
 using namespace ci::app;
