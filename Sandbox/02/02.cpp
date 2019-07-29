@@ -21,6 +21,7 @@ public:
 	void onUpdate(MyFrameData* frameData) override;
 	void onDraw(const MyFrameData& frameData) override;
 
+private:
 	int frameCount = 0;
 	std::shared_ptr<TriMesh> mesh;
 

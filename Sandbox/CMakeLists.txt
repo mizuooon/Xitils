@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 
+find_package(cinder)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../CMake")
 find_library(lib_cinderd NAMES cinderd)
 find_library(lib_cinder_imguid NAMES cinder_imguid)
 find_library(lib_cinder NAMES cinder)
@@ -8,7 +11,7 @@ find_library(lib_cinder_imgui NAMES cinder_imgui)
 project(XitilsSandbox)
 
 function(add_sandbox TargetName)
-	add_executable(${TargetName} ${TargetName}.cpp)
+	add_executable(${TargetName} ${ARGN})
 	target_link_libraries(${TargetName}
 		debug ${lib_cinderd}
 		debug ${lib_cinder_imguid}
@@ -34,9 +37,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "/MT")
 set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 set(CMAKE_CXX_FLAGS "/openmp")
 add_definitions(-D_UNICODE)
+add_definitions(-DNOMINMAX)
 
 
 add_subdirectory(01)
 add_subdirectory(02)
 add_subdirectory(03)
 add_subdirectory(04)
+add_subdirectory(05)

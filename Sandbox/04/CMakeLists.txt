@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.8)
 
-add_sandbox(04)
+find_package(embree 3 REQUIRED)
 
-find_library(lib_embree3 NAMES embree3)
-find_library(lib_tbb NAMES tbb)
-find_library(lib_tbbmalloc tbbmalloc)
+add_sandbox(04
+	04.cpp
+	)
 
+target_include_directories(04
+	PRIVATE ${EMBREE_INCLUDE_DIRS}
+	)
+	
 target_link_libraries(04
-	${lib_embree3}
-	${lib_tbb}
-	${lib_tbbmalloc}
+	${EMBREE_LIBRARIES}
 	)
