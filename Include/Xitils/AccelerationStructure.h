@@ -11,42 +11,42 @@ namespace Xitils {
 
 	namespace Geometry {
 
-		template<typename T> class ObjectStructure;
+		template<typename T> class AccelerationStructure;
 		template <typename T> class BVH;
 
 		template<typename T>
-		class ObjectStructureIterator {
+		class AccelerationStructureIterator {
 		public:
-			virtual ~ObjectStructureIterator() {};
+			virtual ~AccelerationStructureIterator() {};
 			virtual const T& operator*() const = 0;
-			virtual ObjectStructureIterator<T>& next() = 0;
+			virtual AccelerationStructureIterator<T>& next() = 0;
 			virtual bool end() const = 0;
 			virtual void select(float t) {}
 		};
 		template<typename T>
-		class ObjectStructure {
+		class AccelerationStructure {
 		public:
-			virtual ~ObjectStructure() {};
-			virtual std::unique_ptr<ObjectStructureIterator<T>> traverse(const Ray& ray) = 0;
+			virtual ~AccelerationStructure() {};
+			virtual std::unique_ptr<AccelerationStructureIterator<T>> traverse(const Ray& ray) = 0;
 		};
 
 		template<typename T>
-		class NaiveObjectStructureIterator : public ObjectStructureIterator<T> {
+		class NaiveAccelerationStructureIterator : public AccelerationStructureIterator<T> {
 		public:
-			NaiveObjectStructureIterator(const std::vector<T>& objects) :
+			NaiveAccelerationStructureIterator(const std::vector<T>& objects) :
 				iterator(objects.begin()), end_iterator(objects.end()) {}
 			virtual const T& operator*() const { return *iterator; }
-			virtual ObjectStructureIterator<T>& next() { ++iterator; return *this; }
+			virtual AccelerationStructureIterator<T>& next() { ++iterator; return *this; }
 			virtual bool end() const { return iterator == end_iterator; }
 		private:
 			typename std::vector<T>::const_iterator iterator;
 			typename std::vector<T>::const_iterator end_iterator;
 		};
 		template<typename T>
-		class NaiveObjectStructure : public ObjectStructure<T> {
+		class NaiveAccelerationStructure : public AccelerationStructure<T> {
 		public:
-			NaiveObjectStructure(const std::vector<T>& objects) : objects(objects) {}
-			virtual std::unique_ptr<ObjectStructureIterator<T>> traverse(const Ray& ray) { return std::make_unique<NaiveObjectStructureIterator<T>>(objects); }
+			NaiveAccelerationStructure(const std::vector<T>& objects) : objects(objects) {}
+			virtual std::unique_ptr<AccelerationStructureIterator<T>> traverse(const Ray& ray) { return std::make_unique<NaiveAccelerationStructureIterator<T>>(objects); }
 		private:
 			std::vector<T> objects;
 		};
@@ -98,14 +98,14 @@ namespace Xitils {
 		};
 
 		template <typename T>
-		class BVHIterator : public ObjectStructureIterator<T> {
+		class BVHIterator : public AccelerationStructureIterator<T> {
 		public:
 			BVHIterator(BVHNode<T>* node, const Ray& ray)
 				: currentNode(node), ray(ray) {
 				findNextObject();
 			}
 			virtual const T& operator*() const { return *currentNode->object; }
-			virtual ObjectStructureIterator<T>& next() { findNextObject(); return *this; }
+			virtual AccelerationStructureIterator<T>& next() { findNextObject(); return *this; }
 			virtual bool end() const { return currentNode == nullptr; }
 			virtual void select(float t) { maxT = t; }
 
@@ -154,7 +154,7 @@ namespace Xitils {
 		};
 
 		template <typename T>
-		class BVH : public ObjectStructure<T> {
+		class BVH : public AccelerationStructure<T> {
 		public:
 			using AABBObj = std::pair<AABB, T>;
 
@@ -171,7 +171,7 @@ namespace Xitils {
 				delete node;
 			}
 
-			virtual std::unique_ptr<ObjectStructureIterator<T>> traverse(const Ray& ray) { return std::make_unique<BVHIterator<T>>(node, ray); }
+			virtual std::unique_ptr<AccelerationStructureIterator<T>> traverse(const Ray& ray) { return std::make_unique<BVHIterator<T>>(node, ray); }
 			
 			// オブジェクトではなく BVHNode についてのイテレータ
 			std::unique_ptr<BVHNode<T>::Iterator<T>> getNodeIterator() const { return std::make_unique<BVHNode<T>::Iterator<T>>(node); }

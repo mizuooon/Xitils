@@ -7,7 +7,7 @@
 
 #include <Xitils/App.h>
 #include <Xitils/Geometry.h>
-#include <Xitils/ObjectStructure.h>
+#include <Xitils/AccelerationStructure.h>
 #include <CinderImGui.h>
 
 #include <cinder/gl/Batch.h>
