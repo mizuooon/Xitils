@@ -2,14 +2,14 @@ cmake_minimum_required(VERSION 3.8)
 
 find_package(embree 3 REQUIRED)
 
-add_sandbox(04
-	04.cpp
+add_sandbox(RaycasterEmbree
+	Main.cpp
 	)
 
-target_include_directories(04
+target_include_directories(RaycasterEmbree
 	PRIVATE ${EMBREE_INCLUDE_DIRS}
 	)
 	
-target_link_libraries(04
+target_link_libraries(RaycasterEmbree
 	${EMBREE_LIBRARIES}
 	)

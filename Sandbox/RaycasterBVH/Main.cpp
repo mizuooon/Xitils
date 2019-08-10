@@ -13,8 +13,6 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-
-
 struct MyFrameData {
 	float elapsed;
 	Surface surface;
@@ -56,7 +54,7 @@ void MyApp::onSetup(MyFrameData* frameData) {
 		auto& tri = tris[i];
 		mesh->getTriangleVertices(i, &tri.p[0], &tri.p[1], &tri.p[2]);
 	}
-
+	
 	bvh = std::make_shared<BVH<Triangle>>(tris, [](const Triangle& tri) { return getAABB(tri); });
 
 	ui::initialize();
@@ -145,7 +143,7 @@ void MyApp::onDraw(const MyFrameData& frameData) {
 		auto node = **it;
 		float t = clamp01(node->depth / 12.0f);
 		gl::color(Color(1.0f, 1.0f-t,1.0f-t));
-		gl::drawStrokedCube( (node->aabb.start+node->aabb.end)/2.0f, node->aabb.end-node->aabb.start );
+		gl::drawStrokedCube( (node->aabb.min+node->aabb.max)/2.0f, node->aabb.max-node->aabb.min );
 	}
 	gl::popModelMatrix();
 	gl::popMatrices();

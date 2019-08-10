@@ -9,29 +9,29 @@ set_source_files_properties(optixRaycastingKernels.cu
 	)
 
 set( source_files
-	05.cpp
-	05.cu
+	Main.cpp
+	RaycasterOptix.cu
 	optixRaycastingKernels.cu
 	)
 
 CUDA_GET_SOURCES_AND_OPTIONS(source_files cmake_options options ${source_files})
 
-CUDA_WRAP_SRCS(05 PTX generated_files ${source_files} ${cmake_options} OPTIONS ${options} )
+CUDA_WRAP_SRCS(RaycasterOptix PTX generated_files ${source_files} ${cmake_options} OPTIONS ${options} )
 	
-add_sandbox(05
-	05.cpp
-	05.cu
+add_sandbox(RaycasterOptix
+	Main.cpp
+	RaycasterOptix.cu
 	optixRaycastingKernels.cu
 	${generated_files}
 	)
 
-target_include_directories(05
+target_include_directories(RaycasterOptix
 	PRIVATE ${CUDA_INCLUDE_DIRS}
 	PRIVATE ${OptiX_INCLUDE}
 	PRIVATE ${OptiX_INCLUDE}/optixu
 	)
 
-target_link_libraries(05
+target_link_libraries(RaycasterOptix
 	optix
 	${CUDA_LIBRARIES}
 	)

@@ -9,17 +9,24 @@
 namespace Xitils::Geometry {
 
 	struct AABB {
-		Vector3 start, end;
+		Vector3 min, max;
 
 		AABB() {}
-		AABB(const Vector3& start, const Vector3& end) : start(start), end(end) {
-			assert(start.x <= end.x && start.y <= end.y && start.z <= end.z);
+		inline AABB(const Vector3& min, const Vector3& max) : min(min), max(max) {
+			simdpp::float32<3> x = simdpp::load(&min);
+			simdpp::float32<3> y = simdpp::load(&max);
+			simdpp::int32<3> bits = simdpp::bit_cast<simdpp::int32<3>, simdpp::mask_float32<3>>(x > y);
+
+			assert(simdpp::reduce_or(bits) == 0);
+
+			//assert(min.x <= max.x && min.y <= max.y && min.z <= max.z);
 		}
 
-		AABB operator|(const AABB& box) const {
-			return AABB(min(start, box.start), max(end, box.end));
+		inline AABB operator|(const AABB& box) const {
+			return AABB(Xitils::min(min, box.min), Xitils::max(max, box.max));
 		}
-		AABB operator|=(const AABB& box) {
+
+		AABB& operator|=(const AABB& box) {
 			*this = *this | box;
 			return *this;
 		}
@@ -46,6 +53,7 @@ namespace Xitils::Geometry {
 	inline AABB getAABB(const Triangle& triangle) {
 		return AABB(min(triangle.p[0], triangle.p[1], triangle.p[2]), max(triangle.p[0], triangle.p[1], triangle.p[2]));
 	}
+
 	inline AABB getAABB(const Sphere& sphere) {
 		return AABB(
 			sphere.center - Vector3(sphere.radius, sphere.radius, sphere.radius),
@@ -61,9 +69,9 @@ namespace Xitils::Geometry {
 			};
 
 			inline std::optional<Intersection> getIntersection(const Vector3& p, const AABB& aabb) {
-				if (inRange(p.x, aabb.start.x, aabb.end.x) &&
-					inRange(p.y, aabb.start.y, aabb.end.y) &&
-					inRange(p.z, aabb.start.z, aabb.end.z)) {
+				if (inRange(p.x, aabb.min.x, aabb.max.x) &&
+					inRange(p.y, aabb.min.y, aabb.max.y) &&
+					inRange(p.z, aabb.min.z, aabb.max.z)) {
 					return Intersection();
 				}
 				return std::nullopt;
@@ -77,21 +85,21 @@ namespace Xitils::Geometry {
 
 			inline std::optional<Intersection> getIntersection(const AABB& aabb1, const AABB& aabb2) {
 
-				if (inRange(aabb1.start.x, aabb2.start.x, aabb2.end.x) &&
-					inRange(aabb1.start.y, aabb2.start.y, aabb2.end.y) &&
-					inRange(aabb1.start.z, aabb2.start.z, aabb2.end.z) ||
-					inRange(aabb2.start.x, aabb1.start.x, aabb1.end.x) &&
-					inRange(aabb2.start.y, aabb1.start.y, aabb1.end.y) &&
-					inRange(aabb2.start.z, aabb1.start.z, aabb1.end.z)) {
+				if (inRange(aabb1.min.x, aabb2.min.x, aabb2.max.x) &&
+					inRange(aabb1.min.y, aabb2.min.y, aabb2.max.y) &&
+					inRange(aabb1.min.z, aabb2.min.z, aabb2.max.z) ||
+					inRange(aabb2.min.x, aabb1.min.x, aabb1.max.x) &&
+					inRange(aabb2.min.y, aabb1.min.y, aabb1.max.y) &&
+					inRange(aabb2.min.z, aabb1.min.z, aabb1.max.z)) {
 					return Intersection();
 				}
 
-				if (aabb1.start.x <= aabb2.end.x &&
-					aabb1.end.x >= aabb2.start.x &&
-					aabb1.start.y >= aabb2.end.y &&
-					aabb1.end.y <= aabb2.start.y &&
-					aabb1.start.z >= aabb2.end.z &&
-					aabb1.end.z <= aabb2.start.z) {
+				if (aabb1.min.x <= aabb2.max.x &&
+					aabb1.max.x >= aabb2.min.x &&
+					aabb1.min.y >= aabb2.max.y &&
+					aabb1.max.y <= aabb2.min.y &&
+					aabb1.min.z >= aabb2.max.z &&
+					aabb1.max.z <= aabb2.min.z) {
 					return Intersection();
 				}
 				return std::nullopt;
@@ -117,7 +125,7 @@ namespace Xitils::Geometry {
 				Intersection result;
 
 				bool back = false;
-				if (inRange(o.x, aabb.start.x, aabb.end.x) && inRange(o.y, aabb.start.y, aabb.end.y) && inRange(o.z, aabb.start.z, aabb.end.z)) {
+				if (inRange(o.x, aabb.min.x, aabb.max.x) && inRange(o.y, aabb.min.y, aabb.max.y) && inRange(o.z, aabb.min.z, aabb.max.z)) {
 					back = true;
 					if (opt & IgnoreBack) { return std::nullopt; }
 				}
@@ -125,12 +133,12 @@ namespace Xitils::Geometry {
 				bool xSide = (d.x < 0.0f) ^ back;
 				bool ySide = (d.y < 0.0f) ^ back;
 				bool zSide = (d.z < 0.0f) ^ back;
-				float x0 = xSide ? aabb.end.x : aabb.start.x;
-				float y0 = ySide ? aabb.end.y : aabb.start.y;
-				float z0 = zSide ? aabb.end.z : aabb.start.z;
-				float x1 = !xSide ? aabb.end.x : aabb.start.x;
-				float y1 = !ySide ? aabb.end.y : aabb.start.y;
-				float z1 = !zSide ? aabb.end.z : aabb.start.z;
+				float x0 = xSide ? aabb.max.x : aabb.min.x;
+				float y0 = ySide ? aabb.max.y : aabb.min.y;
+				float z0 = zSide ? aabb.max.z : aabb.min.z;
+				float x1 = !xSide ? aabb.max.x : aabb.min.x;
+				float y1 = !ySide ? aabb.max.y : aabb.min.y;
+				float z1 = !zSide ? aabb.max.z : aabb.min.z;
 
 				float validX = fabs(d.x) > 0.00001f;
 				float validY = fabs(d.y) > 0.00001f;
@@ -148,21 +156,21 @@ namespace Xitils::Geometry {
 				Vector3 py = o + ty0 * d;
 				Vector3 pz = o + tz0 * d;
 
-				if (validX && tx0 >= 0.0f && inRange(px.y, aabb.start.y, aabb.end.y) && inRange(px.z, aabb.start.z, aabb.end.z)) {
+				if (validX && tx0 >= 0.0f && inRange(px.y, aabb.min.y, aabb.max.y) && inRange(px.z, aabb.min.z, aabb.max.z)) {
 					result.t = tx0;
 					result.p = px;
 					result.n = xSide ? Vector3(1, 0, 0) : Vector3(-1, 0, 0);
 					result.depth = t1 - result.t;
 					return std::move(result);
 				}
-				if (validY && ty0 >= 0.0f && inRange(py.z, aabb.start.z, aabb.end.z) && inRange(py.x, aabb.start.x, aabb.end.x)) {
+				if (validY && ty0 >= 0.0f && inRange(py.z, aabb.min.z, aabb.max.z) && inRange(py.x, aabb.min.x, aabb.max.x)) {
 					result.t = ty0;
 					result.p = py;
 					result.n = ySide ? Vector3(0, 1, 0) : Vector3(0, -1, 0);
 					result.depth = t1 - result.t;
 					return std::move(result);
 				}
-				if (validZ && tz0 >= 0.0f && inRange(pz.x, aabb.start.x, aabb.end.x) && inRange(pz.y, aabb.start.y, aabb.end.y)) {
+				if (validZ && tz0 >= 0.0f && inRange(pz.x, aabb.min.x, aabb.max.x) && inRange(pz.y, aabb.min.y, aabb.max.y)) {
 					result.t = tz0;
 					result.p = pz;
 					result.n = zSide ? Vector3(0, 0, 1) : Vector3(0, 0, -1);
@@ -280,5 +288,5 @@ namespace Xitils::Geometry {
 		}
 
 	}
-	
+
 }

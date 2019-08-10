@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
 
-find_package(cinder)
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../CMake")
 find_library(lib_cinderd NAMES cinderd)
 find_library(lib_cinder_imguid NAMES cinder_imguid)
@@ -40,8 +38,8 @@ add_definitions(-D_UNICODE)
 add_definitions(-DNOMINMAX)
 
 
-add_subdirectory(01)
-add_subdirectory(02)
-add_subdirectory(03)
-add_subdirectory(04)
-add_subdirectory(05)
+add_subdirectory(SimpleWindow)
+add_subdirectory(RaycasterNaive)
+add_subdirectory(RaycasterBVH)
+add_subdirectory(RaycasterEmbree)
+add_subdirectory(RaycasterOptix)
