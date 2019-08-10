@@ -58,27 +58,27 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
 
-			Vector3 color(0, 0, 0);
+			Vector3f color(0, 0, 0);
 
-			Vector2 cameraRange;
+			Vector2f cameraRange;
 			cameraRange.x = 4.0f;
 			cameraRange.y = cameraRange.x * 3.0f / 4.0f;
 
-			Vector2 cameraOffset(0,0.5f);
+			Vector2f cameraOffset(0,0.5f);
 
 			float nx = (float) x / frameData->surface.getWidth();
 			float ny = (float) y / frameData->surface.getHeight();
 
 			Xitils::Geometry::Ray ray;
-			ray.o = Vector3( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, -100 );
-			ray.d =  normalize(Vector3(0,0,1));
+			ray.o = Vector3f( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, -100 );
+			ray.d =  Vector3f(0,0,1).normalize();
 			
 			int triNum = mesh->getNumTriangles();
 			std::optional< Xitils::Geometry::Intersection::RayTriangle::Intersection> intersection;
 			for (int i = 0; i < triNum; ++i) {
 				Xitils::Geometry::Triangle tri;
 
-				mesh->getTriangleVertices(i, &tri.p[0],&tri.p[1],&tri.p[2]);
+				mesh->getTriangleVertices(i, (glm::vec3*)&tri.p[0], (glm::vec3*)&tri.p[1], (glm::vec3*)&tri.p[2]);
 
 				auto tmpIntsct = Xitils::Geometry::Intersection::RayTriangle::getIntersection(ray,tri);
 
@@ -88,8 +88,8 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			}
 
 			if (intersection) {
-				Vector3 dLight = normalize(Vector3(1, 1, -1));
-				color = Vector3(1.0f, 1.0f, 1.0f) * clamp01(dot(intersection->n, dLight));
+				Vector3f dLight = normalize(Vector3f(1, 1, -1));
+				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(intersection->n, dLight));
 			}
 
 			ColorA8u colA8u;

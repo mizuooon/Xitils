@@ -5,21 +5,22 @@
 #include <optional>
 
 #include "Utils.h"
+#include "Vector.h"
 
 namespace Xitils::Geometry {
 
 	struct AABB {
-		Vector3 min, max;
+		Vector3f min, max;
 
 		AABB() {}
-		inline AABB(const Vector3& min, const Vector3& max) : min(min), max(max) {
+		inline AABB(const Vector3f& min, const Vector3f& max) : min(min), max(max) {
 			simdpp::float32<3> x = simdpp::load(&min);
 			simdpp::float32<3> y = simdpp::load(&max);
 			simdpp::int32<3> bits = simdpp::bit_cast<simdpp::int32<3>, simdpp::mask_float32<3>>(x > y);
 
-			assert(simdpp::reduce_or(bits) == 0);
+			ASSERT(simdpp::reduce_or(bits) == 0);
 
-			//assert(min.x <= max.x && min.y <= max.y && min.z <= max.z);
+			//ASSERT(min.x <= max.x && min.y <= max.y && min.z <= max.z);
 		}
 
 		inline AABB operator|(const AABB& box) const {
@@ -33,21 +34,21 @@ namespace Xitils::Geometry {
 	};
 
 	struct Sphere {
-		Vector3 center;
+		Vector3f center;
 		float radius;
 	};
 
 	struct Segment {
-		Vector3 p[2];
+		Vector3f p[2];
 	};
 
 	struct Triangle {
-		Vector3 p[3];
+		Vector3f p[3];
 	};
 
 	struct Ray {
-		Vector3 o;
-		Vector3 d;
+		Vector3f o;
+		Vector3f d;
 	};
 
 	inline AABB getAABB(const Triangle& triangle) {
@@ -56,8 +57,8 @@ namespace Xitils::Geometry {
 
 	inline AABB getAABB(const Sphere& sphere) {
 		return AABB(
-			sphere.center - Vector3(sphere.radius, sphere.radius, sphere.radius),
-			sphere.center + Vector3(sphere.radius, sphere.radius, sphere.radius)
+			sphere.center - Vector3f(sphere.radius, sphere.radius, sphere.radius),
+			sphere.center + Vector3f(sphere.radius, sphere.radius, sphere.radius)
 		);
 	}
 
@@ -68,7 +69,7 @@ namespace Xitils::Geometry {
 			struct Intersection {
 			};
 
-			inline std::optional<Intersection> getIntersection(const Vector3& p, const AABB& aabb) {
+			inline std::optional<Intersection> getIntersection(const Vector3f& p, const AABB& aabb) {
 				if (inRange(p.x, aabb.min.x, aabb.max.x) &&
 					inRange(p.y, aabb.min.y, aabb.max.y) &&
 					inRange(p.z, aabb.min.z, aabb.max.z)) {
@@ -109,8 +110,8 @@ namespace Xitils::Geometry {
 		namespace RayAABB {
 			struct Intersection {
 				float t;
-				Vector3 p;
-				Vector3 n;
+				Vector3f p;
+				Vector3f n;
 				float depth;
 			};
 			enum Option {
@@ -152,28 +153,28 @@ namespace Xitils::Geometry {
 				float tz1 = validZ ? (z1 - o.z) / d.z : Infinity;
 				float t1 = min(tx1, ty1, tz1);
 
-				Vector3 px = o + tx0 * d;
-				Vector3 py = o + ty0 * d;
-				Vector3 pz = o + tz0 * d;
+				Vector3f px = o + tx0 * d;
+				Vector3f py = o + ty0 * d;
+				Vector3f pz = o + tz0 * d;
 
 				if (validX && tx0 >= 0.0f && inRange(px.y, aabb.min.y, aabb.max.y) && inRange(px.z, aabb.min.z, aabb.max.z)) {
 					result.t = tx0;
 					result.p = px;
-					result.n = xSide ? Vector3(1, 0, 0) : Vector3(-1, 0, 0);
+					result.n = xSide ? Vector3f(1, 0, 0) : Vector3f(-1, 0, 0);
 					result.depth = t1 - result.t;
 					return std::move(result);
 				}
 				if (validY && ty0 >= 0.0f && inRange(py.z, aabb.min.z, aabb.max.z) && inRange(py.x, aabb.min.x, aabb.max.x)) {
 					result.t = ty0;
 					result.p = py;
-					result.n = ySide ? Vector3(0, 1, 0) : Vector3(0, -1, 0);
+					result.n = ySide ? Vector3f(0, 1, 0) : Vector3f(0, -1, 0);
 					result.depth = t1 - result.t;
 					return std::move(result);
 				}
 				if (validZ && tz0 >= 0.0f && inRange(pz.x, aabb.min.x, aabb.max.x) && inRange(pz.y, aabb.min.y, aabb.max.y)) {
 					result.t = tz0;
 					result.p = pz;
-					result.n = zSide ? Vector3(0, 0, 1) : Vector3(0, 0, -1);
+					result.n = zSide ? Vector3f(0, 0, 1) : Vector3f(0, 0, -1);
 					result.depth = t1 - result.t;
 					return std::move(result);
 				}
@@ -186,8 +187,8 @@ namespace Xitils::Geometry {
 		namespace RaySpehere {
 			struct Intersection {
 				float t;
-				Vector3 p;
-				Vector3 n;
+				Vector3f p;
+				Vector3f n;
 			};
 			enum Option {
 				None = 0b0000,
@@ -196,9 +197,9 @@ namespace Xitils::Geometry {
 
 			inline std::optional<Intersection> getIntersection(const Ray& ray, const Sphere& sphere, Option option = None) {
 
-				float A = length2(ray.d);
+				float A = ray.d.lengthSq();
 				float B = dot(ray.d, ray.o - sphere.center);
-				float C = length2(ray.o - sphere.center) - sphere.radius * sphere.radius;
+				float C = (ray.o - sphere.center).lengthSq() - sphere.radius * sphere.radius;
 
 				float discriminant = B * B - A * C;
 				if (discriminant < 0.0f) {
@@ -229,9 +230,9 @@ namespace Xitils::Geometry {
 		namespace RayTriangle {
 			struct Intersection {
 				float t;
-				Vector3 p;
-				Vector3 n;
-				Vector3 w;
+				Vector3f p;
+				Vector3f n;
+				Vector3f w;
 			};
 			enum Option {
 				None = 0b0000,
@@ -250,7 +251,8 @@ namespace Xitils::Geometry {
 				auto v02 = p2 - p0;
 				auto v12 = p2 - p1;
 
-				auto n = normalize(cross(v01, v02));
+				auto n = cross(v01, v02);
+				if (!n.isZero()) { n.normalize(); }
 				if (dot(n, d) > 0.0f) { n *= -1.0f; }
 
 				float d_dot_n = dot(d, n);
@@ -270,7 +272,7 @@ namespace Xitils::Geometry {
 				float V1 = dot(p - o, cross(vop2, vop0));
 				float V2 = dot(p - o, cross(vop0, vop1));
 				float V = V0 + V1 + V2;
-				Vector3 w;
+				Vector3f w;
 				w[0] = V0 / V;
 				w[1] = V1 / V;
 				w[2] = V2 / V;

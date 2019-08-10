@@ -89,20 +89,20 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
 
-			Vector3 color(0, 0, 0);
+			Vector3f color(0, 0, 0);
 
-			Vector2 cameraRange;
+			Vector2f cameraRange;
 			cameraRange.x = 4.0f;
 			cameraRange.y = cameraRange.x * 3.0f / 4.0f;
 
-			Vector2 cameraOffset(0, 0.5f);
+			Vector2f cameraOffset(0, 0.5f);
 
 			float nx = (float)x / frameData->surface.getWidth();
 			float ny = (float)y / frameData->surface.getHeight();
 
 			Xitils::Geometry::Ray ray;
-			ray.o = Vector3((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
-			ray.d = normalize(Vector3(0, 0, 1));
+			ray.o = Vector3f((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
+			ray.d = normalize(Vector3f(0, 0, 1));
 
 
 			RTCIntersectContext context;
@@ -125,12 +125,12 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			rtcIntersect1(rtcScene, &context, &rtcRayHit);
 
 			if (rtcRayHit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
-				Vector3 dLight = normalize(Vector3(1, 1, -1));
-				//color = Vector3(1.0f, 1.0f, 1.0f) * clamp01(dot(rtcRayHit.hit, dLight));
-				color = Vector3(1.0f, 1.0f, 1.0f);
+				Vector3f dLight = normalize(Vector3f(1, 1, -1));
+				//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(rtcRayHit.hit, dLight));
+				color = Vector3f(1.0f, 1.0f, 1.0f);
 				
-				Vector3 n = normalize(Vector3(rtcRayHit.hit.Ng_x, rtcRayHit.hit.Ng_y, rtcRayHit.hit.Ng_z));
-				color = Vector3(1.0f, 1.0f, 1.0f) * clamp01(dot(n, dLight));
+				Vector3f n = normalize(Vector3f(rtcRayHit.hit.Ng_x, rtcRayHit.hit.Ng_y, rtcRayHit.hit.Ng_z));
+				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(n, dLight));
 			}
 
 			ColorA8u colA8u;
