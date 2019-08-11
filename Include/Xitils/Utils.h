@@ -73,6 +73,10 @@ namespace Xitils {
 		return (1.0f - t) * x + t * y;
 	}
 
+	template <typename A> A interpolate(A x, A y, A z, float t1, float t2) {
+		return t1 * x + t2 * y + (1.0f - t1 - t2) * z;
+	}
+
 	template <typename ValueType> ValueType id(ValueType x) { return x; }
 
 }
