@@ -14,11 +14,11 @@ namespace Xitils::Geometry {
 
 		AABB() {}
 		inline AABB(const Vector3f& min, const Vector3f& max) : min(min), max(max) {
-			simdpp::float32<3> x = simdpp::load(&min);
-			simdpp::float32<3> y = simdpp::load(&max);
-			simdpp::int32<3> bits = simdpp::bit_cast<simdpp::int32<3>, simdpp::mask_float32<3>>(x > y);
+			//simdpp::float32<3> x = simdpp::load(&min);
+			//simdpp::float32<3> y = simdpp::load(&max);
+			//simdpp::int32<3> bits = simdpp::bit_cast<simdpp::int32<3>, simdpp::mask_float32<3>>(x > y);
 
-			ASSERT(simdpp::reduce_or(bits) == 0);
+			//ASSERT(simdpp::reduce_or(bits) == 0);
 
 			//ASSERT(min.x <= max.x && min.y <= max.y && min.z <= max.z);
 		}

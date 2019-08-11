@@ -6,7 +6,7 @@
 #include <thread>
 #include <memory>
 
-#define XITILS_APP(x) CINDER_APP(x, RendererGl)
+#define XITILS_APP(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ settings->setConsoleWindowEnabled(); })
 
 namespace Xitils::App {
 
@@ -34,6 +34,7 @@ namespace Xitils::App {
 	};
 
 	template<typename T> void XApp<T>::setup() {
+		
 		onSetup(&frameData);
 
 		mainLoopThread = std::make_shared<std::thread>([&] {

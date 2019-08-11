@@ -11,6 +11,7 @@
 #include <functional>
 #include <glm/glm.hpp>
 #include <simdpp/simd.h>
+#include <immintrin.h>
 
 #undef INFINITY
 

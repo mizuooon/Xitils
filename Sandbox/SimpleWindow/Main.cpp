@@ -88,5 +88,4 @@ void MyApp::onDraw(const MyFrameData& frameData) {
 	ImGui::End();
 }
 
-
 XITILS_APP(MyApp)
