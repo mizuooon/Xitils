@@ -44,23 +44,20 @@ namespace Xitils {
 		_V& operator+=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::add(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::add(val1, val2));
 			return *this;
 		}
 		_V operator-(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
 			_V res;
-			simdpp::store_u(&res, resVal);
+			simdpp::store_u(&res, simdpp::sub(val1, val2));
 			return std::move(res);
 		}
 		_V& operator-=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::sub(val1, val2));
 			return *this;
 		}
 
@@ -186,23 +183,20 @@ namespace Xitils {
 		_V& operator+=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::add(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::add(val1, val2));
 			return *this;
 		}
 		_V operator-(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
 			_V res;
-			simdpp::store_u(&res, resVal);
+			simdpp::store_u(&res, simdpp::sub(val1, val2));
 			return std::move(res);
 		}
 		_V& operator-=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::sub(val1, val2));
 			return *this;
 		}
 
@@ -337,23 +331,20 @@ namespace Xitils {
 		_V& operator+=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::add(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::add(val1, val2));
 			return *this;
 		}
 		_V operator-(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
 			_V res;
-			simdpp::store_u(&res, resVal);
+			simdpp::store_u(&res, simdpp::sub(val1, val2));
 			return std::move(res);
 		}
 		_V& operator-=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
-			auto resVal = simdpp::sub(val1, val2);
-			simdpp::store_u(this, resVal);
+			simdpp::store_u(this, simdpp::sub(val1, val2));
 			return *this;
 		}
 
