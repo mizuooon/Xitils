@@ -25,8 +25,11 @@ namespace Xitils {
 
 		template <typename U, typename U_SIMD, typename U_SIMDMASK> explicit Vector2(const Vector2<U, U_SIMD, U_SIMDMASK>& v) : x(v.x), y(v.y) { ASSERT(!hasNan()); }
 
-		T& operator=(const T& v) { x = v.x; y = v.y; }
-		T& operator=(const T&& v) noexcept { x = v.x; y = v.y; }
+		_V& operator=(const _V& v) {
+			x = v.x; y = v.y;
+			ASSERT(!hasNan());
+			return *this;
+		}
 
 		T& operator[](int i) const {
 			ASSERT(i >= 0 && i <= 1);
@@ -40,6 +43,9 @@ namespace Xitils {
 			_V res;
 			simdpp::store_u(&res, simdpp::add(val1, val2));
 			return std::move(res);
+
+			glm::mat4x4 a;
+			a.value
 		}
 		_V& operator+=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
@@ -80,18 +86,12 @@ namespace Xitils {
 		_V operator/(T val) const {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			_V res;
-			simdpp::store_u(&res, simdpp::mul(val1, val2));
-			return std::move(res);
+			return *this * inv;
 		}
 		_V& operator /=(T val) {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			simdpp::store_u(this, simdpp::mul(val1, val2));
+			*this *= inv;
 			return *this;
 		}
 
@@ -162,9 +162,12 @@ namespace Xitils {
 		glm::tvec3<T> glm() const { return glm::tvec3<T>(x, y, z); }
 
 		template <typename U, typename U_SIMD, typename U_SIMDMASK> explicit Vector3(const Vector3<U, U_SIMD, U_SIMDMASK>& v) : x(v.x), y(v.y), z(v.z) { ASSERT(!hasNan()); }
-
-		T& operator=(const T& v) { x = v.x; y = v.y; z = v.z; }
-		T& operator=(const T&& v) noexcept { x = v.x; y = v.y; z = v.z; }
+		
+		_V& operator=(const _V& v) {
+			x = v.x; y = v.y; z = v.z;
+			ASSERT(!hasNan());
+			return *this;
+		}
 
 		T& operator[](int i) {
 			ASSERT(i >= 0 && i <= 2);
@@ -219,18 +222,12 @@ namespace Xitils {
 		_V operator/(T val) const {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			_V res;
-			simdpp::store_u(&res, simdpp::mul(val1, val2));
-			return std::move(res);
+			return *this * inv;
 		}
 		_V& operator /=(T val) {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			simdpp::store_u(this, simdpp::mul(val1, val2));
+			*this *= inv;
 			return *this;
 		}
 
@@ -310,8 +307,11 @@ namespace Xitils {
 
 		template <typename U, typename U_SIMD, typename U_SIMDMASK> explicit Vector4(const Vector4<U, U_SIMD, U_SIMDMASK>& v) : x(v.x), y(v.y), z(v.z), w(v.w) { ASSERT(!hasNan()); }
 
-		T& operator=(const T& v) { x = v.x; y = v.y; z = v.z; w = v.w; }
-		T& operator=(const T&& v) noexcept { x = v.x; y = v.y; z = v.z; w = v.w; }
+		_V& operator=(const _V& v) {
+			x = v.x; y = v.y; z = v.z; w = v.w;
+			ASSERT(!hasNan());
+			return *this;
+		}
 
 		T& operator[](int i) {
 			ASSERT(i >= 0 && i <= 3);
@@ -367,18 +367,12 @@ namespace Xitils {
 		_V operator/(T val) const {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			_V res;
-			simdpp::store_u(&res, simdpp::mul(val1, val2));
-			return std::move(res);
+			return *this * inv;
 		}
 		_V& operator /=(T val) {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
-			auto val1 = simdpp::load_u<T_SIMD>(this);
-			auto val2 = simdpp::load_splat<T_SIMD>(&inv);
-			simdpp::store_u(this, simdpp::mul(val1, val2));
+			*this *= inv;
 			return *this;
 		}
 
