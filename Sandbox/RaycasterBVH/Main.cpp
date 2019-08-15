@@ -63,7 +63,7 @@ void MyApp::onSetup(MyFrameData* frameData) {
 		triPointers[i] = &tris[i];
 	}
 
-	bvh = std::make_shared<BVH<Triangle*>>(triPointers, [](const Triangle* tri) { return getAABB(*tri); });
+	bvh = std::make_shared<BVH<Triangle*>>(triPointers, [](const Triangle* tri) { return getBoudingBox(*tri); });
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();

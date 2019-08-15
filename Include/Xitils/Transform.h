@@ -62,12 +62,10 @@ namespace Xitils {
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> operator()(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			const auto a* = mat;
-			const T* b = v.data();
-			T xp = a[0][0] * b[0] + a[0][1] * b[1] + a[0][2] * b[2] + a[0][3];
-			T yp = a[1][0] * b[0] + a[1][1] * b[1] + a[1][2] * b[2] + a[1][3];
-			T zp = a[2][0] * b[0] + a[2][1] * b[1] + a[2][2] * b[2] + a[2][3];
-			T wp = a[3][0] * b[0] + a[3][1] * b[1] + a[3][2] * b[2] + a[3][3];
+			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3];
+			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3];
+			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3];
+			T wp = mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3];
 			if (wp == 1) {
 				return Vector3<T>(xp, yp, zp);
 			} else {
@@ -76,30 +74,24 @@ namespace Xitils {
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> operator()(const Vector4<T, T_SIMD, T_SIMDMASK>& v) const {
-			const auto a* = mat;
-			const T* b = v.data();
-			T xp = a[0][0] * b[0] + a[0][1] * b[1] + a[0][2] * b[2] + a[0][3] * b[3];
-			T yp = a[1][0] * b[0] + a[1][1] * b[1] + a[1][2] * b[2] + a[1][3] * b[3];
-			T zp = a[2][0] * b[0] + a[2][1] * b[1] + a[2][2] * b[2] + a[2][3] * b[3];
-			T wp = a[3][0] * b[0] + a[3][1] * b[1] + a[3][2] * b[2] + a[3][3] * b[3];
+			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3] * v[3];
+			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3] * v[3];
+			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3] * v[3];
+			T wp = mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3] * v[3];
 			return Vector4<T>(xp, yp, zp, wp);
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asVector(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			const auto a* = mat;
-			const T* b = v.data();
-			T xp = a[0][0] * b[0] + a[0][1] * b[1] + a[0][2] * b[2];
-			T yp = a[1][0] * b[0] + a[1][1] * b[1] + a[1][2] * b[2];
-			T zp = a[2][0] * b[0] + a[2][1] * b[1] + a[2][2] * b[2];
+			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2];
+			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2];
+			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2];
 			return Vector3<T>(xp, yp, zp);
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormal(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			const auto a* = matInv;
-			const T* b = v.data();
-			T xp = a[0][0] * b[0] + a[0][1] * b[1] + a[0][2] * b[2];
-			T yp = a[1][0] * b[0] + a[1][1] * b[1] + a[1][2] * b[2];
-			T zp = a[2][0] * b[0] + a[2][1] * b[1] + a[2][2] * b[2];
+			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2];
+			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2];
+			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2];
 			return Vector3<T>(xp, yp, zp);
 		}
 

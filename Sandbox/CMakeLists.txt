@@ -14,6 +14,7 @@ add_library(Xitils INTERFACE)
 target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/AccelerationStructure.h
 	${XITILS_INCLUDE_DIR}/Xitils/App.h
+	${XITILS_INCLUDE_DIR}/Xitils/Bounds.h
 	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
 	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
 	${XITILS_INCLUDE_DIR}/Xitils/Ray.h

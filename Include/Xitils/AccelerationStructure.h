@@ -53,7 +53,7 @@ namespace Xitils::Geometry {
 		~BVHNode() {
 		}
 		int depth;
-		AABB aabb;
+		Bounds3f aabb;
 		BVHNode<T>* parent;
 		int localIndex; // 自身の親に対する子の中でのインデックス
 		std::optional<T> object;
@@ -150,9 +150,9 @@ namespace Xitils::Geometry {
 	template <typename T>
 	class BVH : public AccelerationStructure<T> {
 	public:
-		using AABBObj = std::pair<AABB, T>;
+		using AABBObj = std::pair<Bounds3f, T>;
 
-		BVH(const std::vector<T>& objects, std::function<AABB(const T&)> calcAABB) : calcAABB(calcAABB) {
+		BVH(const std::vector<T>& objects, std::function<Bounds3f(const T&)> calcAABB) : calcAABB(calcAABB) {
 			std::vector<AABBObj> aabbObjects;
 			aabbObjects.reserve(objects.size());
 			for (auto& obj : objects) { aabbObjects.push_back(std::make_pair(calcAABB(obj), obj)); }
@@ -178,15 +178,15 @@ namespace Xitils::Geometry {
 		BVHNode<T>* nodeRoot;
 		BVHNode<T>* nodes;
 		int nodeCount = 0;
-		std::function<AABB(const T&)> calcAABB;
+		std::function<Bounds3f(const T&)> calcAABB;
 
-		void buildBVH(typename std::vector<AABBObj>::iterator begin, const typename std::vector<AABBObj>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<AABB> aabb = std::nullopt) {
+		void buildBVH(typename std::vector<AABBObj>::iterator begin, const typename std::vector<AABBObj>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
 
 			if (depth == 0) {
 				auto getAABB = [](const std::vector<AABBObj>::const_iterator& begin, const std::vector<AABBObj>::const_iterator& end) {
-					AABB aabb = begin->first;
+					Bounds3f aabb = begin->first;
 					for (auto it = begin; it != end; it++) {
-						aabb |= it->first;
+						aabb = merge(aabb, it->first);
 					}
 					return std::move(aabb);
 				};
@@ -201,12 +201,12 @@ namespace Xitils::Geometry {
 			}
 
 			int bestIndex;
-			AABB bestAABB1, bestAABB2;
+			Bounds3f bestAABB1, bestAABB2;
 			{
 				int bestAxis = -1;
 				float bestSAH;
-				AABB aabb1;
-				std::vector<AABB> aabb2;
+				Bounds3f aabb1;
+				std::vector<Bounds3f> aabb2;
 				const int objNum = (int)(end - begin);
 
 				std::vector<AABBObj> xSortedObjs(begin, end);
@@ -224,7 +224,7 @@ namespace Xitils::Geometry {
 					return (a.first.min.z + a.first.max.z) < (b.first.min.z + b.first.max.z);
 					});
 
-				auto A = [](const AABB& aabb) {
+				auto A = [](const Bounds3f& aabb) {
 					auto size = aabb.max - aabb.min;
 					return 2.0f * (size.x * size.y + size.y * size.z + size.z * size.x);
 					//if ( size.x < size.y && size.x < size.z ) {
@@ -235,7 +235,7 @@ namespace Xitils::Geometry {
 					//}
 					//return size.x * size.y;
 				};
-				auto calcSAH = [&A](const AABB& aabb, const AABB& aabb1, const AABB& aabb2, int objNum1, int objNum2) {
+				auto calcSAH = [&A](const Bounds3f& aabb, const Bounds3f& aabb1, const Bounds3f& aabb2, int objNum1, int objNum2) {
 					const float T_AABB = 1.0f;
 					//const float T_tri = 1.0f;
 					//float A_S = A(aabb);
@@ -247,9 +247,9 @@ namespace Xitils::Geometry {
 
 				aabb1 = calcAABB(xSortedObjs[0].second);
 				aabb2.push_back(xSortedObjs.rbegin()->first);
-				for (auto it = xSortedObjs.rbegin() + 1; it != xSortedObjs.rend() - 1; it++) { aabb2.push_back(aabb2[aabb2.size() - 1] | it->first); }
+				for (auto it = xSortedObjs.rbegin() + 1; it != xSortedObjs.rend() - 1; it++) { aabb2.push_back(merge(aabb2[aabb2.size() - 1], it->first)); }
 				for (int i = 1; i < xSortedObjs.size(); i++) {
-					aabb1 |= xSortedObjs[i].first;
+					aabb1 = merge(aabb1, xSortedObjs[i].first);
 					float sah = calcSAH(*aabb, aabb1, aabb2[aabb2.size() - i], i, objNum - i);
 					if (bestAxis == -1 || sah < bestSAH) {
 						bestAxis = 0;
@@ -263,9 +263,9 @@ namespace Xitils::Geometry {
 
 				aabb1 = calcAABB(ySortedObjs[0].second);
 				aabb2.push_back(ySortedObjs.rbegin()->first);
-				for (auto it = ySortedObjs.rbegin() + 1; it != ySortedObjs.rend() - 1; it++) { aabb2.push_back(aabb2[aabb2.size() - 1] | it->first); }
+				for (auto it = ySortedObjs.rbegin() + 1; it != ySortedObjs.rend() - 1; it++) { aabb2.push_back(merge(aabb2[aabb2.size() - 1], it->first)); }
 				for (int i = 1; i < ySortedObjs.size(); i++) {
-					aabb1 |= ySortedObjs[i].first;
+					aabb1 = merge(aabb1, ySortedObjs[i].first);
 					float sah = calcSAH(*aabb, aabb1, aabb2[aabb2.size() - i], i, objNum - i);
 					if (bestAxis == -1 || sah < bestSAH) {
 						bestAxis = 1;
@@ -279,9 +279,9 @@ namespace Xitils::Geometry {
 
 				aabb1 = calcAABB(zSortedObjs[0].second);
 				aabb2.push_back(zSortedObjs.rbegin()->first);
-				for (auto it = zSortedObjs.rbegin() + 1; it != zSortedObjs.rend() - 1; it++) { aabb2.push_back(aabb2[aabb2.size() - 1] | it->first); }
+				for (auto it = zSortedObjs.rbegin() + 1; it != zSortedObjs.rend() - 1; it++) { aabb2.push_back(merge(aabb2[aabb2.size() - 1], it->first)); }
 				for (int i = 1; i < zSortedObjs.size(); i++) {
-					aabb1 |= zSortedObjs[i].first;
+					aabb1 = merge(aabb1, zSortedObjs[i].first);
 					float sah = calcSAH(*aabb, aabb1, aabb2[aabb2.size() - i], i, objNum - i);
 					if (bestAxis == -1 || sah < bestSAH) {
 						bestAxis = 2;

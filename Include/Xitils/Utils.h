@@ -69,11 +69,11 @@ namespace Xitils {
 		}
 	}
 
-	template <typename A> A interpolate(A x, A y, float t) {
+	template <typename A> A lerp(A x, A y, float t) {
 		return (1.0f - t) * x + t * y;
 	}
 
-	template <typename A> A interpolate(A x, A y, A z, float t1, float t2) {
+	template <typename A> A lerp(A x, A y, A z, float t1, float t2) {
 		return t1 * x + t2 * y + (1.0f - t1 - t2) * z;
 	}
 

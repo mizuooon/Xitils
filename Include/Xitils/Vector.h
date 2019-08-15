@@ -31,7 +31,13 @@ namespace Xitils {
 			return *this;
 		}
 
-		T& operator[](int i) const {
+		const T& operator[](int i) const {
+			ASSERT(i >= 0 && i <= 1);
+			if (i == 0) { return x; }
+			return y;
+		}
+
+		T& operator[](int i) {
 			ASSERT(i >= 0 && i <= 1);
 			if (i == 0) { return x; }
 			return y;
@@ -45,9 +51,6 @@ namespace Xitils {
 			_V res;
 			simdpp::store_u(&res, simdpp::add(val1, val2));
 			return std::move(res);
-
-			glm::mat4x4 a;
-			a.value
 		}
 		_V& operator+=(const _V& v) {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
@@ -169,6 +172,13 @@ namespace Xitils {
 			x = v.x; y = v.y; z = v.z;
 			ASSERT(!hasNan());
 			return *this;
+		}
+
+		const T& operator[](int i) const {
+			ASSERT(i >= 0 && i <= 2);
+			if (i == 0) { return x; }
+			if (i == 1) { return y; }
+			return z;
 		}
 
 		T& operator[](int i) {
@@ -317,7 +327,7 @@ namespace Xitils {
 			return *this;
 		}
 
-		T& operator[](int i) {
+		const T& operator[](int i) const {
 			ASSERT(i >= 0 && i <= 3);
 			if (i == 0) { return x; }
 			if (i == 1) { return y; }
@@ -325,7 +335,13 @@ namespace Xitils {
 			return w;
 		}
 
-		T* data() const { return &x; }
+		T& operator[](int i) {
+			ASSERT(i >= 0 && i <= 3);
+			if (i == 0) { return x; }
+			if (i == 1) { return y; }
+			if (i == 2) { return z; }
+			return w;
+		}
 
 		_V operator+(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
@@ -449,7 +465,7 @@ namespace Xitils {
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	using Vector2f = Vector2<float, simdpp::float32x4, simdpp::float32x4>;
+	using Vector2f = Vector2<float, simdpp::float32x4, simdpp::mask_float32x4>;
 	using Vector2i = Vector2<int, simdpp::int32x4, simdpp::mask_int32x4>;
 
 	using Vector3f = Vector3<float, simdpp::float32x4, simdpp::mask_float32x4>;
@@ -462,7 +478,9 @@ namespace Xitils {
 
 	// min, max など一部の関数はテンプレートとして一般のクラスに対して既に定義されているが、
 	// Vector 系のクラスを渡す際には以下で定義した関数群が優先的に使用される。
-	// このオーバーロードと Vector 系クラスのテンプレート化を併用させるため、やや冗長な書き方になっている。
+	// このオーバーロードを行うために Vector2/3/4 ごとに関数のインタフェースを定義しつつ
+	// その実体は Vector 系クラス間で使い回せるようテンプレート化しているので
+	// やや冗長な書き方になっている。
 
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> operator*(T val, const Vector2<T, T_SIMD, T_SIMDMASK>& v) { return v * val; }
@@ -591,9 +609,9 @@ namespace Xitils {
 		simdpp::store_u(&res, simdpp::fmadd(val1, simdpp::splat(1.0f - t), simdpp::mul(val2, simdpp::splat(t))));
 		return std::move(res);
 	}
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> interpolate(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> interpolate(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> interpolate(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
 
 	template <typename V> inline V _interpolate3(const V& v1, const V& v2, const V& v3, float t1, float t2) {
 		auto val1 = simdpp::load_u<V::_T_SIMD>(&v1);
@@ -607,8 +625,8 @@ namespace Xitils {
 			);
 		return std::move(res);
 	}
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> interpolate(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector2<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> interpolate(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, const Vector3<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> interpolate(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector2<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, const Vector3<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
 
 }

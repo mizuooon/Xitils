@@ -55,7 +55,7 @@ void MyApp::onSetup(MyFrameData* frameData) {
 		mesh->getTriangleVertices(i, (glm::vec3*)&tri.p[0], (glm::vec3*) &tri.p[1], (glm::vec3*) &tri.p[2]);
 	}
 	
-	bvh = std::make_shared<BVH<Triangle>>(tris, [](const Triangle& tri) { return getAABB(tri); });
+	bvh = std::make_shared<BVH<Triangle>>(tris, [](const Triangle& tri) { return getBoudingBox(tri); });
 
 	ui::initialize();
 }

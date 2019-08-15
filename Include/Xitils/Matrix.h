@@ -91,12 +91,17 @@ namespace Xitils {
 				}
 		{}
 
+		inline const float* operator[](int i) const {
+			ASSERT(i >= 0 && i < 4);
+			return m[i];
+		}
+
 		inline float* operator[](int i) {
 			ASSERT(i >= 0 && i < 4);
 			return m[i];
 		}
 
-		inline float* data() { return &m[0][0][0][0]; }
+		inline float* data() { return m[0]; }
 
 		Matrix4x4 operator+(const Matrix4x4& mat) const {
 			const auto a = m;

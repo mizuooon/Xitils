@@ -6,32 +6,9 @@
 
 #include "Utils.h"
 #include "Vector.h"
+#include "Bounds.h"
 
 namespace Xitils::Geometry {
-
-	struct AABB {
-		Vector3f min, max;
-
-		AABB() {}
-		inline AABB(const Vector3f& min, const Vector3f& max) : min(min), max(max) {
-			//simdpp::float32<3> x = simdpp::load(&min);
-			//simdpp::float32<3> y = simdpp::load(&max);
-			//simdpp::int32<3> bits = simdpp::bit_cast<simdpp::int32<3>, simdpp::mask_float32<3>>(x > y);
-
-			//ASSERT(simdpp::reduce_or(bits) == 0);
-
-			//ASSERT(min.x <= max.x && min.y <= max.y && min.z <= max.z);
-		}
-
-		inline AABB operator|(const AABB& box) const {
-			return AABB(Xitils::min(min, box.min), Xitils::max(max, box.max));
-		}
-
-		AABB& operator|=(const AABB& box) {
-			*this = *this | box;
-			return *this;
-		}
-	};
 
 	struct Sphere {
 		Vector3f center;
@@ -51,12 +28,12 @@ namespace Xitils::Geometry {
 		Vector3f d;
 	};
 
-	inline AABB getAABB(const Triangle& triangle) {
-		return AABB(min(triangle.p[0], triangle.p[1], triangle.p[2]), max(triangle.p[0], triangle.p[1], triangle.p[2]));
+	inline Bounds3f getBoudingBox(const Triangle& triangle) {
+		return Bounds3f(triangle.p[0], triangle.p[1], triangle.p[2]);
 	}
 
-	inline AABB getAABB(const Sphere& sphere) {
-		return AABB(
+	inline Bounds3f getBoudingBox(const Sphere& sphere) {
+		return Bounds3f(
 			sphere.center - Vector3f(sphere.radius, sphere.radius, sphere.radius),
 			sphere.center + Vector3f(sphere.radius, sphere.radius, sphere.radius)
 		);
@@ -69,7 +46,7 @@ namespace Xitils::Geometry {
 			struct Intersection {
 			};
 
-			inline std::optional<Intersection> getIntersection(const Vector3f& p, const AABB& aabb) {
+			inline std::optional<Intersection> getIntersection(const Vector3f& p, const Bounds3f& aabb) {
 				if (inRange(p.x, aabb.min.x, aabb.max.x) &&
 					inRange(p.y, aabb.min.y, aabb.max.y) &&
 					inRange(p.z, aabb.min.z, aabb.max.z)) {
@@ -84,7 +61,7 @@ namespace Xitils::Geometry {
 			struct Intersection {
 			};
 
-			inline std::optional<Intersection> getIntersection(const AABB& aabb1, const AABB& aabb2) {
+			inline std::optional<Intersection> getIntersection(const Bounds3f& aabb1, const Bounds3f& aabb2) {
 
 				if (inRange(aabb1.min.x, aabb2.min.x, aabb2.max.x) &&
 					inRange(aabb1.min.y, aabb2.min.y, aabb2.max.y) &&
@@ -119,7 +96,7 @@ namespace Xitils::Geometry {
 				IgnoreBack = 0b0001
 			};
 
-			inline std::optional<Intersection> getIntersection(const Ray& ray, const AABB& aabb, Option opt = None) {
+			inline std::optional<Intersection> getIntersection(const Ray& ray, const Bounds3f& aabb, Option opt = None) {
 
 				const auto& o = ray.o;
 				const auto& d = ray.d;
