@@ -8,16 +8,34 @@ find_library(lib_cinder_imgui NAMES cinder_imgui)
 
 project(XitilsSandbox)
 
+set(XITILS_INCLUDE_DIR ${CMAKE_SOURCE_DIR}../../Include)
+
+add_library(Xitils INTERFACE)
+target_sources(Xitils INTERFACE
+	${XITILS_INCLUDE_DIR}/Xitils/AccelerationStructure.h
+	${XITILS_INCLUDE_DIR}/Xitils/App.h
+	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
+	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
+	${XITILS_INCLUDE_DIR}/Xitils/Ray.h
+	${XITILS_INCLUDE_DIR}/Xitils/Transform.h
+	${XITILS_INCLUDE_DIR}/Xitils/Utils.h
+	${XITILS_INCLUDE_DIR}/Xitils/Vector.h
+	)
+target_include_directories(Xitils
+	INTERFACE ${XITILS_INCLUDE_DIR}
+	)
+
 function(add_sandbox TargetName)
 	add_executable(${TargetName} ${ARGN})
 	target_link_libraries(${TargetName}
+		Xitils
 		debug ${lib_cinderd}
 		debug ${lib_cinder_imguid}
 		optimized ${lib_cinder}
 		optimized ${lib_cinder_imgui}
 		)
 	target_include_directories(${TargetName}
-		PRIVATE ../../Include
+		PRIVATE ${XITILS_INCLUDE_DIR}
 		)
 	#set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${TargetName})
 	
@@ -37,7 +55,6 @@ set(CMAKE_CXX_FLAGS "/openmp")
 add_definitions(-D_UNICODE)
 add_definitions(-DNOMINMAX)
 add_definitions(/MP)
-
 
 add_subdirectory(SimpleWindow)
 add_subdirectory(RaycasterNaive)

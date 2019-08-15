@@ -37,6 +37,8 @@ namespace Xitils {
 			return y;
 		}
 
+		T* data() const { return &x; }
+
 		_V operator+(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
@@ -175,6 +177,8 @@ namespace Xitils {
 			if (i == 1) { return y; }
 			return z;
 		}
+
+		T* data() const { return &x; }
 
 		_V operator+(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
@@ -320,6 +324,8 @@ namespace Xitils {
 			if (i == 2) { return z; }
 			return w;
 		}
+
+		T* data() const { return &x; }
 
 		_V operator+(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);

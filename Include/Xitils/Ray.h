@@ -12,23 +12,23 @@ namespace Xitils {
 	class Ray {
 	public:
 
-		Ray():
-			tMax(Infinity),
-			depth(0)
-		{}
-
-		Ray(const Vector3f& o, const Vector3f& d, int depth = 0):
-			o(o), d(d), depth(depth)
-		{}
-
-		Vector3f operator() const {
-			return o + d * t;
-		}
-
-		float tMax;
-		int depth;
 		Vector3f o;
 		Vector3f d;
+		int depth;
+		float tMax;
+
+		Ray():
+			depth(0),
+			tMax(Infinity)
+		{}
+
+		Ray(const Vector3f& o, const Vector3f& d, int depth = 0, float tMax = Infinity):
+			o(o), d(d), depth(depth), tMax(tMax)
+		{}
+
+		Vector3f operator()(float t) const {
+			return o + d * t;
+		}
 
 	};
 
