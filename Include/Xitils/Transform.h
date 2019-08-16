@@ -63,49 +63,111 @@ namespace Xitils {
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> operator()(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3];
-			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3];
-			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3];
-			T wp = mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3];
+			const auto& m = mat;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
+			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
 			if (wp == 1) {
-				return Vector3<T>(xp, yp, zp);
+				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
 			} else {
-				return Vector3<T>(xp, yp, zp) / wp;
+				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp) / wp;
 			}
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> operator()(const Vector4<T, T_SIMD, T_SIMDMASK>& v) const {
-			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3] * v[3];
-			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3] * v[3];
-			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3] * v[3];
-			T wp = mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3] * v[3];
-			return Vector4<T>(xp, yp, zp, wp);
+			const auto& m = mat;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
+			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
+			return Vector4<T, T_SIMD, T_SIMDMASK>(xp, yp, zp, wp);
+		}
+
+		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> inverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+			const auto& m = matInv;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
+			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
+			if (wp == 1) {
+				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+			} else {
+				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp) / wp;
+			}
+		}
+
+		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> inverse(const Vector4<T, T_SIMD, T_SIMDMASK>& v) const {
+			const auto& m = matInv;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
+			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
+			return Vector4<T, T_SIMD, T_SIMDMASK>(xp, yp, zp, wp);
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asVector(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2];
-			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2];
-			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2];
-			return Vector3<T>(xp, yp, zp);
+			const auto& m = mat;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+		}
+
+		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asVectorInverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+			const auto& m = matInv;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormal(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
-			T xp = mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2];
-			T yp = mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2];
-			T zp = mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2];
-			return Vector3<T>(xp, yp, zp);
+			const auto& m = mat;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+		}
+
+		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormalInverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+			const auto& m = matInv;
+			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
 		}
 
 		Ray operator()(const Ray& r) const {
 			return Ray( (*this)(r.o), asVector(r.d), r.depth, r.tMax );
 		}
 
+		Ray inverse(const Ray& r) const {
+			return Ray(inverse(r.o), asVectorInverse(r.d), r.depth, r.tMax);
+		}
+
 		Bounds3f operator()(const Bounds3f& b) const {
+			const auto& m = mat;
 			Vector3f size = b.size();
 			Vector3f translatedMin = (*this)(b.min);
-			Vector3f translatedBasisX = Vector3f(mat.m[0][0], mat.m[1][0], mat.m[2][0]);
-			Vector3f translatedBasisY = Vector3f(mat.m[0][1], mat.m[1][1], mat.m[2][1]);
-			Vector3f translatedBasisZ = Vector3f(mat.m[0][2], mat.m[1][2], mat.m[2][2]);
+			Vector3f translatedBasisX = Vector3f(m.m[0][0], m.m[1][0], m.m[2][0]);
+			Vector3f translatedBasisY = Vector3f(m.m[0][1], m.m[1][1], m.m[2][1]);
+			Vector3f translatedBasisZ = Vector3f(m.m[0][2], m.m[1][2], m.m[2][2]);
+
+			Bounds3f res(translatedMin);
+			res = merge(res, translatedMin + translatedBasisX * size.x);
+			res = merge(res, translatedMin + translatedBasisY * size.y);
+			res = merge(res, translatedMin + translatedBasisZ * size.z);
+			return res;
+		}
+
+		Bounds3f inverse(const Bounds3f& b) const {
+			const auto& m = matInv;
+			Vector3f size = b.size();
+			Vector3f translatedMin = (*this)(b.min);
+			Vector3f translatedBasisX = Vector3f(m.m[0][0], m.m[1][0], m.m[2][0]);
+			Vector3f translatedBasisY = Vector3f(m.m[0][1], m.m[1][1], m.m[2][1]);
+			Vector3f translatedBasisZ = Vector3f(m.m[0][2], m.m[1][2], m.m[2][2]);
 
 			Bounds3f res(translatedMin);
 			res = merge(res, translatedMin + translatedBasisX * size.x);
@@ -127,6 +189,10 @@ namespace Xitils {
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	Transform transpose(const Transform& t) {
+		return Transform(transpose(t.mat), transpose(t.matInv));
+	}
+
+	Transform inverse(const Transform& t) {
 		return Transform(t.matInv, t.mat);
 	}
 

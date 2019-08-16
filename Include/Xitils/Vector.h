@@ -512,6 +512,7 @@ namespace Xitils {
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> T dot(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2) { return _dot(v1, v2); }
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> cross(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2) {
+
 		simdpp::float64x4 val1 = simdpp::to_float64(simdpp::load_u<T_SIMD>(&v1));
 		simdpp::float64x4 val2 = simdpp::to_float64(simdpp::load_u<T_SIMD>(&v2));
 
@@ -583,37 +584,37 @@ namespace Xitils {
 
 
 	template <typename V> inline V _clamp(const V& v, typename V::_T minVal, typename V::_T maxVal) {
-		auto val1 = simdpp::load_u<V::_T_SIMD>(&v1);
+		auto val1 = simdpp::load_u<V::_T_SIMD>(&v);
 		auto val2 = simdpp::load_splat<V::_T_SIMD>(&minVal);
 		auto val3 = simdpp::load_splat<V::_T_SIMD>(&maxVal);
-		val1 = simdpp::blend(val1, val2, simdpp::cmp_lt(val1, val2));
-		val1 = simdpp::blend(val1, val3, simdpp::cmp_gt(val1, val3));
+		val1 = simdpp::blend(val1, val2, simdpp::cmp_gt(val1, val2));
+		val1 = simdpp::blend(val1, val3, simdpp::cmp_lt(val1, val3));
 		val1 = simdpp::insert<3, 4>(val1, 0);
 		V res;
 		simdpp::store_u(&res, val1);
 		return std::move(res);
 	}
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp(const Vector2<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp_vec(v, minVal, maxVal); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp(const Vector3<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp_vec(v, minVal, maxVal); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp(const Vector4<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp_vec(v, minVal, maxVal); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> clamp(const Vector2<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp(v, minVal, maxVal); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> clamp(const Vector3<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp(v, minVal, maxVal); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> clamp(const Vector4<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _clamp(v, minVal, maxVal); }
 
 	template <typename V> inline V _clamp01(const V& v) { return _clamp(v, (typename V::_T)0, (typename V::_T)1); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp01(const Vector2<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01_vec(v); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp01(const Vector3<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01_vec(v); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool clamp01(const Vector4<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01_vec(v); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> clamp01(const Vector2<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01(v); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> clamp01(const Vector3<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01(v); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> clamp01(const Vector4<T, T_SIMD, T_SIMDMASK>& v) { return _clamp01(v); }
 
-	template <typename V> inline V _interpolate2(const V& v1, const V& v2, float t) {
+	template <typename V> inline V _lerp2(const V& v1, const V& v2, float t) {
 		auto val1 = simdpp::load_u<V::_T_SIMD>(&v1);
 		auto val2 = simdpp::load_u<V::_T_SIMD>(&v2);
 		V res;
 		simdpp::store_u(&res, simdpp::fmadd(val1, simdpp::splat(1.0f - t), simdpp::mul(val2, simdpp::splat(t))));
 		return std::move(res);
 	}
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _interpolate2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _lerp2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _lerp2(v1, v2, t); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, float t) { return _lerp2(v1, v2, t); }
 
-	template <typename V> inline V _interpolate3(const V& v1, const V& v2, const V& v3, float t1, float t2) {
+	template <typename V> inline V _lerp3(const V& v1, const V& v2, const V& v3, float t1, float t2) {
 		auto val1 = simdpp::load_u<V::_T_SIMD>(&v1);
 		auto val2 = simdpp::load_u<V::_T_SIMD>(&v2);
 		auto val3 = simdpp::load_u<V::_T_SIMD>(&v3);
@@ -625,8 +626,8 @@ namespace Xitils {
 			);
 		return std::move(res);
 	}
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector2<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, const Vector3<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
-	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _interpolate3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector2<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, const Vector3<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, t1, t2); }
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, t1, t2); }
 
 }

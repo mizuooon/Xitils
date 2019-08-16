@@ -22,6 +22,7 @@ class MyApp : public Xitils::App::XApp<MyFrameData> {
 public:
 	void onSetup(MyFrameData* frameData) override;
 	void onUpdate(MyFrameData* frameData) override;
+	void onCleanup(MyFrameData* frameData) override;
 	void onDraw(const MyFrameData& frameData) override;
 
 private:
@@ -30,8 +31,8 @@ private:
 	gl::TextureRef texture;
 
 	std::shared_ptr<TriMesh> mesh;
-	std::vector<Triangle> tris;
-	std::shared_ptr<BVH<Triangle*>> bvh;
+	std::vector<Shape*> tris;
+	std::shared_ptr<BVH> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
 
@@ -53,20 +54,28 @@ void MyApp::onSetup(MyFrameData* frameData) {
 	teapot->subdivisions(subdivision);
 	mesh = std::make_shared<TriMesh>(*teapot);
 
-	tris.resize(mesh->getNumTriangles());
+	tris.reserve(mesh->getNumTriangles());
 	for (int i = 0; i < mesh->getNumTriangles(); ++i) {
-		auto& tri = tris[i];
-		mesh->getTriangleVertices(i, (glm::vec3*)&tri.p[0], (glm::vec3*) &tri.p[1], (glm::vec3*) &tri.p[2]);
-	}
-	std::vector<Triangle*> triPointers(mesh->getNumTriangles());
-	for (int i = 0; i < mesh->getNumTriangles(); ++i) {
-		triPointers[i] = &tris[i];
+		Triangle* tri = new Triangle(Matrix4x4());
+		glm::vec3 p0, p1, p2;
+		mesh->getTriangleVertices(i, &p0, &p2, &p1); // ŽžŒv‰ñ‚è‚É’¼‚·
+		tri->p[0] = Vector3f(p0);
+		tri->p[1] = Vector3f(p1);
+		tri->p[2] = Vector3f(p2);
+
+		tris.push_back(tri);
 	}
 
-	bvh = std::make_shared<BVH<Triangle*>>(triPointers, [](const Triangle* tri) { return getBoudingBox(*tri); });
+	bvh = std::make_shared<BVH>(tris);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+}
+
+void MyApp::onCleanup(MyFrameData* frameData) {
+	for(auto tri : tris) {
+		delete tri;
+	}
 }
 
 void MyApp::onUpdate(MyFrameData* frameData) {
@@ -88,22 +97,17 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			float nx = (float) x / frameData->surface.getWidth();
 			float ny = (float) y / frameData->surface.getHeight();
 
-			Xitils::Geometry::Ray ray;
-			ray.o = Vector3f( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, -100 );
-			ray.d =  normalize(Vector3f(0,0,1));
+			Xitils::Ray ray;
+			ray.o = Vector3f( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, 100 );
+			ray.d = normalize(Vector3f(0,0,-1));
 			
-			std::optional<Intersection::RayTriangle::Intersection> intersection;
+			SurfaceInteraction isect;
 
-			for (auto it = bvh->traverse(ray); !it->end(); it->next()) {
-				auto tmpIntsct = Intersection::RayTriangle::getIntersection(ray, ***it);
-				if (tmpIntsct && (!intersection || tmpIntsct->t < intersection->t)) {
-					intersection = tmpIntsct;
-				}
-			}
-
-			if (intersection) {
+			if (bvh->intersect(ray, &isect)) {
 				Vector3f dLight = normalize(Vector3f(1, 1, -1));
-				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(intersection->n, dLight));
+				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.n, dLight));
+				color = clamp01(isect.n * 0.5f + Vector3f(0.5f));
+				color = clamp01(isect.n);
 			}
 
 			ColorA8u colA8u;

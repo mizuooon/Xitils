@@ -26,6 +26,13 @@ namespace Xitils {
 			o(o), d(d), depth(depth), tMax(tMax)
 		{}
 
+		Ray(const Ray& ray) :
+			o(ray.o),
+			d(ray.d),
+			depth(ray.depth),
+			tMax(ray.tMax)
+		{}
+
 		Vector3f operator()(float t) const {
 			return o + d * t;
 		}

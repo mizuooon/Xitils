@@ -6,6 +6,7 @@
 
 #include "Utils.h"
 #include "Vector.h"
+#include "Ray.h"
 
 namespace Xitils {
 
@@ -126,9 +127,10 @@ namespace Xitils {
 				);
 		}
 
-		_B expand(const _B& b, T delta) {
+		_B& expand(T delta) {
 			min -= _V(delta, delta, delta);
 			max += _V(delta, delta, delta);
+			return *this;
 		}
 
 		_V size() const {
@@ -165,6 +167,23 @@ namespace Xitils {
 			if (max.y > min.y) { q.y /= max.y - min.y; }
 			if (max.z > min.z) { q.z /= max.z - min.z; }
 			return q;
+		}
+
+		bool intersect(const Ray& ray, float* hitt1, float* hitt2) const {
+			float t1 = 0;
+			float t2 = ray.tMax;
+			for (int i = 0; i < 3; ++i) {
+				float invD = 1.0f / ray.d[i];
+				float tNear = (min[i] - ray.o[i]) * invD;
+				float tFar  = (max[i] - ray.o[i]) * invD;
+				if (tNear > tFar) { std::swap(tNear, tFar); }
+				t1 = tNear > t1 ? tNear : t1;
+				t2 = tFar < t2 ? tFar : t2;
+				if (t1 > t2) { return false; }
+			}
+			if (hitt1) { *hitt1 = t1; }
+			if (hitt2) { *hitt2 = t1; }
+			return true;
 		}
 
 	};

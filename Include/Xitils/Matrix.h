@@ -68,8 +68,8 @@ namespace Xitils {
 		}
 
 		Matrix4x4& operator=(const Matrix4x4& mat) {
-			auto a = m;
-			const auto b = mat.m;
+			auto& a = m;
+			const auto& b = mat.m;
 			a[0][0] = b[0][0]; a[0][1] = b[0][1]; a[0][2] = b[0][2]; a[0][3] = b[0][3];
 			a[1][0] = b[1][0]; a[1][1] = b[1][1]; a[1][2] = b[1][2]; a[1][3] = b[1][3];
 			a[2][0] = b[2][0]; a[2][1] = b[2][1]; a[2][2] = b[2][2]; a[2][3] = b[2][3];
@@ -104,8 +104,8 @@ namespace Xitils {
 		inline float* data() { return m[0]; }
 
 		Matrix4x4 operator+(const Matrix4x4& mat) const {
-			const auto a = m;
-			const auto b = mat.m;
+			const auto& a = m;
+			const auto& b = mat.m;
 			return Matrix4x4(
 				a[0][0] + b[0][0], a[0][1] + b[0][1], a[0][2] + b[0][2], a[0][3] + b[0][3],
 				a[1][0] + b[1][0], a[1][1] + b[1][1], a[1][2] + b[1][2], a[1][3] + b[1][3],
@@ -115,8 +115,8 @@ namespace Xitils {
 		}
 
 		Matrix4x4& operator+=(const Matrix4x4& mat) {
-			auto a = m;
-			const auto b = mat.m;
+			auto& a = m;
+			const auto& b = mat.m;
 			a[0][0] += b[0][0]; a[0][1] += b[0][1]; a[0][2] += b[0][2]; a[0][3] += b[0][3];
 			a[1][0] += b[1][0]; a[1][1] += b[1][1]; a[1][2] += b[1][2]; a[1][3] += b[1][3];
 			a[2][0] += b[2][0]; a[2][1] += b[2][1]; a[2][2] += b[2][2]; a[2][3] += b[2][3];
@@ -125,8 +125,8 @@ namespace Xitils {
 		}
 
 		Matrix4x4 operator-(const Matrix4x4& mat) const {
-			const auto a = m;
-			const auto b = mat.m;
+			const auto& a = m;
+			const auto& b = mat.m;
 			return Matrix4x4(
 				a[0][0] - b[0][0], a[0][1] - b[0][1], a[0][2] - b[0][2], a[0][3] - b[0][3],
 				a[1][0] - b[1][0], a[1][1] - b[1][1], a[1][2] - b[1][2], a[1][3] - b[1][3],
@@ -135,8 +135,8 @@ namespace Xitils {
 			);
 		}
 		Matrix4x4& operator-=(const Matrix4x4& mat) {
-			auto a = m;
-			const auto b = mat.m;
+			auto& a = m;
+			const auto& b = mat.m;
 			a[0][0] -= b[0][0];  a[0][1] -= b[0][1];  a[0][2] -= b[0][2];  a[0][3]  -= b[0][3];
 			a[1][0] -= b[1][0];  a[1][1] -= b[1][1];  a[1][2] -= b[1][2];  a[1][3]  -= b[1][3];
 			a[2][0] -= b[2][0];  a[2][1] -= b[2][1];  a[2][2] -= b[2][2];  a[2][3] -= b[2][3];
@@ -186,8 +186,8 @@ namespace Xitils {
 		}
 
 		Matrix4x4 operator*(const Matrix4x4& mat) const {
-			const auto a = m;
-			const auto b = mat.m;
+			const auto& a = m;
+			const auto& b = mat.m;
 			return Matrix4x4(
 				a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0] + a[0][3] * b[3][0],   a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1] + a[0][3] * b[3][1],   a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2] + a[0][3] * b[3][2],   a[0][0] * b[0][3] + a[0][1] * b[1][3] + a[0][2] * b[2][3] + a[0][3] * b[3][3],
 				a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0] + a[1][3] * b[3][0],   a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1] + a[1][3] * b[3][1],   a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2] + a[1][3] * b[3][2],   a[1][0] * b[0][3] + a[1][1] * b[1][3] + a[1][2] * b[2][3] + a[1][3] * b[3][3],
@@ -196,8 +196,8 @@ namespace Xitils {
 				);
 		}
 		Matrix4x4& operator*=(const Matrix4x4& mat) {
-			auto a = m;
-			const auto b = mat.m;
+			auto& a = m;
+			const auto& b = mat.m;
 				a[0][0] = a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0] + a[0][3] * b[3][0];   a[0][1] = a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1] + a[0][3] * b[3][1];   a[0][2] = a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2] + a[0][3] * b[3][2];   a[0][3] = a[0][0] * b[0][3] + a[0][1] * b[1][3] + a[0][2] * b[2][3] + a[0][3] * b[3][3];
 				a[1][0] = a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0] + a[1][3] * b[3][0];   a[1][1] = a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1] + a[1][3] * b[3][1];   a[1][2] = a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2] + a[1][3] * b[3][2];   a[1][3] = a[1][0] * b[0][3] + a[1][1] * b[1][3] + a[1][2] * b[2][3] + a[1][3] * b[3][3];
 				a[2][0] = a[2][0] * b[0][0] + a[2][1] * b[1][0] + a[2][2] * b[2][0] + a[2][3] * b[3][0];   a[2][1] = a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1] + a[2][3] * b[3][1];   a[2][2] = a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2] + a[2][3] * b[3][2];   a[2][3] = a[2][0] * b[0][3] + a[2][1] * b[1][3] + a[2][2] * b[2][3] + a[2][3] * b[3][3];
@@ -206,8 +206,8 @@ namespace Xitils {
 		}
 
 		Vector4f operator*(const Vector4f& v) const {
-			const auto a = m;
-			const auto b = v.data();
+			const auto& a = m;
+			const auto& b = v;
 			return Vector4f(
 				m[0][0] * b[0] + m[0][1] * b[1] + m[0][2] * b[2] + m[0][3] * b[3],
 				m[1][0] * b[0] + m[1][1] * b[1] + m[1][2] * b[2] + m[1][3] * b[3],
@@ -217,8 +217,8 @@ namespace Xitils {
 		}
 
 		bool operator==(const Matrix4x4& mat) const {
-			auto a = m;
-			const auto b = mat.m;
+			auto& a = m;
+			const auto& b = mat.m;
 			return
 				a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[0][2] == b[0][2] && a[0][3] == b[0][3] &&
 				a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[1][2] == b[1][2] && a[1][3] == b[1][3] &&
