@@ -42,9 +42,9 @@ namespace Xitils {
 	//	typename std::vector<Shape*>::const_iterator iterator;
 	//	typename std::vector<Shape*>::const_iterator end_iterator;
 	//};
-	class NaiveAccelerationStructure : public AccelerationStructure {
+	template <typename T> class _NaiveAccelerationStructure : public AccelerationStructure {
 	public:
-		NaiveAccelerationStructure(const std::vector<Shape*>& shapes) : shapes(shapes) {}
+		_NaiveAccelerationStructure(const std::vector<T*>& shapes) : shapes(shapes) {}
 		//virtual std::unique_ptr<AccelerationStructureIterator> traverse(const Ray& ray) { return std::make_unique<NaiveAccelerationStructureIterator>(shapes); }
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
@@ -61,15 +61,18 @@ namespace Xitils {
 		std::vector<Shape*> shapes;
 	};
 
+	using NaiveAccelerationStructure = _NaiveAccelerationStructure<Shape>;
+	using NaiveAccelerationStructureLocal = _NaiveAccelerationStructure<ShapeLocal>;
 
-	struct BVHNode {
+
+	template <typename T> struct BVHNode {
 		~BVHNode() {
 		}
 		int depth;
 		Bounds3f aabb;
 		BVHNode* parent;
 		int localIndex; // 自身の親に対する子の中でのインデックス
-		Shape* shape;
+		T* shape;
 		BVHNode* children[2];
 
 		// 交差判定用に使用するオブジェクトを返すイテレータではなく
@@ -154,25 +157,25 @@ namespace Xitils {
 	//	std::optional<Ray> ray;
 	//};
 
-	class BVH : public AccelerationStructure {
+	template <typename T> class _BVH : public AccelerationStructure {
 	public:
-		using AABBShape = std::pair<Bounds3f, Shape*>;
+		using AABBShape = std::pair<Bounds3f, T*>;
 
-		BVH(const std::vector<Shape*>& shapes) {
+		_BVH(const std::vector<T*>& shapes) {
 			ASSERT(!shapes.empty());
 			std::vector<AABBShape> aabbShapes;
 			aabbShapes.reserve(shapes.size());
 			for (auto& shape : shapes) { aabbShapes.push_back(std::make_pair(shape->bound(), shape)); }
 
 			int treeDepth = cinder::log2ceil(shapes.size());
-			nodes = (BVHNode*)calloc( pow(2, treeDepth + 1), sizeof(BVHNode));
+			nodes = (BVHNode<T>*)calloc( pow(2, treeDepth + 1), sizeof(BVHNode<T>));
 
 			nodeRoot = &nodes[nodeCount++];
 			nodeRoot->depth = 0;
 			nodeRoot->localIndex = 0;
 			buildBVH(aabbShapes.begin(), aabbShapes.end(), nodeRoot);
 		}
-		~BVH() {
+		~_BVH() {
 			delete nodes;
 		}
 
@@ -190,11 +193,11 @@ namespace Xitils {
 		}
 
 	private:
-		BVHNode* nodeRoot;
-		BVHNode* nodes;
+		BVHNode<T>* nodeRoot;
+		BVHNode<T>* nodes;
 		int nodeCount = 0;
 
-		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode* node) const {
+		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode<T>* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
 			}
@@ -208,7 +211,7 @@ namespace Xitils {
 			return hit0 || hit1;
 		}
 
-		bool intersectBoolSub(const Ray& ray, BVHNode* node) const {
+		bool intersectBoolSub(const Ray& ray, BVHNode<T>* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
 			}
@@ -222,7 +225,7 @@ namespace Xitils {
 			return hit0 || hit1;
 		}
 
-		void buildBVH(typename std::vector<AABBShape>::iterator begin, const typename std::vector<AABBShape>::iterator& end, BVHNode* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
+		void buildBVH(typename std::vector<AABBShape>::iterator begin, const typename std::vector<AABBShape>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
 
 			if (depth == 0) {
 				auto getAABB = [](const std::vector<AABBShape>::const_iterator& begin, const std::vector<AABBShape>::const_iterator& end) {
@@ -342,5 +345,8 @@ namespace Xitils {
 		}
 
 	};
+
+	using BVH = _BVH<Shape>;
+	using BVHLocal = _BVH<ShapeLocal>;
 
 }

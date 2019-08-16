@@ -2,6 +2,7 @@
 #include <Xitils/App.h>
 #include <Xitils/Geometry.h>
 #include <Xitils/AccelerationStructure.h>
+#include <Xitils/TriangleMesh.h>
 #include <CinderImGui.h>
 
 using namespace Xitils;
@@ -30,8 +31,7 @@ private:
 
 	gl::TextureRef texture;
 
-	std::shared_ptr<TriMesh> mesh;
-	std::vector<Shape*> tris;
+	TriangleMesh* mesh;
 	std::shared_ptr<AccelerationStructure> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
@@ -52,30 +52,36 @@ void MyApp::onSetup(MyFrameData* frameData) {
 	const int subdivision = 100;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
-	mesh = std::make_shared<TriMesh>(*teapot);
+	auto teapotMesh = std::make_shared<TriMesh>(*teapot);
 
-	tris.reserve(mesh->getNumTriangles());
-	for (int i = 0; i < mesh->getNumTriangles(); ++i) {
-		Triangle* tri = new Triangle(Matrix4x4());
-		glm::vec3 p0, p1, p2;
-		mesh->getTriangleVertices(i, &p0, &p2, &p1); // ŽžŒv‰ñ‚è‚É’¼‚·
-		tri->p[0] = Vector3f(p0);
-		tri->p[1] = Vector3f(p1);
-		tri->p[2] = Vector3f(p2);
-
-		tris.push_back(tri);
+	std::vector<Vector3f> positions(teapotMesh->getNumVertices());
+	for (int i = 0; i < positions.size(); ++i) {
+		positions[i] = Vector3f(teapotMesh->getPositions<3>()[i]);
+	}
+	std::vector<int> indices(teapotMesh->getNumTriangles() * 3);
+	for (int i = 0; i < indices.size(); i += 3) {
+		indices[i + 0] = teapotMesh->getIndices()[i + 0];
+		indices[i + 1] = teapotMesh->getIndices()[i + 2]; // ŽžŒv‰ñ‚è‚É’¼‚·
+		indices[i + 2] = teapotMesh->getIndices()[i + 1];
 	}
 
-	bvh = std::make_shared<BVH>(tris);
+	mesh = new TriangleMesh( Matrix4x4() );
+	mesh->setGeometry(
+		positions.data(), positions.size(),
+		indices.data(), indices.size()
+	);
+
+	std::vector<Shape*> shapes;
+	shapes.push_back(mesh);
+
+	bvh = std::make_shared<BVH>(shapes);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
 void MyApp::onCleanup(MyFrameData* frameData) {
-	for(auto tri : tris) {
-		delete tri;
-	}
+
 }
 
 void MyApp::onUpdate(MyFrameData* frameData) {
@@ -115,7 +121,7 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			colA8u.a = 255;
 
 			frameData->surface.setPixel(ivec2(x, y), colA8u);
-			frameData->triNum = mesh->getNumTriangles();
+			frameData->triNum = mesh->triangleNum();
 		}
 	}
 
