@@ -32,7 +32,7 @@ private:
 
 	std::shared_ptr<TriMesh> mesh;
 	std::vector<Shape*> tris;
-	std::shared_ptr<BVH> bvh;
+	std::shared_ptr<AccelerationStructure> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
 
@@ -104,10 +104,8 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			SurfaceInteraction isect;
 
 			if (bvh->intersect(ray, &isect)) {
-				Vector3f dLight = normalize(Vector3f(1, 1, -1));
+				Vector3f dLight = normalize(Vector3f(1, 1, 1));
 				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.n, dLight));
-				color = clamp01(isect.n * 0.5f + Vector3f(0.5f));
-				color = clamp01(isect.n);
 			}
 
 			ColorA8u colA8u;

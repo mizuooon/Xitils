@@ -83,7 +83,7 @@ namespace Xitils {
 
 			float t = dot(p0 - o, n) / d_dot_n;
 
-			if (t < 0.0f) { return false; }
+			if (!inRange(t, 0.0f, rayObj.tMax)) { return false; }
 
 			auto p = rayObj(t);
 
@@ -103,8 +103,11 @@ namespace Xitils {
 
 			if (!inRange01(w)) { return false; }
 
-			isect->p = objectToWorld(p);
-			isect->n = objectToWorld.asNormal(n);
+			if (tHit) { *tHit = t; }
+			if (isect) {
+				isect->p = objectToWorld(p);
+				isect->n = objectToWorld.asNormal(n);
+			}
 
 			return true;
 		}
