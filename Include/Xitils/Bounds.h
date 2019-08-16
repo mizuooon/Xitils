@@ -7,7 +7,7 @@
 #include "Utils.h"
 #include "Vector.h"
 
-namespace Xitils::Geometry {
+namespace Xitils {
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Bounds2 {
 	public:

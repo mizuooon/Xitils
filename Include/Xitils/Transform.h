@@ -8,6 +8,7 @@
 #include "Vector.h"
 #include "Matrix.h"
 #include "Ray.h"
+#include "Bounds.h"
 
 namespace Xitils {
 
@@ -97,6 +98,20 @@ namespace Xitils {
 
 		Ray operator()(const Ray& r) const {
 			return Ray( (*this)(r.o), asVector(r.d), r.depth, r.tMax );
+		}
+
+		Bounds3f operator()(const Bounds3f& b) const {
+			Vector3f size = b.size();
+			Vector3f translatedMin = (*this)(b.min);
+			Vector3f translatedBasisX = Vector3f(mat.m[0][0], mat.m[1][0], mat.m[2][0]);
+			Vector3f translatedBasisY = Vector3f(mat.m[0][1], mat.m[1][1], mat.m[2][1]);
+			Vector3f translatedBasisZ = Vector3f(mat.m[0][2], mat.m[1][2], mat.m[2][2]);
+
+			Bounds3f res(translatedMin);
+			res = merge(res, translatedMin + translatedBasisX * size.x);
+			res = merge(res, translatedMin + translatedBasisY * size.y);
+			res = merge(res, translatedMin + translatedBasisZ * size.z);
+			return res;
 		}
 
 		bool swapsHandedness() const {
