@@ -19,12 +19,16 @@ struct MyFrameData {
 	int triNum;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData> {
+struct MyUIFrameData {
+	Vector3f rot;
+};
+
+class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
 public:
-	void onSetup(MyFrameData* frameData) override;
-	void onUpdate(MyFrameData* frameData) override;
-	void onCleanup(MyFrameData* frameData) override;
-	void onDraw(const MyFrameData& frameData) override;
+	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
 	int frameCount = 0;
@@ -36,7 +40,7 @@ private:
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
 
-void MyApp::onSetup(MyFrameData* frameData) {
+void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
@@ -80,17 +84,19 @@ void MyApp::onSetup(MyFrameData* frameData) {
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::onCleanup(MyFrameData* frameData) {
+void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 }
 
-void MyApp::onUpdate(MyFrameData* frameData) {
+void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
+	mesh->objectToWorld = rotateYXZ(uiFrameData.rot);
+
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
+	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
 #pragma omp parallel for schedule(dynamic, 1)
-		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
+		for (int x = 0; x < frameData.surface.getWidth(); ++x) {
 
 			Vector3f color(0, 0, 0);
 
@@ -100,8 +106,8 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 
 			Vector2f cameraOffset(0,0.5f);
 
-			float nx = (float) x / frameData->surface.getWidth();
-			float ny = (float) y / frameData->surface.getHeight();
+			float nx = (float) x / frameData.surface.getWidth();
+			float ny = (float) y / frameData.surface.getHeight();
 
 			Xitils::Ray ray;
 			ray.o = Vector3f( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, 100 );
@@ -120,18 +126,18 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
 			colA8u.a = 255;
 
-			frameData->surface.setPixel(ivec2(x, y), colA8u);
-			frameData->triNum = mesh->triangleNum();
+			frameData.surface.setPixel(ivec2(x, y), colA8u);
+			frameData.triNum = mesh->triangleNum();
 		}
 	}
 
 	++frameCount;
 
 	auto time_end = std::chrono::system_clock::now();
-	frameData->frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::onDraw(const MyFrameData& frameData) {
+void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));
@@ -144,6 +150,16 @@ void MyApp::onDraw(const MyFrameData& frameData) {
 	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed per frame: " + std::_Floating_to_string("%.1f", frameData.frameElapsed) + " ms").c_str());
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
+
+	float rot[3];
+	rot[0] = uiFrameData.rot.x;
+	rot[1] = uiFrameData.rot.y;
+	rot[2] = uiFrameData.rot.z;
+	ImGui::SliderFloat3("Rotation", rot, -180, 180 );
+	uiFrameData.rot.x = rot[0];
+	uiFrameData.rot.y = rot[1];
+	uiFrameData.rot.z = rot[2];
+
 	ImGui::End();
 }
 

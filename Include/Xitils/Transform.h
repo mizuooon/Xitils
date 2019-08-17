@@ -274,6 +274,17 @@ namespace Xitils {
 		);
 	}
 
+	Transform rotateYXZ(float x, float y, float z) {
+		Transform rotX = rotateX(x);
+		Transform rotY = rotateY(y);
+		Transform rotZ = rotateZ(z);
+		return rotY * rotX * rotZ;
+	}
+
+	Transform rotateYXZ(const Vector3f& rot) {
+		return rotateYXZ(rot.x, rot.y, rot.z);
+	}
+
 	Transform rotate(float theta, const Vector3f& axis) {
 		Vector3f a = normalize(axis);
 		float thetaRad = theta * ToRad;

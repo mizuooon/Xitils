@@ -10,56 +10,55 @@
 
 namespace Xitils::App {
 
-	template<typename T> class XApp : public ci::app::App {
+	template<typename T, typename U> class XApp : public ci::app::App {
 	public:
 		void setup() override final;
-		void draw() override final;
 		void cleanup() override final;
 
 		void mainLoop();
+		void draw() override final;
 
 	protected:
-		virtual void onSetup(T* frameData) {}
-		virtual void onCleanup(T* frameData) {}
-		virtual void onUpdate(T* frameData) {}
-		virtual void onDraw(const T& frameData) {}
+		virtual void onSetup(T* frameData, U* uiFrameData) {}
+		virtual void onCleanup(T* frameData, U* uiFrameData) {}
+		virtual void onUpdate(T& frameData, const U& uiFrameData) {}
+		virtual void onDraw(const T& frameData, U& uiFrameData) {}
 
 	private:
 		T frameData;
 		T frameDataBuffer;
+
+		U uiFrameData;
+		U uiFrameDataBuffer;
+
 		std::mutex mtx;
 
 		std::shared_ptr<std::thread> mainLoopThread;
 		bool threadClosing = false;
 	};
 
-	template<typename T> void XApp<T>::setup() {
+	template<typename T, typename U> void XApp<T,U>::setup() {
 		
-		onSetup(&frameData);
+		onSetup(&frameData, &uiFrameData);
 
 		mainLoopThread = std::make_shared<std::thread>([&] {
 			this->mainLoop();
 			});
 	}
 
-	template<typename T> void XApp<T>::draw() {
-		std::lock_guard lock(mtx);
-		onDraw(frameDataBuffer);
-	}
-
-	template<typename T> void XApp<T>::cleanup() {
+	template<typename T, typename U> void XApp<T, U>::cleanup() {
 		if (mainLoopThread) {
 			threadClosing = true;
 			mainLoopThread->join();
 		}
-		onCleanup(&frameData);
+		onCleanup(&frameData, &uiFrameData);
 	}
 
-	template<typename T> void XApp<T>::mainLoop() {
+	template<typename T, typename U> void XApp<T,U>::mainLoop() {
 		float elapsed = 0.0f;
 
 		while (true) {
-			onUpdate(&frameData);
+			onUpdate(frameData, uiFrameDataBuffer);
 
 			{
 				std::lock_guard lock(mtx);
@@ -70,6 +69,12 @@ namespace Xitils::App {
 
 			if (threadClosing) { break; }
 		}
+	}
+
+	template<typename T, typename U> void XApp<T, U>::draw() {
+		std::lock_guard lock(mtx);
+		onDraw(frameDataBuffer, uiFrameData);
+		uiFrameDataBuffer = uiFrameData;
 	}
 
 }
