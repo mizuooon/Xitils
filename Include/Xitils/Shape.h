@@ -147,16 +147,26 @@ namespace Xitils {
 	public:
 
 		const Vector3f* positions;
+		const Vector3f* normals;
 		const int* indices;
 		int index;
 
 		TriangleIndexed(const Vector3f* positions, const int *indices, int index) :
 			positions(positions),
+			normals(nullptr),
+			indices(indices),
+			index(index)
+		{}
+
+		TriangleIndexed(const Vector3f *positions, const Vector3f *normals, const int* indices, int index) :
+			positions(positions),
+			normals(normals),
 			indices(indices),
 			index(index)
 		{}
 
 		const Vector3f& position(int i) const { return positions[indices[index * 3 + i]]; }
+		const Vector3f& normal(int i) const { return normals[indices[index * 3 + i]]; }
 
 		Bounds3f bound() const override {
 			const auto& p0 = position(0);
@@ -232,6 +242,12 @@ namespace Xitils {
 			*tHit = t;
 			isect->p = lerp(p0, p1, p2, b0, b1);
 			isect->n = cross(p2 - p0, p1 - p0).normalize();
+			
+			if (normals == nullptr) {
+				isect->shading.n = isect->n;
+			} else {
+				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
+			}
 
 			return true;
 		}

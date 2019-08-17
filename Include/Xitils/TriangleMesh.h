@@ -18,10 +18,17 @@ namespace Xitils {
 			}
 		}
 
-		void setGeometry(Vector3f* positionData, int positionNum, int* indexData, int indexNum) {
+		void setGeometry(const Vector3f* positionData, int positionNum, int* indexData, int indexNum) {
 			setPositions(positionData, positionNum);
 			setIndices(indexData, indexNum);
-			buildAccelerationStructure();
+			buildBVH();
+		}
+
+		void setGeometry(const Vector3f* positionData, int positionNum, const Vector3f* normalData, int normalNum, int* indexData, int indexNum) {
+			setPositions(positionData, positionNum);
+			setNormals(normalData, normalNum);
+			setIndices(indexData, indexNum);
+			buildBVH();
 		}
 
 		int triangleNum() const { return triangles.size(); }
@@ -44,7 +51,7 @@ namespace Xitils {
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
 			Ray rayObj = objectToWorld.inverse(ray);
-			if (accStr->intersect(rayObj, isect)) {
+			if (bvh->intersect(rayObj, isect)) {
 				isect->p = objectToWorld(isect->p);
 				isect->n = objectToWorld.asNormal(isect->n);
 				*tHit = (isect->p - ray.o).length();
@@ -55,7 +62,7 @@ namespace Xitils {
 
 		bool intersectBool(const Ray& ray) const override {
 			Ray rayObj = objectToWorld.inverse(ray);
-			return accStr->intersectBool(rayObj);
+			return bvh->intersectBool(rayObj);
 		}
 
 	private:
@@ -64,28 +71,28 @@ namespace Xitils {
 		std::vector<int> indices;
 		std::vector<ShapeLocal*> triangles;
 
-		std::unique_ptr<AccelerationStructure> accStr;
+		std::unique_ptr<AccelerationStructure> bvh;
 
-		void buildAccelerationStructure() {
+		void buildBVH() {
 			int faceNum = indices.size() / 3;
 
 			triangles.clear();
 			triangles.resize(faceNum);
 			
 			for (int i = 0; i < faceNum; ++i) {
-				triangles[i] = new TriangleIndexed(positions.data(), indices.data(), i);
+				triangles[i] = new TriangleIndexed(positions.data(), !normals.empty() ? normals.data() : nullptr, indices.data(), i);
 			}
 
-			accStr = std::make_unique<BVHLocal>(triangles);
+			bvh = std::make_unique<BVHLocal>(triangles);
 		}
 
-		void setPositions(Vector3f* data, int num){
+		void setPositions(const Vector3f* data, int num){
 			positions.clear();
 			positions.resize(num);
 			memcpy(positions.data(), data, sizeof(Vector3f) * num);
 		}
 
-		void setNormals(Vector3f* data, int num) {
+		void setNormals(const Vector3f* data, int num) {
 			normals.clear();
 			normals.resize(num);
 			memcpy(normals.data(), data, sizeof(Vector3f) * num);

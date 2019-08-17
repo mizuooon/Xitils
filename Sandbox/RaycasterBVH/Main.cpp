@@ -62,6 +62,10 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	for (int i = 0; i < positions.size(); ++i) {
 		positions[i] = Vector3f(teapotMesh->getPositions<3>()[i]);
 	}
+	std::vector<Vector3f> normals(teapotMesh->getNumVertices());
+	for (int i = 0; i < normals.size(); ++i) {
+		normals[i] = Vector3f(teapotMesh->getNormals()[i]);
+	}
 	std::vector<int> indices(teapotMesh->getNumTriangles() * 3);
 	for (int i = 0; i < indices.size(); i += 3) {
 		indices[i + 0] = teapotMesh->getIndices()[i + 0];
@@ -72,6 +76,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	mesh = new TriangleMesh( Matrix4x4() );
 	mesh->setGeometry(
 		positions.data(), positions.size(),
+		normals.data(), normals.size(),
 		indices.data(), indices.size()
 	);
 
@@ -117,7 +122,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 			if (bvh->intersect(ray, &isect)) {
 				Vector3f dLight = normalize(Vector3f(1, 1, 1));
-				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.n, dLight));
+				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 			}
 
 			ColorA8u colA8u;
