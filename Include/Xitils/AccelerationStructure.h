@@ -1,12 +1,12 @@
 #pragma once
 
-#include <stack>
-
 #include "Utils.h"
 #include "Geometry.h"
-#include "Shape.h"
-#include "Object.h"
+#include "Primitive.h"
 #include "Interaction.h"
+#include "Primitive.h"
+#include "Object.h"
+#include "Shape.h"
 
 namespace Xitils {
 
@@ -20,9 +20,9 @@ namespace Xitils {
 		}
 	};
 
-	template <typename T> class _NaiveAccelerationStructure : public AccelerationStructure {
+	class NaiveAccelerationStructure : public AccelerationStructure {
 	public:
-		_NaiveAccelerationStructure(const std::vector<T*>& primitives) : primitives(primitives) {}
+		NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) : primitives(primitives) {}
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
@@ -35,43 +35,37 @@ namespace Xitils {
 		}
 
 	private:
-		std::vector<T*> primitives;
+		std::vector<Primitive*> primitives;
 	};
 
-	using NaiveAccelerationStructure = _NaiveAccelerationStructure<Object>;
-	using NaiveAccelerationStructureLocal = _NaiveAccelerationStructure<Shape>;
-
-
-	template <typename T> struct BVHNode {
+	struct BVHNode {
 		~BVHNode() {
 		}
 		int depth;
 		Bounds3f aabb;
 		BVHNode* parent;
 		int localIndex; // 自身の親に対する子の中でのインデックス
-		T* primitive;
+		const Primitive* primitive;
 		BVHNode* children[2];
 	};
 
-	template <typename T> class _BVH : public AccelerationStructure {
+	class BVH : public AccelerationStructure {
 	public:
-		using AABBPrimitive = std::pair<Bounds3f, T*>;
+		using AABBPrimitive = std::pair<Bounds3f, const Primitive*>;
 
-		_BVH(const std::vector<T*>& primitives) {
-			ASSERT(!primitives.empty());
-			std::vector<AABBPrimitive> aabbPrimitives;
-			aabbPrimitives.reserve(primitives.size());
-			for (auto& prim : primitives) { aabbPrimitives.push_back(std::make_pair(prim->bound(), prim)); }
-
-			int treeDepth = cinder::log2ceil(primitives.size());
-			nodes = (BVHNode<T>*)calloc( pow(2, treeDepth + 1), sizeof(BVHNode<T>));
-
-			nodeRoot = &nodes[nodeCount++];
-			nodeRoot->depth = 0;
-			nodeRoot->localIndex = 0;
-			buildBVH(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot);
+		BVH(const std::vector<Primitive*>& primitives) {
+			buildBVH((const Primitive**)primitives.data(), primitives.size());
 		}
-		~_BVH() {
+
+		BVH(const std::vector<Object*>& objects) {
+			buildBVH((const Primitive**)objects.data(), objects.size());
+		}
+
+		BVH(const std::vector<Shape*>& shapes) {
+			buildBVH((const Primitive**)shapes.data(), shapes.size());
+		}
+
+		~BVH() {
 			delete nodes;
 		}
 
@@ -84,11 +78,29 @@ namespace Xitils {
 		}
 
 	private:
-		BVHNode<T>* nodeRoot;
-		BVHNode<T>* nodes;
+		BVHNode* nodeRoot;
+		BVHNode* nodes;
 		int nodeCount = 0;
 
-		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode<T>* node) const {
+		void buildBVH(const Primitive** data, int primNum) {
+			ASSERT(primNum > 0);
+			std::vector<AABBPrimitive> aabbPrimitives;
+			aabbPrimitives.reserve(primNum);
+			for (int i = 0; i < primNum; ++i) {
+				const Primitive* prim = data[i];
+				aabbPrimitives.push_back(std::make_pair(prim->bound(), prim));
+			}
+
+			int treeDepth = cinder::log2ceil(primNum);
+			nodes = (BVHNode*)calloc(pow(2, treeDepth + 1), sizeof(BVHNode));
+
+			nodeRoot = &nodes[nodeCount++];
+			nodeRoot->depth = 0;
+			nodeRoot->localIndex = 0;
+			buildBVH(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot);
+		}
+
+		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
 			}
@@ -102,7 +114,7 @@ namespace Xitils {
 			return hit0 || hit1;
 		}
 
-		bool intersectBoolSub(const Ray& ray, BVHNode<T>* node) const {
+		bool intersectBoolSub(const Ray& ray, BVHNode* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
 			}
@@ -116,7 +128,7 @@ namespace Xitils {
 			return hit0 || hit1;
 		}
 
-		void buildBVH(typename std::vector<AABBPrimitive>::iterator begin, const typename std::vector<AABBPrimitive>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
+		void buildBVH(typename std::vector<AABBPrimitive>::iterator begin, const typename std::vector<AABBPrimitive>::iterator& end, BVHNode* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
 
 			if (depth == 0) {
 				auto getAABB = [](const std::vector<AABBPrimitive>::const_iterator& begin, const std::vector<AABBPrimitive>::const_iterator& end) {
@@ -236,8 +248,5 @@ namespace Xitils {
 		}
 
 	};
-
-	using BVH = _BVH<Object>;
-	using BVHLocal = _BVH<Shape>;
 
 }

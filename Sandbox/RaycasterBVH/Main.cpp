@@ -35,7 +35,8 @@ private:
 
 	gl::TextureRef texture;
 
-	TriangleMesh* mesh;
+	std::shared_ptr<TriangleMesh> teapotMesh;
+	std::shared_ptr<Object> teapotObj;
 	std::shared_ptr<AccelerationStructure> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
@@ -56,34 +57,35 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	const int subdivision = 100;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
-	auto teapotMesh = std::make_shared<TriMesh>(*teapot);
+	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
-	std::vector<Vector3f> positions(teapotMesh->getNumVertices());
+	std::vector<Vector3f> positions(teapotMeshData->getNumVertices());
 	for (int i = 0; i < positions.size(); ++i) {
-		positions[i] = Vector3f(teapotMesh->getPositions<3>()[i]);
+		positions[i] = Vector3f(teapotMeshData->getPositions<3>()[i]);
 	}
-	std::vector<Vector3f> normals(teapotMesh->getNumVertices());
+	std::vector<Vector3f> normals(teapotMeshData->getNumVertices());
 	for (int i = 0; i < normals.size(); ++i) {
-		normals[i] = Vector3f(teapotMesh->getNormals()[i]);
+		normals[i] = Vector3f(teapotMeshData->getNormals()[i]);
 	}
-	std::vector<int> indices(teapotMesh->getNumTriangles() * 3);
+	std::vector<int> indices(teapotMeshData->getNumTriangles() * 3);
 	for (int i = 0; i < indices.size(); i += 3) {
-		indices[i + 0] = teapotMesh->getIndices()[i + 0];
-		indices[i + 1] = teapotMesh->getIndices()[i + 2]; // ŽžŒv‰ñ‚è‚É’¼‚·
-		indices[i + 2] = teapotMesh->getIndices()[i + 1];
+		indices[i + 0] = teapotMeshData->getIndices()[i + 0];
+		indices[i + 1] = teapotMeshData->getIndices()[i + 2]; // ŽžŒv‰ñ‚è‚É’¼‚·
+		indices[i + 2] = teapotMeshData->getIndices()[i + 1];
 	}
 
-	mesh = new TriangleMesh( Matrix4x4() );
-	mesh->setGeometry(
+	teapotMesh = std::make_shared<TriangleMesh>();
+	teapotMesh->setGeometry(
 		positions.data(), positions.size(),
 		normals.data(), normals.size(),
 		indices.data(), indices.size()
 	);
+	teapotObj = std::make_shared<Object>( teapotMesh, Matrix4x4());
 
-	std::vector<Shape*> shapes;
-	shapes.push_back(mesh);
+	std::vector<Object*> objects;
+	objects.push_back(teapotObj.get());
 
-	bvh = std::make_shared<BVH>(shapes);
+	bvh = std::make_shared<BVH>(objects);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -96,7 +98,10 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
-	mesh->objectToWorld = rotateYXZ(uiFrameData.rot);
+	teapotObj->objectToWorld = rotateYXZ(uiFrameData.rot);
+	std::vector<Object*> objects;
+	objects.push_back(teapotObj.get());
+	bvh = std::make_shared<BVH>(objects);
 
 #pragma omp parallel for schedule(dynamic, 1)
 	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
@@ -132,7 +137,6 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			colA8u.a = 255;
 
 			frameData.surface.setPixel(ivec2(x, y), colA8u);
-			frameData.triNum = mesh->triangleNum();
 		}
 	}
 
@@ -140,6 +144,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData.triNum = teapotMesh->triangleNum();
 }
 
 void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {

@@ -76,7 +76,7 @@ namespace Xitils {
 				triangles[i] = new TriangleIndexed(positions.data(), !normals.empty() ? normals.data() : nullptr, indices.data(), i);
 			}
 
-			bvh = std::make_unique<BVHLocal>(triangles);
+			bvh = std::make_unique<BVH>(triangles);
 		}
 
 		void setPositions(const Vector3f* data, int num){

@@ -6,11 +6,12 @@
 #include "Transform.h"
 #include "Ray.h"
 #include "Interaction.h"
+#include "Primitive.h"
 #include "Shape.h"
 
 namespace Xitils {
 
-	class Object {
+	class Object : public Primitive {
 	public:
 
 		Transform objectToWorld;
@@ -21,11 +22,11 @@ namespace Xitils {
 			shape(shape), objectToWorld(objectToWorld)
 		{}
 
-		Bounds3f bound() const {
+		Bounds3f bound() const override {
 			return objectToWorld(shape->bound());
 		}
 
-		float surfaceArea() const {
+		float surfaceArea() const override {
 
 			// TODO TransformÇ…ÇÊÇÈñ êœÇÃïœâªÇçló∂
 			NOT_IMPLEMENTED 
@@ -33,7 +34,7 @@ namespace Xitils {
 			return shape->surfaceArea();
 		}
 
-		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const {
+		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
 			if (shape->intersect(objectToWorld.inverse(ray), tHit, isect)) {
 				isect->p = objectToWorld(isect->p);
 				isect->n = objectToWorld.asNormal(isect->n);
@@ -44,22 +45,12 @@ namespace Xitils {
 			}
 			return false;
 		}
-		bool intersectBool(const Ray& ray) const {
+		bool intersectBool(const Ray& ray) const override {
 			float tHit = ray.tMax;
 			SurfaceInteraction isect;
 			return intersect(objectToWorld.inverse(ray), &tHit, &isect);
 		}
 
-		//bool intersectBound(const Ray& ray, float* t1, float* t2) const {
-		//	Ray rayObj = objectToWorld.inverse(ray);
-		//	if (shape->bound().intersect(rayObj, t1, t2)) {
-		//		// TODO çÇë¨âª
-		//		*t1 = (objectToWorld(rayObj(*t1)) - ray.o).length();
-		//		*t2 = (objectToWorld(rayObj(*t2)) - ray.o).length();
-		//		return true;
-		//	}
-		//	return false;
-		//}
 	};
 
 }

@@ -6,26 +6,17 @@
 #include "Transform.h"
 #include "Ray.h"
 #include "Interaction.h"
+#include "Primitive.h"
 
 namespace Xitils {
 
-	class Shape {
+	class Shape : public Primitive {
 	public:
-
-		virtual Bounds3f bound() const = 0;
-
-		virtual float surfaceArea() const = 0;
-
-		virtual bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const = 0;
-		virtual bool intersectBool(const Ray& ray) const {
+		virtual bool intersectBool(const Ray& ray) const override {
 			float tHit = ray.tMax;
 			SurfaceInteraction isect;
 			return intersect(ray, &tHit, &isect);
 		}
-
-		//bool intersectBound(const Ray& ray, float* t1, float* t2) const {
-		//	return bound().intersect(ray, t1, t2);
-		//}
 	};
 
 	class TriangleIndexed : public Shape {
