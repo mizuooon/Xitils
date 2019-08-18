@@ -2,11 +2,10 @@
 
 #include "Utils.h"
 #include "Vector.h"
-#include "Shape.h"
 
 namespace Xitils {
 
-	class Shape;
+	class Object;
 
 	class Interaction {
 	public:
@@ -17,7 +16,7 @@ namespace Xitils {
 	class SurfaceInteraction : public Interaction {
 	public:
 		Vector3f n;
-		const Shape* shape = nullptr;
+		const Object* object = nullptr;
 
 		struct Shading {
 			Vector3f n;

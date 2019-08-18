@@ -5,52 +5,29 @@
 #include "Utils.h"
 #include "Geometry.h"
 #include "Shape.h"
+#include "Object.h"
 #include "Interaction.h"
 
 namespace Xitils {
 
-	//class AccelerationStructure;
-	//class BVH;
-
-	//class AccelerationStructureIterator {
-	//public:
-	//	virtual ~AccelerationStructureIterator() {};
-	//	virtual const Shape* operator*() const = 0;
-	//	virtual void next() = 0;
-	//	virtual bool end() const = 0;
-	//};
 	class AccelerationStructure {
 	public:
-		//virtual ~AccelerationStructure() {};
-		//virtual std::unique_ptr<AccelerationStructureIterator> traverse(const Ray& ray) = 0;
 		virtual bool intersect(Ray& ray, SurfaceInteraction *isect) const = 0;
 		virtual bool intersectBool(const Ray& ray) const {
-			Ray ray2(ray);
+			Ray rayTmp(ray);
 			SurfaceInteraction isect;
-			return intersect(ray2, &isect);
+			return intersect(rayTmp, &isect);
 		}
 	};
 
-	//class NaiveAccelerationStructureIterator : public AccelerationStructureIterator {
-	//public:
-	//	NaiveAccelerationStructureIterator(const std::vector<Shape*>& shapes) :
-	//		iterator(shapes.begin()), end_iterator(shapes.end()) {}
-	//	virtual const Shape* operator*() const { return *iterator; }
-	//	virtual void next() { ++iterator; }
-	//	virtual bool end() const { return iterator == end_iterator; }
-	//private:
-	//	typename std::vector<Shape*>::const_iterator iterator;
-	//	typename std::vector<Shape*>::const_iterator end_iterator;
-	//};
 	template <typename T> class _NaiveAccelerationStructure : public AccelerationStructure {
 	public:
-		_NaiveAccelerationStructure(const std::vector<T*>& shapes) : shapes(shapes) {}
-		//virtual std::unique_ptr<AccelerationStructureIterator> traverse(const Ray& ray) { return std::make_unique<NaiveAccelerationStructureIterator>(shapes); }
+		_NaiveAccelerationStructure(const std::vector<T*>& primitives) : primitives(primitives) {}
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
-			for(const auto& shape : shapes) {
-				if (shape->intersect(ray, &ray.tMax, isect)) {
+			for(const auto& prim : primitives) {
+				if (prim->intersect(ray, &ray.tMax, isect)) {
 					hit = true;
 				}
 			}
@@ -58,11 +35,11 @@ namespace Xitils {
 		}
 
 	private:
-		std::vector<Shape*> shapes;
+		std::vector<T*> primitives;
 	};
 
-	using NaiveAccelerationStructure = _NaiveAccelerationStructure<Shape>;
-	using NaiveAccelerationStructureLocal = _NaiveAccelerationStructure<ShapeLocal>;
+	using NaiveAccelerationStructure = _NaiveAccelerationStructure<Object>;
+	using NaiveAccelerationStructureLocal = _NaiveAccelerationStructure<Shape>;
 
 
 	template <typename T> struct BVHNode {
@@ -72,117 +49,31 @@ namespace Xitils {
 		Bounds3f aabb;
 		BVHNode* parent;
 		int localIndex; // 自身の親に対する子の中でのインデックス
-		T* shape;
+		T* primitive;
 		BVHNode* children[2];
-
-		// 交差判定用に使用するオブジェクトを返すイテレータではなく
-		// BVHNode を見たいとき用のイテレータ
-		//template<typename T> class Iterator {
-		//public:
-		//	Iterator(BVHNod* node) {
-		//		currentNode = node;
-		//	}
-
-		//	virtual BVHNode* operator*() const { return currentNode; }
-		//	Iterator& next() {
-		//		if (!currentNode->shape) {
-		//			nodeStack.push(currentNode->children[1]);
-		//			currentNode = currentNode->children[0];
-		//		} else {
-		//			if (!nodeStack.empty()) {
-		//				currentNode = nodeStack.top();
-		//				nodeStack.pop();
-		//			} else {
-		//				currentNode = nullptr;
-		//			}
-		//		}
-
-		//		return *this;
-		//	}
-		//	bool end() { return currentNode == nullptr; }
-		//private:
-		//	BVHNode* currentNode;
-		//	std::stack<BVHNode*> nodeStack;
-		//};
-
 	};
-
-	//class BVHIterator : public AccelerationStructureIterator {
-	//public:
-	//	BVHIterator(BVHNode* node, const Ray& ray)
-	//		: currentNode(node), ray(ray) {
-	//		findNextShape();
-	//	}
-	//	virtual const Shape* operator*() const { return *currentNode->shape; }
-	//	virtual void next() { findNextShape(); }
-	//	virtual bool end() const { return currentNode == nullptr; }
-
-	//private:
-
-	//	void findNextShape() {
-	//		if (currentNode->shape) {
-	//			if (!nodeStack.empty()) {
-	//				currentNode = nodeStack.top();
-	//				nodeStack.pop();
-	//			} else {
-	//				currentNode = nullptr;
-	//				return;
-	//			}
-	//		}
-
-	//		while (!currentNode->shape) {
-	//			if (currentNode->children[0]->aabb.intersect(*ray, nullptr, &ray->tMax)) {
-	//				if (currentNode->children[1]->aabb.intersect(*ray, nullptr, &ray->tMax)) {
-	//					nodeStack.push(currentNode->children[1]);
-	//				}
-	//				currentNode = currentNode->children[0];
-	//			} else {
-	//				if (currentNode->children[1]->aabb.intersect(*ray, nullptr, &ray->tMax)) {
-	//					currentNode = currentNode->children[1];
-	//				} else {
-	//					if (!nodeStack.empty()) {
-	//						currentNode = nodeStack.top();
-	//						nodeStack.pop();
-	//					} else {
-	//						currentNode = nullptr;
-	//						return;
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
-
-	//	BVHNode* currentNode;
-	//	std::stack<BVHNode*> nodeStack;
-	//	std::optional<Ray> ray;
-	//};
 
 	template <typename T> class _BVH : public AccelerationStructure {
 	public:
-		using AABBShape = std::pair<Bounds3f, T*>;
+		using AABBPrimitive = std::pair<Bounds3f, T*>;
 
-		_BVH(const std::vector<T*>& shapes) {
-			ASSERT(!shapes.empty());
-			std::vector<AABBShape> aabbShapes;
-			aabbShapes.reserve(shapes.size());
-			for (auto& shape : shapes) { aabbShapes.push_back(std::make_pair(shape->bound(), shape)); }
+		_BVH(const std::vector<T*>& primitives) {
+			ASSERT(!primitives.empty());
+			std::vector<AABBPrimitive> aabbPrimitives;
+			aabbPrimitives.reserve(primitives.size());
+			for (auto& prim : primitives) { aabbPrimitives.push_back(std::make_pair(prim->bound(), prim)); }
 
-			int treeDepth = cinder::log2ceil(shapes.size());
+			int treeDepth = cinder::log2ceil(primitives.size());
 			nodes = (BVHNode<T>*)calloc( pow(2, treeDepth + 1), sizeof(BVHNode<T>));
 
 			nodeRoot = &nodes[nodeCount++];
 			nodeRoot->depth = 0;
 			nodeRoot->localIndex = 0;
-			buildBVH(aabbShapes.begin(), aabbShapes.end(), nodeRoot);
+			buildBVH(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot);
 		}
 		~_BVH() {
 			delete nodes;
 		}
-
-		//virtual std::unique_ptr<AccelerationStructureIterator> traverse(const Ray& ray) { return std::make_unique<BVHIterator>(nodeRoot, ray); }
-
-		// オブジェクトではなく BVHNode についてのイテレータ
-		//std::unique_ptr<BVHNode<T>::Iterator<T>> getNodeIterator() const { return std::make_unique<BVHNode<T>::Iterator<T>>(nodeRoot); }
 
 		bool intersect(Ray& ray, SurfaceInteraction* isect) const override {
 			return intersectSub(ray, isect, nodeRoot);
@@ -202,8 +93,8 @@ namespace Xitils {
 				return false;
 			}
 
-			if (node->shape) {
-				return node->shape->intersect(ray, &ray.tMax, isect);
+			if (node->primitive) {
+				return node->primitive->intersect(ray, &ray.tMax, isect);
 			}
 
 			bool hit0 = intersectSub(ray, isect, node->children[0]);
@@ -216,8 +107,8 @@ namespace Xitils {
 				return false;
 			}
 
-			if (node->shape) {
-				return node->shape->intersectBool(ray);
+			if (node->primitive) {
+				return node->primitive->intersectBool(ray);
 			}
 
 			bool hit0 = intersectBoolSub(ray, node->children[0]);
@@ -225,10 +116,10 @@ namespace Xitils {
 			return hit0 || hit1;
 		}
 
-		void buildBVH(typename std::vector<AABBShape>::iterator begin, const typename std::vector<AABBShape>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
+		void buildBVH(typename std::vector<AABBPrimitive>::iterator begin, const typename std::vector<AABBPrimitive>::iterator& end, BVHNode<T>* node, int depth = 0, std::optional<Bounds3f> aabb = std::nullopt) {
 
 			if (depth == 0) {
-				auto getAABB = [](const std::vector<AABBShape>::const_iterator& begin, const std::vector<AABBShape>::const_iterator& end) {
+				auto getAABB = [](const std::vector<AABBPrimitive>::const_iterator& begin, const std::vector<AABBPrimitive>::const_iterator& end) {
 					Bounds3f aabb = begin->first;
 					for (auto it = begin; it != end; it++) {
 						aabb = merge(aabb, it->first);
@@ -241,7 +132,7 @@ namespace Xitils {
 			}
 
 			if (end - begin == 1) {
-				node->shape = begin->second;
+				node->primitive = begin->second;
 				return;
 			}
 
@@ -254,18 +145,18 @@ namespace Xitils {
 				std::vector<Bounds3f> aabb2;
 				const int objNum = (int)(end - begin);
 
-				std::vector<AABBShape> xSortedObjs(begin, end);
-				std::sort(xSortedObjs.begin(), xSortedObjs.end(), [](const AABBShape& a, const AABBShape& b) {
+				std::vector<AABBPrimitive> xSortedObjs(begin, end);
+				std::sort(xSortedObjs.begin(), xSortedObjs.end(), [](const AABBPrimitive& a, const AABBPrimitive& b) {
 					return (a.first.min.x + a.first.max.x) < (b.first.min.x + b.first.max.x);
 					});
 
-				std::vector<AABBShape> ySortedObjs(begin, end);
-				std::sort(ySortedObjs.begin(), ySortedObjs.end(), [](const AABBShape& a, const AABBShape& b) {
+				std::vector<AABBPrimitive> ySortedObjs(begin, end);
+				std::sort(ySortedObjs.begin(), ySortedObjs.end(), [](const AABBPrimitive& a, const AABBPrimitive& b) {
 					return (a.first.min.y + a.first.max.y) < (b.first.min.y + b.first.max.y);
 					});
 
-				std::vector<AABBShape> zSortedObjs(begin, end);
-				std::sort(zSortedObjs.begin(), zSortedObjs.end(), [](const AABBShape& a, const AABBShape& b) {
+				std::vector<AABBPrimitive> zSortedObjs(begin, end);
+				std::sort(zSortedObjs.begin(), zSortedObjs.end(), [](const AABBPrimitive& a, const AABBPrimitive& b) {
 					return (a.first.min.z + a.first.max.z) < (b.first.min.z + b.first.max.z);
 					});
 
@@ -346,7 +237,7 @@ namespace Xitils {
 
 	};
 
-	using BVH = _BVH<Shape>;
-	using BVHLocal = _BVH<ShapeLocal>;
+	using BVH = _BVH<Object>;
+	using BVHLocal = _BVH<Shape>;
 
 }

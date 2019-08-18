@@ -8,10 +8,6 @@ namespace Xitils {
 	class TriangleMesh : public Shape {
 	public:
 
-		TriangleMesh(const Transform& objectToWorld) :
-			Shape(objectToWorld)
-		{}
-
 		~TriangleMesh(){
 			for (auto* tri : triangles) {
 				delete tri;
@@ -50,26 +46,23 @@ namespace Xitils {
 		}
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
-			Ray rayObj = objectToWorld.inverse(ray);
-			if (bvh->intersect(rayObj, isect)) {
-				isect->p = objectToWorld(isect->p);
-				isect->n = objectToWorld.asNormal(isect->n);
-				*tHit = (isect->p - ray.o).length();
+			Ray rayTmp = Ray(ray);
+			if (bvh->intersect(rayTmp, isect)) {
+				*tHit = rayTmp.tMax;
 				return true;
 			}
 			return false;
 		}
 
 		bool intersectBool(const Ray& ray) const override {
-			Ray rayObj = objectToWorld.inverse(ray);
-			return bvh->intersectBool(rayObj);
+			return bvh->intersectBool(ray);
 		}
 
 	private:
 		std::vector<Vector3f> positions;
 		std::vector<Vector3f> normals;
 		std::vector<int> indices;
-		std::vector<ShapeLocal*> triangles;
+		std::vector<Shape*> triangles;
 
 		std::unique_ptr<AccelerationStructure> bvh;
 

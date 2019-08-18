@@ -21,6 +21,8 @@
 #define ASSERT ;
 #endif
 
+#define NOT_IMPLEMENTED throw "Not implemented";
+
 
 namespace Xitils {
 

@@ -22,8 +22,8 @@ namespace Xitils {
 		Bounds2(){
 			T minNum = std::numeric_limits<T>::lowest();
 			T maxNum = std::numeric_limits<T>::max();
-			min = _V(minNum, minNum);
-			max = _V(maxNum, maxNum);
+			min = _V(maxNum, maxNum);
+			max = _V(minNum, minNum);
 		}
 
 		Bounds2(const _V& p): min(p), max(p) {}
@@ -98,8 +98,8 @@ namespace Xitils {
 		Bounds3() {
 			T minNum = std::numeric_limits<T>::lowest();
 			T maxNum = std::numeric_limits<T>::max();
-			min = _V(minNum, minNum, minNum);
-			max = _V(maxNum, maxNum, maxNum);
+			min = _V(maxNum, maxNum, maxNum);
+			max = _V(minNum, minNum, minNum);
 		}
 
 		Bounds3(const _V& p) : min(p), max(p) {}

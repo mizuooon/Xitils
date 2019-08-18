@@ -149,30 +149,50 @@ namespace Xitils {
 		Bounds3f operator()(const Bounds3f& b) const {
 			const auto& m = mat;
 			Vector3f size = b.size();
+
 			Vector3f translatedMin = (*this)(b.min);
 			Vector3f translatedBasisX = Vector3f(m.m[0][0], m.m[1][0], m.m[2][0]);
 			Vector3f translatedBasisY = Vector3f(m.m[0][1], m.m[1][1], m.m[2][1]);
 			Vector3f translatedBasisZ = Vector3f(m.m[0][2], m.m[1][2], m.m[2][2]);
 
+			Vector3f vx = translatedBasisX * size.x;
+			Vector3f vy = translatedBasisY * size.y;
+			Vector3f vz = translatedBasisZ * size.z;
+
 			Bounds3f res(translatedMin);
-			res = merge(res, translatedMin + translatedBasisX * size.x);
-			res = merge(res, translatedMin + translatedBasisY * size.y);
-			res = merge(res, translatedMin + translatedBasisZ * size.z);
+			res = merge(res, translatedMin + vx);
+			res = merge(res, translatedMin + vy);
+			res = merge(res, translatedMin + vy + vx);
+			res = merge(res, translatedMin + vz);
+			res = merge(res, translatedMin + vz + vx);
+			res = merge(res, translatedMin + vz + vy);
+			res = merge(res, translatedMin + vz + vy + vx);
+
 			return res;
 		}
 
 		Bounds3f inverse(const Bounds3f& b) const {
 			const auto& m = matInv;
 			Vector3f size = b.size();
+
 			Vector3f translatedMin = (*this)(b.min);
 			Vector3f translatedBasisX = Vector3f(m.m[0][0], m.m[1][0], m.m[2][0]);
 			Vector3f translatedBasisY = Vector3f(m.m[0][1], m.m[1][1], m.m[2][1]);
 			Vector3f translatedBasisZ = Vector3f(m.m[0][2], m.m[1][2], m.m[2][2]);
 
+			Vector3f vx = translatedBasisX * size.x;
+			Vector3f vy = translatedBasisY * size.y;
+			Vector3f vz = translatedBasisZ * size.z;
+
 			Bounds3f res(translatedMin);
-			res = merge(res, translatedMin + translatedBasisX * size.x);
-			res = merge(res, translatedMin + translatedBasisY * size.y);
-			res = merge(res, translatedMin + translatedBasisZ * size.z);
+			res = merge(res, translatedMin + vx);
+			res = merge(res, translatedMin + vy);
+			res = merge(res, translatedMin + vy + vx);
+			res = merge(res, translatedMin + vz);
+			res = merge(res, translatedMin + vz + vx);
+			res = merge(res, translatedMin + vz + vy);
+			res = merge(res, translatedMin + vz + vy + vx);
+
 			return res;
 		}
 
