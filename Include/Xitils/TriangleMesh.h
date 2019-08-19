@@ -54,8 +54,8 @@ namespace Xitils {
 			return false;
 		}
 
-		bool intersectBool(const Ray& ray) const override {
-			return bvh->intersectBool(ray);
+		bool intersectAny(const Ray& ray) const override {
+			return bvh->intersectAny(ray);
 		}
 
 	private:

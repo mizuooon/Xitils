@@ -12,7 +12,7 @@ namespace Xitils {
 
 	class Shape : public Primitive {
 	public:
-		virtual bool intersectBool(const Ray& ray) const override {
+		virtual bool intersectAny(const Ray& ray) const override {
 			float tHit = ray.tMax;
 			SurfaceInteraction isect;
 			return intersect(ray, &tHit, &isect);

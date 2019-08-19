@@ -57,6 +57,10 @@ namespace Xitils {
 			return max - min;
 		}
 
+		_V center() const {
+			return (max + min) / 2;
+		}
+
 		T area() const{
 			_V s = size();
 			return s.x * s.y;
@@ -135,6 +139,10 @@ namespace Xitils {
 
 		_V size() const {
 			return max - min;
+		}
+
+		_V center() const {
+			return (max + min) / 2;
 		}
 
 		T surfaceArea() const {

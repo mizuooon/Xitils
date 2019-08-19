@@ -17,7 +17,7 @@ namespace Xitils {
 		virtual float surfaceArea() const = 0;
 
 		virtual bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const = 0;
-		virtual bool intersectBool(const Ray& ray) const = 0;
+		virtual bool intersectAny(const Ray& ray) const = 0;
 
 	};
 
