@@ -11,7 +11,6 @@
 #include <cinder/gl/Batch.h>
 
 using namespace Xitils;
-using namespace Xitils::Geometry;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -23,12 +22,15 @@ struct MyFrameData {
 	int triNum;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData> {
+struct MyUIFrameData {
+};
+
+class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
 public:
-	void onSetup(MyFrameData* frameData) override;
-	void onCleanup(MyFrameData* frameData) override;
-	void onUpdate(MyFrameData* frameData) override;
-	void onDraw(const MyFrameData& frameData) override;
+	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
 	int frameCount = 0;
@@ -43,7 +45,7 @@ private:
 	int rtcGeometryID;
 };
 
-void MyApp::onSetup(MyFrameData* frameData) {
+void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->elapsed = 0.0f;
 	frameData->triNum = 0;
@@ -76,18 +78,18 @@ void MyApp::onSetup(MyFrameData* frameData) {
 
 }
 
-void MyApp::onCleanup(MyFrameData* frameData) {
+void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	rtcReleaseScene(rtcScene);
 	rtcReleaseDevice(rtcDevice);
 }
 
-void MyApp::onUpdate(MyFrameData* frameData) {
+void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
+	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
 #pragma omp parallel for schedule(dynamic, 1)
-		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
+		for (int x = 0; x < frameData.surface.getWidth(); ++x) {
 
 			Vector3f color(0, 0, 0);
 
@@ -97,10 +99,10 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 
 			Vector2f cameraOffset(0, 0.5f);
 
-			float nx = (float)x / frameData->surface.getWidth();
-			float ny = (float)y / frameData->surface.getHeight();
+			float nx = (float)x / frameData.surface.getWidth();
+			float ny = (float)y / frameData.surface.getHeight();
 
-			Xitils::Geometry::Ray ray;
+			Xitils::Ray ray;
 			ray.o = Vector3f((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
 			ray.d = normalize(Vector3f(0, 0, 1));
 
@@ -139,19 +141,19 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
 			colA8u.a = 255;
 
-			frameData->surface.setPixel(ivec2(x, y), colA8u);
+			frameData.surface.setPixel(ivec2(x, y), colA8u);
 
-			frameData->triNum = mesh->getNumTriangles();
+			frameData.triNum = mesh->getNumTriangles();
 		}
 	}
 
 	++frameCount;
 
 	auto time_end = std::chrono::system_clock::now();
-	frameData->elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::onDraw(const MyFrameData& frameData) {
+void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));

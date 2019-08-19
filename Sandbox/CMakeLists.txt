@@ -63,8 +63,6 @@ add_definitions(-DNOMINMAX)
 add_definitions(/MP)
 
 add_subdirectory(SimpleWindow)
-add_subdirectory(RaycasterNaive)
 add_subdirectory(RaycasterBVH)
-add_subdirectory(RaycasterBVH2)
 add_subdirectory(RaycasterEmbree)
 add_subdirectory(RaycasterOptix)

@@ -19,11 +19,15 @@ struct MyFrameData {
 	int triNum;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData> {
+struct MyUIFrameData {
+	Vector3f rot;
+};
+
+class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
 public:
-	void onSetup(MyFrameData* frameData) override;
-	void onUpdate(MyFrameData* frameData) override;
-	void onDraw(const MyFrameData& frameData) override;
+	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
 	int frameCount = 0;
@@ -31,7 +35,7 @@ private:
 	gl::TextureRef texture;
 
 	std::shared_ptr<TriMesh> mesh;
-	std::shared_ptr<BVH<Triangle>> bvh;
+	std::shared_ptr<BVH> bvh;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(600, 600);
 };
 

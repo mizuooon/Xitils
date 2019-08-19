@@ -11,11 +11,14 @@ struct MyFrameData {
 	Surface surface;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData> {
+struct MyUIFrameData {
+};
+
+class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
 public:
-	void onSetup(MyFrameData* frameData) override;
-	void onUpdate(MyFrameData* frameData) override;
-	void onDraw(const MyFrameData& frameData) override;
+	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
 	int frameCount = 0;
@@ -24,7 +27,7 @@ private:
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
 
-void MyApp::onSetup(MyFrameData* frameData) {
+void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->elapsed = 0.0f;
 
@@ -36,13 +39,13 @@ void MyApp::onSetup(MyFrameData* frameData) {
 }
 
 
-void MyApp::onUpdate(MyFrameData* frameData) {
+void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
+	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
 #pragma omp parallel for schedule(dynamic, 1)
-		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
+		for (int x = 0; x < frameData.surface.getWidth(); ++x) {
 
 			ColorA8u color(0, 0, 0, 255);
 
@@ -63,17 +66,17 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			if (length(p2 - p0) <= r) { color.g = 255; }
 			if (length(p3 - p0) <= r) { color.b = 255; }
 
-			frameData->surface.setPixel(ivec2(x, y), color);
+			frameData.surface.setPixel(ivec2(x, y), color);
 		}
 	}
 
 	++frameCount;
 
 	auto time_end = std::chrono::system_clock::now();
-	frameData->elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::onDraw(const MyFrameData& frameData) {
+void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));

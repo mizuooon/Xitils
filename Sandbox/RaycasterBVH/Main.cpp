@@ -6,7 +6,6 @@
 #include <CinderImGui.h>
 
 using namespace Xitils;
-using namespace Xitils::Geometry;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;

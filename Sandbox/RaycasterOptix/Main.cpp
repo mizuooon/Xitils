@@ -16,7 +16,6 @@
 #include "optixRaycastingKernels.h"
 
 using namespace Xitils;
-using namespace Xitils::Geometry;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -27,12 +26,15 @@ struct MyFrameData {
 	int triNum;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData> {
+struct MyUIFrameData {
+};
+
+class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
 public:
-	void onSetup(MyFrameData* frameData) override;
-	void onCleanup(MyFrameData* frameData) override;
-	void onUpdate(MyFrameData* frameData) override;
-	void onDraw(const MyFrameData& frameData) override;
+	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
+	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
 	bool readSourceFile(std::string& str, const std::string& filename);
@@ -63,7 +65,7 @@ private:
 
 };
 
-void MyApp::onSetup(MyFrameData* frameData) {
+void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->elapsed = 0.0f;
 	frameData->triNum = 0;
@@ -113,37 +115,40 @@ void MyApp::onSetup(MyFrameData* frameData) {
 	hits->setDevicePointer(optix_device_ordinal, hits_d);
 	context["hits"]->set(hits);
 
+}
+
+void MyApp::execute() {
+	RTsize n;
+	rays->getSize(n);
+	context->launch(0, n);
+}
+
+void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
+	cudaFree(rays_d);
+	cudaFree(hits_d);
+	cudaFree(image_d);
+
+	indexBuffer->destroy();
+	positionBuffer->destroy();
+	context->destroy();
+}
+
+void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
+	auto time_start = std::chrono::system_clock::now();
+
+	const int n = ImageSize.x * ImageSize.y;
+
 	execute();
 
 	cudaMalloc(&image_d, n * sizeof(optix::float3));
 	image_h.resize(n);
 	shadeHitsOnDevice(image_d, n, hits_d);
 	cudaMemcpy(&image_h[0], image_d, (size_t)n * sizeof(optix::float3), cudaMemcpyDeviceToHost);
-}
-
-void MyApp::execute() {
-	RTsize n;
-	rays->getSize(n);
-	context->launch( /*entry point*/ 0, n);
-}
-
-void MyApp::onCleanup(MyFrameData* frameData) {
-	cudaFree(rays_d);
-	cudaFree(hits_d);
-	cudaFree(image_d);
-
-	//indexBuffer->destroy();
-	//positionBuffer->destroy();
-	context->destroy();
-}
-
-void MyApp::onUpdate(MyFrameData* frameData) {
-	auto time_start = std::chrono::system_clock::now();
 
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int y = 0; y < frameData->surface.getHeight(); ++y) {
+	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
 #pragma omp parallel for schedule(dynamic, 1)
-		for (int x = 0; x < frameData->surface.getWidth(); ++x) {
+		for (int x = 0; x < frameData.surface.getWidth(); ++x) {
 
 			Vector3f color(0, 0, 0);
 
@@ -153,10 +158,10 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 
 			Vector2f cameraOffset(0, 0.5f);
 
-			float nx = (float)x / frameData->surface.getWidth();
-			float ny = (float)y / frameData->surface.getHeight();
+			float nx = (float)x / frameData.surface.getWidth();
+			float ny = (float)y / frameData.surface.getHeight();
 
-			Xitils::Geometry::Ray ray;
+			Xitils::Ray ray;
 			ray.o = Vector3f((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
 			ray.d = normalize(Vector3f(0, 0, 1));
 
@@ -164,54 +169,25 @@ void MyApp::onUpdate(MyFrameData* frameData) {
 			color.y = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].y;
 			color.z = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].z;
 
-
-			//RTCIntersectContext context;
-			//rtcInitIntersectContext(&context);
-			//
-			//RTCRayHit rtcRayHit;
-			//RTCRay& rtcRay = rtcRayHit.ray;
-			//rtcRay.org_x = ray.o.x;
-			//rtcRay.org_y = ray.o.y;
-			//rtcRay.org_z = ray.o.z;
-			//rtcRay.dir_x = ray.d.x;
-			//rtcRay.dir_y = ray.d.y;
-			//rtcRay.dir_z = ray.d.z;
-			//rtcRay.tnear = 0.0f;
-			//rtcRay.tfar = Infinity;
-			//rtcRay.time = 0.0f;
-			//rtcRayHit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
-			//rtcRayHit.hit.primID = RTC_INVALID_GEOMETRY_ID;
-			//
-			//rtcIntersect1(rtcScene, &context, &rtcRayHit);
-
-			//if (rtcRayHit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
-			//	Vector3f dLight = normalize(Vector3f(1, 1, -1));
-			//	//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(rtcRayHit.hit, dLight));
-			//	color = Vector3f(1.0f, 1.0f, 1.0f);
-			//	
-			//	Vector3f n = normalize(Vector3f(rtcRayHit.hit.Ng_x, rtcRayHit.hit.Ng_y, rtcRayHit.hit.Ng_z));
-			//	color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(n, dLight));
-			//}
-
 			ColorA8u colA8u;
 			colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
 			colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
 			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
 			colA8u.a = 255;
 
-			frameData->surface.setPixel(ivec2(x, y), colA8u);
+			frameData.surface.setPixel(ivec2(x, y), colA8u);
 
-			frameData->triNum = mesh->getNumTriangles();
+			frameData.triNum = mesh->getNumTriangles();
 		}
 	}
 
 	++frameCount;
 
 	auto time_end = std::chrono::system_clock::now();
-	frameData->elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
-void MyApp::onDraw(const MyFrameData& frameData) {
+void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));
@@ -220,11 +196,11 @@ void MyApp::onDraw(const MyFrameData& frameData) {
 
 	gl::draw(texture, (windowSize - ImageSize)/2);
 
-	//ImGui::Begin("ImGui Window");
-	//ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	//ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
-	//ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
-	//ImGui::End();
+	ImGui::Begin("ImGui Window");
+	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
+	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
+	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
+	ImGui::End();
 
 }
 
@@ -261,7 +237,7 @@ void MyApp::createContext() {
 	cudaSetDevice(cuda_device_ordinal);
 
 	std::string ptx;
-	readSourceFile(ptx, "05_generated_05.cu.ptx");
+	readSourceFile(ptx, "RaycasterOptix_generated_RaycasterOptix.cu.ptx");
 
 	geometry = context->createGeometry();
 
