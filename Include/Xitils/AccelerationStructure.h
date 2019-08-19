@@ -92,31 +92,6 @@ namespace Xitils {
 			{}
 		};
 
-		void buildBVH(const Primitive** data, int primNum) {
-			ASSERT(primNum > 0);
-			std::vector<PrimBounds> aabbPrimitives;
-			aabbPrimitives.reserve(primNum);
-			for (int i = 0; i < primNum; ++i) {
-				const Primitive* prim = data[i];
-				Bounds3f bound = prim->bound();
-				aabbPrimitives.push_back(PrimBounds(prim, bound, bound.center()));
-			}
-
-			int treeDepth = cinder::log2ceil(primNum);
-			nodes = (BVHNode*)calloc(pow(2, treeDepth + 1), sizeof(BVHNode));
-
-			nodeRoot = &nodes[nodeCount++];
-			nodeRoot->depth = 0;
-			nodeRoot->axis = -1;
-
-			nodeRoot->aabb = Bounds3f();
-			for (auto it = aabbPrimitives.begin(); it != aabbPrimitives.end(); ++it) {
-				nodeRoot->aabb = merge(nodeRoot->aabb, it->bound);
-			}
-
-			buildBVH(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot);
-		}
-
 		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
@@ -156,7 +131,40 @@ namespace Xitils {
 			}
 		}
 
-		void buildBVH(typename std::vector<PrimBounds>::iterator begin, const typename std::vector<PrimBounds>::iterator& end, BVHNode* node, int depth = 0, const Bounds3f& aabb = Bounds3f()) {
+		struct BucketComputation {
+			std::vector<Bounds3f> bucketBounds, bucketBounds1, bucketBounds2;
+			std::vector<int> bucketSizes, bucketSizes1, bucketSizes2;
+		};
+
+		void buildBVH(const Primitive** data, int primNum) {
+			ASSERT(primNum > 0);
+			std::vector<PrimBounds> aabbPrimitives;
+			aabbPrimitives.reserve(primNum);
+			for (int i = 0; i < primNum; ++i) {
+				const Primitive* prim = data[i];
+				Bounds3f bound = prim->bound();
+				aabbPrimitives.push_back(PrimBounds(prim, bound, bound.center()));
+			}
+
+			int treeDepth = cinder::log2ceil(primNum);
+			nodes = (BVHNode*)calloc(pow(2, treeDepth + 1), sizeof(BVHNode));
+
+			nodeRoot = &nodes[nodeCount++];
+			nodeRoot->depth = 0;
+			nodeRoot->axis = -1;
+
+
+			nodeRoot->aabb = Bounds3f();
+			for (auto it = aabbPrimitives.begin(); it != aabbPrimitives.end(); ++it) {
+				nodeRoot->aabb = merge(nodeRoot->aabb, it->bound);
+			}
+
+			BucketComputation bucket;
+
+			buildBVHSub(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot, bucket);
+		}
+
+		void buildBVHSub(typename std::vector<PrimBounds>::iterator begin, const typename std::vector<PrimBounds>::iterator& end, BVHNode* node, BucketComputation& bucket, int depth = 0, const Bounds3f& aabb = Bounds3f()) {
 
 			if (end - begin == 1) {
 				node->primitive = begin->primitive;
@@ -188,55 +196,64 @@ namespace Xitils {
 				float bestSAH = Infinity;
 				const int primNum = (int)(end - begin);
 
-				auto calcSAH = [](const Bounds3f& aabb, const Bounds3f& aabb1, const Bounds3f& aabb2, int objNum1, int objNum2) {
+				static auto calcSAH = [](const Bounds3f& aabb, const Bounds3f& aabb1, const Bounds3f& aabb2, int objNum1, int objNum2) {
 					return  aabb1.surfaceArea() * objNum1 + aabb2.surfaceArea() * objNum2;
 				};
 
-				const int BucketNumMax = 16;
+				const int BucketNumMax = 8;
+
+				bucket.bucketBounds.clear();
+				bucket.bucketBounds1.clear();
+				bucket.bucketBounds2.clear();
+				bucket.bucketSizes.clear();
+				bucket.bucketSizes1.clear();
+				bucket.bucketSizes2.clear();
 
 				const int bucketNum = min(BucketNumMax, primNum);
-				std::vector<int> indices(bucketNum + 1);
-				for (int i = 0; i <= bucketNum; ++i) {
-					indices[i] = primNum * i / bucketNum;
+
+				int bucketBegin = 0;
+				for (int i = 0; i < bucketNum; ++i) {
+					Bounds3f bound;
+					int bucketEnd = primNum * (i+1) / bucketNum;
+					int bucketSize = bucketEnd - bucketBegin;
+					auto bucketOffset = begin + bucketBegin;
+					for (int k = 0; k < bucketSize; ++k) {
+						bound = merge(bound, (bucketOffset + k)->bound);
+					}
+					bucket.bucketBounds.push_back(bound);
+					bucket.bucketSizes.push_back(bucketSize);
+					bucketBegin = bucketEnd;
 				}
 
-				std::vector<Bounds3f> bucketBounds1(bucketNum);
-				std::vector<int> bucketCounts1(bucketNum, 0);
-				for (int i = 1; i < bucketNum; ++i) {
-					bucketBounds1[i] = bucketBounds1[i - 1];
-					bucketCounts1[i] = bucketCounts1[i - 1];
-					int K = indices[i] - indices[i - 1];
-					auto bucketOffset = begin + indices[i - 1];
-					for (int k = 0; k < K; ++k) {
-						bucketBounds1[i] = merge(bucketBounds1[i], (bucketOffset + k)->bound);
+				for (int i = 0; i < bucketNum - 1; ++i) {
+					bucket.bucketBounds1.push_back(bucket.bucketBounds[i]);
+					bucket.bucketSizes1.push_back(bucket.bucketSizes[i]);
+					if (i > 0) {
+						bucket.bucketBounds1[i] = merge(bucket.bucketBounds1[i], bucket.bucketBounds1[i - 1]);
+						bucket.bucketSizes1[i] += bucket.bucketSizes1[i - 1];
 					}
-					bucketCounts1[i] += K;
 				}
 
-				std::vector<Bounds3f> bucketBounds2(bucketNum);
-				std::vector<int> bucketCounts2(bucketNum, 0);
-				for (int i = 1; i < bucketNum; ++i) {
-					bucketBounds2[i] = bucketBounds2[i - 1];
-					bucketCounts2[i] = bucketCounts2[i - 1];
-					int K = indices[bucketNum - i + 1] - indices[bucketNum - i];
-					auto bucketOffset = begin + indices[bucketNum - i];
-					for (int k = 0; k < K; ++k) {
-						bucketBounds2[i] = merge(bucketBounds2[i], (bucketOffset + k)->bound);
+				for (int i = 0; i < bucketNum - 1; ++i) {
+					bucket.bucketBounds2.push_back(bucket.bucketBounds[bucketNum - 1 - i]);
+					bucket.bucketSizes2.push_back(bucket.bucketSizes[bucketNum - 1 - i]);
+					if (i > 0) {
+						bucket.bucketBounds2[i] = merge(bucket.bucketBounds2[i], bucket.bucketBounds2[i - 1]);
+						bucket.bucketSizes2[i] += bucket.bucketSizes2[i - 1];
 					}
-					bucketCounts2[i] += K;
 				}
 
 				int bucketIndex;
-				for (int i = 1; i < bucketNum; i++) {
-					float sah = calcSAH(aabb, bucketBounds1[i], bucketBounds2[bucketNum - i], bucketCounts1[i], bucketCounts2[bucketNum - i]);
+				for (int i = 0; i < bucketNum - 1; i++) {
+					float sah = calcSAH(aabb, bucket.bucketBounds1[i], bucket.bucketBounds2[bucketNum - 2 - i], bucket.bucketSizes1[i], bucket.bucketSizes2[bucketNum - 2 - i]);
 					if (sah < bestSAH) {
-						splitIndex = bucketCounts1[i];
+						splitIndex = bucket.bucketSizes1[i];
 						bucketIndex = i;
 						bestSAH = sah;
 					}
 				}
-				splitAABB1 = bucketBounds1[bucketIndex];
-				splitAABB2 = bucketBounds2[bucketNum - bucketIndex];
+				splitAABB1 = bucket.bucketBounds1[bucketIndex];
+				splitAABB2 = bucket.bucketBounds2[bucketNum - 2 - bucketIndex];
 			}
 
 			node->children[0] = &nodes[nodeCount++];
@@ -248,8 +265,8 @@ namespace Xitils {
 			node->children[0]->parent = node;
 			node->children[1]->parent = node;
 
-			buildBVH(begin, begin + splitIndex, node->children[0], depth + 1, splitAABB1);
-			buildBVH(begin + splitIndex, end, node->children[1], depth + 1, splitAABB2);
+			buildBVHSub(begin, begin + splitIndex, node->children[0], bucket, depth + 1, std::move(splitAABB1));
+			buildBVHSub(begin + splitIndex, end, node->children[1], bucket, depth + 1, std::move(splitAABB2));
 		}
 
 	};
