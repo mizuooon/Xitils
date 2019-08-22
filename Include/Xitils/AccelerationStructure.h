@@ -129,6 +129,7 @@ namespace Xitils {
 				hit1 = intersectAnySub(ray, node->children[1]);
 				hit0 = intersectAnySub(ray, node->children[0]);
 			}
+			return hit0 || hit1;
 		}
 
 		struct BucketComputation {

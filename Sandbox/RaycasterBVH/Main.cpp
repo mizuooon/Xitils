@@ -4,7 +4,7 @@
 #include <Xitils/Geometry.h>
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/TriangleMesh.h>
-#include <Xitils/ImageTile.h>
+#include <Xitils/Image.h>
 #include <CinderImGui.h>
 
 using namespace Xitils;
@@ -32,8 +32,7 @@ public:
 	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
 
 private:
-	int frameCount = 0;
-
+	
 	gl::TextureRef texture;
 
 	std::shared_ptr<PinholeCamera> camera;
@@ -42,6 +41,9 @@ private:
 	std::shared_ptr<AccelerationStructure> bvh;
 	std::shared_ptr<ImageTileCollection> tiles;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
+
+	std::shared_ptr<ImageBuffer> imageBuffer;
+
 };
 
 void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -94,11 +96,11 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	bvh = std::make_shared<BVH>(objects);
 
-	tiles = std::make_shared<ImageTileCollection>(frameData->surface);
+	imageBuffer = std::make_shared<ImageBuffer>(ImageSize.x, ImageSize.y);
+	tiles = std::make_shared<ImageTileCollection>(imageBuffer);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
-
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -113,39 +115,40 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	objects.push_back(teapotObj.get());
 	bvh = std::make_shared<BVH>(objects);
 
+	imageBuffer->clear();
+
+	int SampleNum = 1;
+
 #pragma omp parallel for schedule(dynamic, 1)
 	for (int i = 0; i < tiles->size(); ++i) {
 		auto& tile = (*tiles)[i];
-		for (int ly = 0; ly < ImageTile::Height; ++ly) {
-			for (int lx = 0; lx < ImageTile::Width; ++lx) {
-				Vector2i localPos = Vector2i(lx, ly);
-				auto pFilm = tile.GenerateFilmPosition(localPos);
+		for (int s = 0; s < SampleNum; ++s) {
+			for (int ly = 0; ly < ImageTile::Height; ++ly) {
+				if (tile.offset.y + ly >= imageBuffer->height) { continue; }
+				for (int lx = 0; lx < ImageTile::Width; ++lx) {
+					if (tile.offset.x + lx >= imageBuffer->width) { continue; }
 
-				Vector3f color(0, 0, 0);
+					Vector2i localPos = Vector2i(lx, ly);
+					auto pFilm = tile.GenerateFilmPosition(localPos);
 
-				Vector2f cameraOffset(0, 0.5f);
+					Vector3f color(0, 0, 0);
 
-				auto ray = camera->GenerateRay(pFilm, tile.sampler);
+					auto ray = camera->GenerateRay(pFilm, tile.sampler);
 
-				SurfaceInteraction isect;
+					SurfaceInteraction isect;
 
-				if (bvh->intersect(ray, &isect)) {
-					Vector3f dLight = normalize(Vector3f(1, 1, -1));
-					color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+					if (bvh->intersect(ray, &isect)) {
+						Vector3f dLight = normalize(Vector3f(1, 1, -1));
+						color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+					}
+
+					(*imageBuffer)[tile.ImagePosition(localPos)] += color;
 				}
-
-				ColorA8u colA8u;
-				colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
-				colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
-				colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
-				colA8u.a = 255;
-
-				frameData.surface.setPixel(tile.ImagePosition(localPos).glm(), colA8u);
 			}
 		}
 	}
 
-	++frameCount;
+	imageBuffer->toneMap(&frameData.surface, SampleNum);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -153,6 +156,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 }
 
 void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
+
 	texture = gl::Texture::create(frameData.surface);
 
 	gl::clear(Color::gray(0.5f));

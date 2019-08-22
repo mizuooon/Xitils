@@ -17,7 +17,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Bounds.h
 	${XITILS_INCLUDE_DIR}/Xitils/Camera.h
 	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
-	${XITILS_INCLUDE_DIR}/Xitils/ImageTile.h
+	${XITILS_INCLUDE_DIR}/Xitils/Image.h
 	${XITILS_INCLUDE_DIR}/Xitils/Interaction.h
 	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
 	${XITILS_INCLUDE_DIR}/Xitils/Object.h
@@ -65,7 +65,7 @@ add_definitions(-D_UNICODE)
 add_definitions(-DNOMINMAX)
 add_definitions(/MP)
 
-add_subdirectory(SimpleWindow)
+# add_subdirectory(SimpleWindow)
 add_subdirectory(RaycasterBVH)
-add_subdirectory(RaycasterEmbree)
-add_subdirectory(RaycasterOptix)
+# add_subdirectory(RaycasterEmbree)
+# add_subdirectory(RaycasterOptix)
