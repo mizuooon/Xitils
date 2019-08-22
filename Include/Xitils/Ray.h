@@ -1,9 +1,5 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
-#include <optional>
-
 #include "Utils.h"
 #include "Vector.h"
 
@@ -16,21 +12,24 @@ namespace Xitils {
 		Vector3f d;
 		int depth;
 		float tMax;
+		float weight;
 
 		Ray():
 			depth(0),
-			tMax(Infinity)
+			tMax(Infinity),
+			weight(1.0f)
 		{}
 
-		Ray(const Vector3f& o, const Vector3f& d, int depth = 0, float tMax = Infinity):
-			o(o), d(d), depth(depth), tMax(tMax)
+		Ray(const Vector3f& o, const Vector3f& d, int depth = 0, float tMax = Infinity, float weight = 1.0f):
+			o(o), d(d), depth(depth), tMax(tMax), weight(1.0f)
 		{}
 
 		Ray(const Ray& ray) :
 			o(ray.o),
 			d(ray.d),
 			depth(ray.depth),
-			tMax(ray.tMax)
+			tMax(ray.tMax),
+			weight(ray.weight)
 		{}
 
 		Vector3f operator()(float t) const {

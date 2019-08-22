@@ -8,6 +8,42 @@
 
 namespace Xitils {
 
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector2;
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector3;
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector4;
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector2<float, T_SIMD, T_SIMDMASK>& v) {
+		auto val = simdpp::load_u<T_SIMD>(&v);
+		auto mask = simdpp::isnan(val);
+		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+	}
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector2<int, T_SIMD, T_SIMDMASK>& v) {
+		return false;
+	}
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector3<float, T_SIMD, T_SIMDMASK>& v) {
+		auto val = simdpp::load_u<T_SIMD>(&v);
+		auto mask = simdpp::isnan(val);
+		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+	}
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector3<int, T_SIMD, T_SIMDMASK>& v) {
+		return false;
+	}
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector4<float, T_SIMD, T_SIMDMASK>& v) {
+		auto val = simdpp::load_u<T_SIMD>(&v);
+		auto mask = simdpp::isnan(val);
+		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+	}
+
+	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector4<int, T_SIMD, T_SIMDMASK>& v) {
+		return false;
+	}
+
+	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector2 {
 	public:
 
@@ -129,12 +165,8 @@ namespace Xitils {
 		int minDim() const { return (x < y) ? 0 : 1; }
 		int maxDimension() const { return (x > y) ? 0 : 1; }
 
-		bool hasNan() {
-			auto val = simdpp::load_u<T_SIMD>(this);
-			auto mask = simdpp::isnan(val);
-			return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
-		}
-		bool isZero() {
+		bool hasNan() const { return _hasNan(*this); }
+		bool isZero() const {
 			T_SIMD val1 = simdpp::load_u<T_SIMD>(this);
 			T_SIMD val2 = simdpp::make_zero();
 			auto mask = simdpp::cmp_eq(val1, val2);
@@ -147,7 +179,6 @@ namespace Xitils {
 		float padding2;
 
 	};
-
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -282,12 +313,8 @@ namespace Xitils {
 		int minDim() const { return (x < y && x < z) ? 0 : ((y < z) ? 1 : 2); }
 		int maxDimension() const { return (x > y && x > z) ? 0 : ((y > z) ? 1 : 2); }
 
-		bool hasNan() {
-			auto val = simdpp::load_u<T_SIMD>(this);
-			auto mask = simdpp::isnan(val);
-			return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
-		}
-		bool isZero() {
+		bool hasNan() const { return _hasNan(*this); }
+		bool isZero() const {
 			T_SIMD val1 = simdpp::load_u<T_SIMD>(this);
 			T_SIMD val2 = simdpp::make_zero();
 			auto mask = simdpp::cmp_eq(val1, val2);
@@ -443,12 +470,8 @@ namespace Xitils {
 			return 3;
 		}
 
-		bool hasNan() {
-			auto val = simdpp::load_u<T_SIMD>(this);
-			auto mask = simdpp::isnan(val);
-			return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
-		}
-		bool isZero() {
+		bool hasNan() const { return _hasNan(*this); }
+		bool isZero() const {
 			T_SIMD val1 = simdpp::load_u<T_SIMD>(this);
 			T_SIMD val2 = simdpp::make_zero();
 			auto mask = simdpp::cmp_eq(val1, val2);

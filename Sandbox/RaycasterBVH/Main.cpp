@@ -1,8 +1,10 @@
 
 #include <Xitils/App.h>
+#include <Xitils/Camera.h>
 #include <Xitils/Geometry.h>
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/TriangleMesh.h>
+#include <Xitils/ImageTile.h>
 #include <CinderImGui.h>
 
 using namespace Xitils;
@@ -34,9 +36,11 @@ private:
 
 	gl::TextureRef texture;
 
+	std::shared_ptr<PinholeCamera> camera;
 	std::shared_ptr<TriangleMesh> teapotMesh;
 	std::shared_ptr<Object> teapotObj;
 	std::shared_ptr<AccelerationStructure> bvh;
+	std::shared_ptr<ImageTileCollection> tiles;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 };
 
@@ -52,6 +56,10 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	setFrameRate(60);
 
 	ui::initialize();
+
+	camera = std::make_shared<PinholeCamera>(
+		translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
+		);
 
 	const int subdivision = 100;
 	auto teapot = std::make_shared<Teapot>();
@@ -69,8 +77,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	std::vector<int> indices(teapotMeshData->getNumTriangles() * 3);
 	for (int i = 0; i < indices.size(); i += 3) {
 		indices[i + 0] = teapotMeshData->getIndices()[i + 0];
-		indices[i + 1] = teapotMeshData->getIndices()[i + 2]; // ŽžŒv‰ñ‚è‚É’¼‚·
-		indices[i + 2] = teapotMeshData->getIndices()[i + 1];
+		indices[i + 1] = teapotMeshData->getIndices()[i + 1];
+		indices[i + 2] = teapotMeshData->getIndices()[i + 2];
 	}
 
 	teapotMesh = std::make_shared<TriangleMesh>();
@@ -86,8 +94,11 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	bvh = std::make_shared<BVH>(objects);
 
+	tiles = std::make_shared<ImageTileCollection>(frameData->surface);
+
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -103,39 +114,34 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	bvh = std::make_shared<BVH>(objects);
 
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
-#pragma omp parallel for schedule(dynamic, 1)
-		for (int x = 0; x < frameData.surface.getWidth(); ++x) {
+	for (int i = 0; i < tiles->size(); ++i) {
+		auto& tile = (*tiles)[i];
+		for (int ly = 0; ly < ImageTile::Height; ++ly) {
+			for (int lx = 0; lx < ImageTile::Width; ++lx) {
+				Vector2i localPos = Vector2i(lx, ly);
+				auto pFilm = tile.GenerateFilmPosition(localPos);
 
-			Vector3f color(0, 0, 0);
+				Vector3f color(0, 0, 0);
 
-			Vector2f cameraRange;
-			cameraRange.x = 4.0f;
-			cameraRange.y = cameraRange.x * 3.0f / 4.0f;
+				Vector2f cameraOffset(0, 0.5f);
 
-			Vector2f cameraOffset(0,0.5f);
+				auto ray = camera->GenerateRay(pFilm, tile.sampler);
 
-			float nx = (float) x / frameData.surface.getWidth();
-			float ny = (float) y / frameData.surface.getHeight();
+				SurfaceInteraction isect;
 
-			Xitils::Ray ray;
-			ray.o = Vector3f( (nx-0.5f)*cameraRange.x + cameraOffset.x, -(ny-0.5f)*cameraRange.y + cameraOffset.y, 100 );
-			ray.d = normalize(Vector3f(0,0,-1));
-			
-			SurfaceInteraction isect;
+				if (bvh->intersect(ray, &isect)) {
+					Vector3f dLight = normalize(Vector3f(1, 1, -1));
+					color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+				}
 
-			if (bvh->intersect(ray, &isect)) {
-				Vector3f dLight = normalize(Vector3f(1, 1, 1));
-				color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+				ColorA8u colA8u;
+				colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
+				colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
+				colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
+				colA8u.a = 255;
+
+				frameData.surface.setPixel(tile.ImagePosition(localPos).glm(), colA8u);
 			}
-
-			ColorA8u colA8u;
-			colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
-			colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
-			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
-			colA8u.a = 255;
-
-			frameData.surface.setPixel(ivec2(x, y), colA8u);
 		}
 	}
 

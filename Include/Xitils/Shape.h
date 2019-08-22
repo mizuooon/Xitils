@@ -117,7 +117,7 @@ namespace Xitils {
 
 			*tHit = t;
 			isect->p = lerp(p0, p1, p2, b0, b1);
-			isect->n = cross(p2 - p0, p1 - p0).normalize();
+			isect->n = cross(p1 - p0, p2 - p0).normalize();
 			
 			if (normals == nullptr) {
 				isect->shading.n = isect->n;
