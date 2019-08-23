@@ -19,6 +19,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
 	${XITILS_INCLUDE_DIR}/Xitils/RenderTarget.h
 	${XITILS_INCLUDE_DIR}/Xitils/Interaction.h
+	${XITILS_INCLUDE_DIR}/Xitils/Material.h
 	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
 	${XITILS_INCLUDE_DIR}/Xitils/Object.h
 	${XITILS_INCLUDE_DIR}/Xitils/Primitive.h

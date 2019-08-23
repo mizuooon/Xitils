@@ -1,13 +1,14 @@
 #pragma once
 
-#include "Utils.h"
-#include "Vector.h"
 #include "Bounds.h"
-#include "Transform.h"
-#include "Ray.h"
 #include "Interaction.h"
+#include "Material.h"
+#include "Transform.h"
+#include "Utils.h"
 #include "Primitive.h"
 #include "Shape.h"
+#include "Ray.h"
+#include "Vector.h"
 
 namespace Xitils {
 
@@ -16,7 +17,7 @@ namespace Xitils {
 
 		Transform objectToWorld;
 		std::shared_ptr<Shape> shape;
-		//std::shared_ptr<Material> material;
+		std::shared_ptr<Material> material;
 
 		Object(std::shared_ptr<Shape> shape, const Transform& objectToWorld):
 			shape(shape), objectToWorld(objectToWorld)

@@ -1,10 +1,7 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
-#include <optional>
-
 #include "Utils.h"
+#include "Sampler.h"
 
 namespace Xitils {
 
@@ -654,5 +651,46 @@ namespace Xitils {
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> lerp(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector2<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, v3, t1, t2); }
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> lerp(const Vector3<T, T_SIMD, T_SIMDMASK>& v1, const Vector3<T, T_SIMD, T_SIMDMASK>& v2, const Vector3<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, v3, t1, t2); }
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> lerp(const Vector4<T, T_SIMD, T_SIMDMASK>& v1, const Vector4<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3, float t1, float t2) { return _lerp3(v1, v2, v3, t1, t2); }
+
+	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> faceForward(const Vector3<T, T_SIMD, T_SIMDMASK>& n, const Vector3<T, T_SIMD, T_SIMDMASK>& v) { return (dot(n, v) < 0.0f) ? -n : n; }
+
+	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	struct BasisVectors {
+		BasisVectors(const Vector3f& v) {
+			e1 = normalize(v);
+			e2 = cross(v,
+				fabsf(v.x) < 0.5f ? Vector3f(1, 0, 0) :
+				(fabsf(v.y) < 0.5f ? Vector3f(0, 1, 0) : Vector3f(0, 0, 1))).normalize();
+			e3 = cross(e1, e2).normalize();
+		}
+
+		Vector3f e1, e2, e3;
+
+		Vector3f fromGlobal(const Vector3f& v) { return Vector3f(dot(v, e1), dot(v, e2), dot(v, e3)); }
+		Vector3f toGlobal(float x, float y, float z) { return e1 * x + e2 * y + e3 * z; }
+		Vector3f toGlobal(const Vector3f& v) { return e1 * v.x + e2 * v.y + e3 * v.z; }
+	};
+
+	Vector3f sampleVectorFromHemiSphere(const Vector3f& v, Sampler& sampler) {
+		BasisVectors basis(v);
+		float phai = asinf(sampler.randf(1.0f));
+		float theta = sampler.randf(2.0f * Pi);
+		return basis.toGlobal(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
+	}
+
+	Vector3f sampleVectorFromSphere(Sampler& sampler) {
+		float phai = asinf(sampler.randf(-1.0f, 1.0f));
+		float theta = sampler.randf(2.0f * Pi);
+		return Vector3f(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
+	}
+
+	Vector3f sampleVectorFromCosinedHemiSphere(const Vector3f& v, Sampler& sampler) {
+		BasisVectors basis(v);
+		float u = sampler.randf(1.0f);
+		float r = sqrtf(u);
+		float theta = sampler.randf(2.0f * Pi);
+		return basis.toGlobal(sqrt(clampPositive(1.0f - u)), r * cosf(theta), r * sinf(theta));
+	}
 
 }

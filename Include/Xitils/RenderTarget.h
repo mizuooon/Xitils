@@ -67,8 +67,8 @@ namespace Xitils {
 			pFilm.y /= image->height;
 			pFilm.y = 1.0f - pFilm.y;
 
-			pFilm.x += (sampler->sample() - 0.5f) / image->width;
-			pFilm.y += (sampler->sample() - 0.5f) / image->height;
+			pFilm.x += (sampler->randf() - 0.5f) / image->width;
+			pFilm.y += (sampler->randf() - 0.5f) / image->height;
 
 			return pFilm;
 		}
@@ -88,7 +88,7 @@ namespace Xitils {
 					int i = tx + ty * tileX;
 					tiles[i].image = image;
 					tiles[i].offset = Vector2i(tx * RenderTargetTile::Width, ty * RenderTargetTile::Height);
-					tiles[i].sampler = std::make_shared<Sampler>(i);
+					tiles[i].sampler = std::make_shared<SamplerXORShift>(i);
 				}
 			}
 		}

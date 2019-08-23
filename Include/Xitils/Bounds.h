@@ -1,9 +1,5 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
-#include <optional>
-
 #include "Utils.h"
 #include "Vector.h"
 #include "Ray.h"

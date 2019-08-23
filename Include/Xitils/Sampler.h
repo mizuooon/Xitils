@@ -5,14 +5,27 @@
 
 namespace Xitils {
 
-	class SamplerMersenneTwister {
+	class Sampler {
+	public:
+		virtual float randf() = 0;
+		float randf(float max) {
+			return randf() * max;
+		}
+
+		float randf(float min, float max) {
+			float u = randf();
+			return (1-u) * min + u * max;
+		}
+	};
+
+	class SamplerMersenneTwister : public Sampler {
 	public:
 		
 		SamplerMersenneTwister(int seed) :
 			rand(seed)
 		{}
 
-		float sample() {
+		float randf() {
 			return dist(rand);
 		}
 
@@ -21,25 +34,23 @@ namespace Xitils {
 		std::uniform_real_distribution<float> dist;
 	};
 
-	class SamplerXORShift {
+	class SamplerXORShift : public Sampler {
 	public:
 
 		SamplerXORShift(int seed) :
 			x(seed)
 		{}
 
-		float sample() {
+		float randf() {
 			x ^= x << 13;
 			x ^= x >> 17;
 			x ^= x << 5;
 			return (float)x / (0xFFFFFFFF);
 		}
 
+
 	private:
 		int x;
 	};
-
-	//using Sampler = SamplerMersenneTwister;
-	using Sampler = SamplerXORShift;
 
 }
