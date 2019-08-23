@@ -17,7 +17,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Bounds.h
 	${XITILS_INCLUDE_DIR}/Xitils/Camera.h
 	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
-	${XITILS_INCLUDE_DIR}/Xitils/Image.h
+	${XITILS_INCLUDE_DIR}/Xitils/RenderTarget.h
 	${XITILS_INCLUDE_DIR}/Xitils/Interaction.h
 	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
 	${XITILS_INCLUDE_DIR}/Xitils/Object.h

@@ -46,9 +46,7 @@ namespace Xitils {
 			return false;
 		}
 		bool intersectAny(const Ray& ray) const override {
-			float tHit = ray.tMax;
-			SurfaceInteraction isect;
-			return intersect(objectToWorld.inverse(ray), &tHit, &isect);
+			return shape->intersectAny(objectToWorld.inverse(ray));
 		}
 
 	};

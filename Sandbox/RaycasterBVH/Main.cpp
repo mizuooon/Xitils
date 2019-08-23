@@ -4,14 +4,13 @@
 #include <Xitils/Geometry.h>
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/TriangleMesh.h>
-#include <Xitils/Image.h>
+#include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
 
 using namespace Xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
-
 
 struct MyFrameData {
 	float initElapsed;
@@ -39,16 +38,15 @@ private:
 	std::shared_ptr<TriangleMesh> teapotMesh;
 	std::shared_ptr<Object> teapotObj;
 	std::shared_ptr<AccelerationStructure> bvh;
-	std::shared_ptr<ImageTileCollection> tiles;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 
-	std::shared_ptr<ImageBuffer> imageBuffer;
+	std::shared_ptr<RenderTarget> renderTarget;
 
 };
 
 void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
-
+	
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->frameElapsed = 0.0f;
 	frameData->triNum = 0;
@@ -96,8 +94,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	bvh = std::make_shared<BVH>(objects);
 
-	imageBuffer = std::make_shared<ImageBuffer>(ImageSize.x, ImageSize.y);
-	tiles = std::make_shared<ImageTileCollection>(imageBuffer);
+	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -115,18 +112,18 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	objects.push_back(teapotObj.get());
 	bvh = std::make_shared<BVH>(objects);
 
-	imageBuffer->clear();
+	renderTarget->clear();
 
 	int SampleNum = 1;
 
 #pragma omp parallel for schedule(dynamic, 1)
-	for (int i = 0; i < tiles->size(); ++i) {
-		auto& tile = (*tiles)[i];
+	for (int i = 0; i < renderTarget->tiles->size(); ++i) {
+		auto& tile = (*renderTarget->tiles)[i];
 		for (int s = 0; s < SampleNum; ++s) {
-			for (int ly = 0; ly < ImageTile::Height; ++ly) {
-				if (tile.offset.y + ly >= imageBuffer->height) { continue; }
-				for (int lx = 0; lx < ImageTile::Width; ++lx) {
-					if (tile.offset.x + lx >= imageBuffer->width) { continue; }
+			for (int ly = 0; ly < RenderTargetTile::Height; ++ly) {
+				if (tile.offset.y + ly >= renderTarget->height) { continue; }
+				for (int lx = 0; lx < RenderTargetTile::Width; ++lx) {
+					if (tile.offset.x + lx >= renderTarget->width) { continue; }
 
 					Vector2i localPos = Vector2i(lx, ly);
 					auto pFilm = tile.GenerateFilmPosition(localPos);
@@ -142,13 +139,25 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 						color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 					}
 
-					(*imageBuffer)[tile.ImagePosition(localPos)] += color;
+					//if (bvh->intersect(ray, &isect)) {
+					//	Vector3f dLight = normalize(Vector3f(1, 1, -1));
+
+					//	Xitils::Ray shadowRay;
+					//	shadowRay.d = dLight;
+					//	shadowRay.o = isect.p + shadowRay.d*0.0001f;
+					//	shadowRay.depth = ray.depth + 1;
+					//	if (!bvh->intersectAny(shadowRay)) {
+					//		color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+					//	}
+					//}
+
+					(*renderTarget)[tile.ImagePosition(localPos)] += color;
 				}
 			}
 		}
 	}
 
-	imageBuffer->toneMap(&frameData.surface, SampleNum);
+	renderTarget->toneMap(&frameData.surface, SampleNum);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();

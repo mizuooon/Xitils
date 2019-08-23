@@ -5,16 +5,20 @@
 
 namespace Xitils {
 
-	class ImageBuffer {
+	class RenderTargetTileCollection;
+
+	class RenderTarget {
 	public:
 		std::vector<Vector3f> data;
 		int width;
 		int height;
+		std::shared_ptr<RenderTargetTileCollection> tiles;
 
-		ImageBuffer(int width, int height) :
+		RenderTarget(int width, int height) :
 			data(width* height),
 			width(width),
-			height(height)
+			height(height),
+			tiles(std::make_shared<RenderTargetTileCollection>(this))
 		{}
 
 		Vector3f& operator[](const Vector2i& p) {
@@ -32,7 +36,7 @@ namespace Xitils {
 				for (int x = 0; x < width; ++x) {
 					Vector3f color = (*this)[Vector2i(x, y)];
 					color /= sampleNum;
-
+					
 					ci::ColorA8u colA8u;
 					colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
 					colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
@@ -45,11 +49,11 @@ namespace Xitils {
 		}
 	};
 
-	class ImageTile {
+	class RenderTargetTile {
 	public:
 		static const int Width = 16;
 		static const int Height = 16;
-		std::shared_ptr<ImageBuffer> image;
+		const RenderTarget* image;
 		Vector2i offset;
 		std::shared_ptr<Sampler> sampler;
 
@@ -70,20 +74,20 @@ namespace Xitils {
 		}
 	};
 
-	class ImageTileCollection {
+	class RenderTargetTileCollection {
 	public:
-		std::vector<ImageTile> tiles;
+		std::vector<RenderTargetTile> tiles;
 		int tileX, tileY;
 
-		ImageTileCollection(const std::shared_ptr<ImageBuffer>& image) {
-			tileX = (image->width + ImageTile::Width - 1) / ImageTile::Width;
-			tileY = (image->height + ImageTile::Height - 1) / ImageTile::Height;
+		RenderTargetTileCollection(const RenderTarget* image) {
+			tileX = (image->width + RenderTargetTile::Width - 1) / RenderTargetTile::Width;
+			tileY = (image->height + RenderTargetTile::Height - 1) / RenderTargetTile::Height;
 			tiles.resize(tileX * tileY);
 			for (int ty = 0; ty < tileY; ++ty) {
 				for (int tx = 0; tx < tileX; ++tx) {
 					int i = tx + ty * tileX;
 					tiles[i].image = image;
-					tiles[i].offset = Vector2i(tx * ImageTile::Width, ty * ImageTile::Height);
+					tiles[i].offset = Vector2i(tx * RenderTargetTile::Width, ty * RenderTargetTile::Height);
 					tiles[i].sampler = std::make_shared<Sampler>(i);
 				}
 			}
@@ -91,6 +95,6 @@ namespace Xitils {
 
 		int size() const { return tiles.size(); }
 
-		ImageTile& operator[](int i) { return tiles[i]; }
+		RenderTargetTile& operator[](int i) { return tiles[i]; }
 	};
 }
