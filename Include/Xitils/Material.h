@@ -7,15 +7,17 @@ namespace Xitils {
 
 	class Material {
 	public:
+		bool specular = false;
+		bool emissive = false;
 
-		// bsdf_cos の値を返す
+		// BSDF * cos の値を返す
 		// スペキュラの物体ではデルタ関数になるので実装しない
 		virtual Vector3f eval(const SurfaceInteraction& isect, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
-		// bsdf_cos の値を返し、wi のサンプリングも行う
+		// BSDF * cos / pdf の値を返し、wi のサンプリングも行う
 		// スペキュラの物体ではデルタ関数になるので実装しない
 		// 戻り値が 0 のときには wi と pdf は有効ではない
 		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const {
@@ -49,9 +51,6 @@ namespace Xitils {
 			return Vector3f();
 		}
 
-	protected:
-		bool specular = false;
-		bool emissive = false;
 	};
 
 	class Diffuse : public Material {
@@ -73,7 +72,7 @@ namespace Xitils {
 			const auto& n = isect.shading.n;
 			*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			*pdf = dot(*wi, n);
-			return albedo * clampPositive(dot(n, *wi)) / M_PI;
+			return albedo / M_PI;
 		}
 
 		void sample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
@@ -85,7 +84,6 @@ namespace Xitils {
 
 	class SpecularReflection : public Material {
 	public:
-		Vector3f albedo;
 
 		SpecularReflection(){
 			specular = true;
@@ -95,7 +93,7 @@ namespace Xitils {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 			*wi = -(wo - 2 * dot(n, wo) * n).normalize();
-			return albedo;
+			return Vector3f(1.0f);
 		}
 
 		void sampleSpecular(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi) const override {
@@ -239,8 +237,10 @@ namespace Xitils {
 	public:
 		Vector3f power;
 
-		Emission() {
-			emissive = false;
+		Emission(const Vector3f power):
+			power(power)
+		{
+			emissive = true;
 		}
 
 		Vector3f eval(const SurfaceInteraction& isect, const Vector3f& wi) const override {

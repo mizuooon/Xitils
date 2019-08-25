@@ -108,6 +108,19 @@ namespace Xitils {
 		_V operator+() const { return _V(x, y); }
 		_V operator-() const { return _V(-x, -y); }
 
+		_V operator*(const _V& val) const {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::mul(val1, val2));
+			return std::move(res);
+		}
+		_V& operator *=(const _V& val) {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::mul(val1, val2));
+			return *this;
+		}
 		_V operator*(T val) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_splat<T_SIMD>(&val);
@@ -248,6 +261,19 @@ namespace Xitils {
 		_V operator+() const { return _V(x, y, z); }
 		_V operator-() const { return _V(-x, -y, -z); }
 
+		_V operator*(const _V& val) const {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::mul(val1, val2));
+			return std::move(res);
+		}
+		_V& operator *=(const _V& val) {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::mul(val1, val2));
+			return *this;
+		}
 		_V operator*(T val) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_splat<T_SIMD>(&val);
@@ -397,6 +423,19 @@ namespace Xitils {
 		_V operator+() const { return _V(x, y, z, w); }
 		_V operator-() const { return _V(-x, -y, -z, -w); }
 
+		_V operator*(const _V& val) const {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::mul(val1, val2));
+			return std::move(res);
+		}
+		_V& operator *=(const _V& val) {
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::mul(val1, val2));
+			return *this;
+		}
 		_V operator*(T val) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_splat<T_SIMD>(&val);

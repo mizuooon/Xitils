@@ -123,7 +123,7 @@ namespace Xitils {
 			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
 			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
 			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp).normalize();
 		}
 
 		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormalInverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
@@ -131,7 +131,7 @@ namespace Xitils {
 			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
 			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
 			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp).normalize();
 		}
 
 		Ray operator()(const Ray& r) const {
@@ -355,6 +355,12 @@ namespace Xitils {
 		mat[3][2] = 0.;
 
 		return Transform(mat);
+	}
+
+	Transform transformTRS(const Vector3f& translation, const Vector3f& rotation, const Vector3f& scaling) {
+		return   translate(translation.x, translation.y, translation.z)
+			   * rotateYXZ(rotation.x, rotation.y, rotation.z)
+			   * scale(scaling.x, scaling.y, scaling.z);
 	}
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------

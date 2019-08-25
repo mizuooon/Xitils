@@ -119,6 +119,7 @@ namespace Xitils {
 			};
 
 			setGeometry(positions.data(), positions.size(), indices.data(), indices.size());
+
 		}
 
 	};
