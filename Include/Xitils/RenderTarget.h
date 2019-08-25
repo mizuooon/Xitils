@@ -29,6 +29,8 @@ namespace Xitils {
 			memset(data.data(), 0, width * height * sizeof(Vector3f));
 		}
 
+		void render(const std::shared_ptr<Scene>& scene, int sampleNum, std::function<void(const Vector2f&, const std::shared_ptr<Sampler>& sampler, Vector3f&)> f);
+
 		void toneMap(ci::Surface* surface, int sampleNum) {
 #pragma omp parallel for schedule(dynamic, 1)
 			for (int y = 0; y < height; ++y) {
@@ -99,4 +101,27 @@ namespace Xitils {
 
 		RenderTargetTile& operator[](int i) { return tiles[i]; }
 	};
+
+
+
+	void RenderTarget::render(const std::shared_ptr<Scene>& scene, int sampleNum, std::function<void(const Vector2f&, const std::shared_ptr<Sampler>& sampler, Vector3f&)> f) {
+#pragma omp parallel for schedule(dynamic, 1)
+		for (int i = 0; i < tiles->size(); ++i) {
+			auto& tile = (*tiles)[i];
+			for (int s = 0; s < sampleNum; ++s) {
+				for (int ly = 0; ly < RenderTargetTile::Height; ++ly) {
+					if (tile.offset.y + ly >= height) { continue; }
+					for (int lx = 0; lx < RenderTargetTile::Width; ++lx) {
+						if (tile.offset.x + lx >= width) { continue; }
+
+						Vector2i localPos = Vector2i(lx, ly);
+						auto pFilm = tile.GenerateFilmPosition(localPos, false);
+						f(pFilm, tile.sampler, (*this)[tile.ImagePosition(localPos)]);
+
+					}
+				}
+			}
+		}
+	}
+
 }

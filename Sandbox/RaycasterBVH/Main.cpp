@@ -116,46 +116,16 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	int SampleNum = 1;
 
-#pragma omp parallel for schedule(dynamic, 1)
-	for (int i = 0; i < renderTarget->tiles->size(); ++i) {
-		auto& tile = (*renderTarget->tiles)[i];
-		for (int s = 0; s < SampleNum; ++s) {
-			for (int ly = 0; ly < RenderTargetTile::Height; ++ly) {
-				if (tile.offset.y + ly >= renderTarget->height) { continue; }
-				for (int lx = 0; lx < RenderTargetTile::Width; ++lx) {
-					if (tile.offset.x + lx >= renderTarget->width) { continue; }
+	renderTarget->render(scene, SampleNum, [&](const Vector2f& pFilm, const std::shared_ptr<Sampler>& sampler, Vector3f& color) {
+		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-					Vector2i localPos = Vector2i(lx, ly);
-					auto pFilm = tile.GenerateFilmPosition(localPos, false);
+		SurfaceInteraction isect;
 
-					Vector3f color(0, 0, 0);
-
-					auto ray = scene->camera->GenerateRay(pFilm, tile.sampler);
-
-					SurfaceInteraction isect;
-
-					if (scene->intersect(ray, &isect)) {
-						Vector3f dLight = normalize(Vector3f(1, 1, -1));
-						color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
-					}
-
-					//if (accel->intersect(ray, &isect)) {
-					//	Vector3f dLight = normalize(Vector3f(1, 1, -1));
-
-					//	Xitils::Ray shadowRay;
-					//	shadowRay.d = dLight;
-					//	shadowRay.o = isect.p + shadowRay.d*0.0001f;
-					//	shadowRay.depth = ray.depth + 1;
-					//	if (!accel->intersectAny(shadowRay)) {
-					//		color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
-					//	}
-					//}
-
-					(*renderTarget)[tile.ImagePosition(localPos)] += color;
-				}
-			}
+		if (scene->intersect(ray, &isect)) {
+			Vector3f dLight = normalize(Vector3f(1, 1, -1));
+			color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 		}
-	}
+	});
 
 	renderTarget->toneMap(&frameData.surface, SampleNum);
 
