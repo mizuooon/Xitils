@@ -7,7 +7,6 @@ namespace Xitils {
 
 	class Material {
 	public:
-		bool specular;
 
 		// bsdf_cos の値を返す
 		// スペキュラの物体ではデルタ関数になるので実装しない
@@ -18,6 +17,7 @@ namespace Xitils {
 
 		// bsdf_cos の値を返し、wi のサンプリングも行う
 		// スペキュラの物体ではデルタ関数になるので実装しない
+		// 戻り値が 0 のときには wi と pdf は有効ではない
 		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
@@ -31,6 +31,7 @@ namespace Xitils {
 
 		// スペキュラの物体でのみ実装する
 		// BSDF * cos / pdf の値を返す
+		// 戻り値が 0 のときには wi は有効ではない
 		virtual Vector3f evalAndSampleSpecular(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
@@ -38,7 +39,19 @@ namespace Xitils {
 
 		// スペキュラの物体でのみ実装する
 		// wi のサンプリングのみを行う
-		virtual void sampleSpecular(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi) const = 0;
+		virtual void sampleSpecular(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi) const {
+			NOT_IMPLEMENTED;
+		}
+
+		// emissive のマテリアルのみで使用する
+		virtual Vector3f emission(const SurfaceInteraction& isect) const {
+			NOT_IMPLEMENTED;
+			return Vector3f();
+		}
+
+	protected:
+		bool specular = false;
+		bool emissive = false;
 	};
 
 	class Diffuse : public Material {
@@ -220,6 +233,31 @@ namespace Xitils {
 		return 0.5f * powf((g - c) / (g + c), 2.0f) * (1.0f + powf((c * (g + c) - 1.0f) / (c * (g - c) + 1.0f), 2.0f));
 		}
 
+	};
+
+	class Emission : public Material {
+	public:
+		Vector3f power;
+
+		Emission() {
+			emissive = false;
+		}
+
+		Vector3f eval(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+			return Vector3f();
+		}
+
+		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+			return Vector3f();
+		}
+
+		void sample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+			;
+		}
+
+		Vector3f emission(const SurfaceInteraction& isect) const override {
+			return power;
+		}
 	};
 
 }

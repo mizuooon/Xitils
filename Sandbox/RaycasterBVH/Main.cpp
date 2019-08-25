@@ -65,7 +65,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->camera = std::make_shared<OrthographicCamera>(
 	//	translate(0, 0.5f, -3), 4, 3);
 
-	const int subdivision = 100;
+	const int subdivision = 10;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
