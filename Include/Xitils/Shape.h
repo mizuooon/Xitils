@@ -119,11 +119,14 @@ namespace Xitils {
 			isect->p = lerp(p0, p1, p2, b0, b1);
 			isect->n = cross(p1 - p0, p2 - p0).normalize();
 			
+			isect->wo = -ray.d;
+
 			if (normals == nullptr) {
 				isect->shading.n = isect->n;
 			} else {
 				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
 			}
+			isect->shading.n = faceForward(isect->shading.n, isect->wo);
 
 			return true;
 		}

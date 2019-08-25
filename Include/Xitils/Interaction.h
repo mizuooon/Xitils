@@ -17,6 +17,7 @@ namespace Xitils {
 	public:
 		Vector3f n;
 		const Object* object = nullptr;
+		Vector3f wo;
 
 		struct Shading {
 			Vector3f n;
