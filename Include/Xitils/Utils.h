@@ -76,4 +76,6 @@ namespace Xitils {
 
 	template <typename ValueType> ValueType id(ValueType x) { return x; }
 
+
+	float safeSqrt(float x) { return sqrtf(clampPositive(x)); }
 }

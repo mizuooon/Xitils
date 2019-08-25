@@ -691,7 +691,7 @@ namespace Xitils {
 		float u = sampler->randf(1.0f);
 		float r = sqrtf(u);
 		float theta = sampler->randf(2.0f * Pi);
-		return basis.toGlobal(sqrt(clampPositive(1.0f - u)), r * cosf(theta), r * sinf(theta));
+		return basis.toGlobal(safeSqrt(1.0f - u), r * cosf(theta), r * sinf(theta));
 	}
 
 }

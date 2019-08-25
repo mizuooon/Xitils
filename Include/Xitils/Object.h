@@ -19,8 +19,8 @@ namespace Xitils {
 		std::shared_ptr<Shape> shape;
 		std::shared_ptr<Material> material;
 
-		Object(std::shared_ptr<Shape> shape, const Transform& objectToWorld):
-			shape(shape), objectToWorld(objectToWorld)
+		Object(const std::shared_ptr<Shape>& shape, const std::shared_ptr<Material>& material, const Transform& objectToWorld):
+			shape(shape), material(material), objectToWorld(objectToWorld)
 		{}
 
 		Bounds3f bound() const override {
@@ -42,6 +42,9 @@ namespace Xitils {
 				isect->wo = objectToWorld.asNormal(isect->wo);
 				isect->shading.n = objectToWorld.asNormal(isect->shading.n);
 				*tHit = (isect->p - ray.o).length();
+
+				isect->object = this;
+
 				return true;
 			}
 			return false;

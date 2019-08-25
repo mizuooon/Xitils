@@ -27,6 +27,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Sampler.h
 	${XITILS_INCLUDE_DIR}/Xitils/Scene.h
 	${XITILS_INCLUDE_DIR}/Xitils/Shape.h
+	${XITILS_INCLUDE_DIR}/Xitils/SkySphere.h
 	${XITILS_INCLUDE_DIR}/Xitils/Transform.h
 	${XITILS_INCLUDE_DIR}/Xitils/TriangleMesh.h
 	${XITILS_INCLUDE_DIR}/Xitils/Utils.h
@@ -48,6 +49,10 @@ function(add_sandbox TargetName)
 	target_include_directories(${TargetName}
 		PRIVATE ${XITILS_INCLUDE_DIR}
 		)
+	set_target_properties(
+	${TargetName} PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../Data"
+	)
 	#set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${TargetName})
 	
 	# なんかC++のバージョン指定以下でやるとうまくいかない

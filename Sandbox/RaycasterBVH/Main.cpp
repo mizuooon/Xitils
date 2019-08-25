@@ -1,4 +1,5 @@
 
+
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/App.h>
 #include <Xitils/Camera.h>
@@ -7,6 +8,7 @@
 #include <Xitils/TriangleMesh.h>
 #include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
+
 
 using namespace Xitils;
 using namespace ci;
@@ -57,11 +59,11 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene = std::make_shared<Scene>();
 
-	//scene->camera = std::make_shared<PinholeCamera>(
-	//	translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
-	//	);
-	scene->camera = std::make_shared<OrthographicCamera>(
-		translate(0, 0.5f, -3), 4, 3);
+	scene->camera = std::make_shared<PinholeCamera>(
+		translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
+		);
+	//scene->camera = std::make_shared<OrthographicCamera>(
+	//	translate(0, 0.5f, -3), 4, 3);
 
 	const int subdivision = 100;
 	auto teapot = std::make_shared<Teapot>();
@@ -89,11 +91,15 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		normals.data(), normals.size(),
 		indices.data(), indices.size()
 	);
-	scene->objects.push_back(std::make_shared<Object>( teapotMesh, Matrix4x4()));
+	auto material = std::make_shared<SpecularFresnel>();
+	material->index = 1.02f;
+	scene->objects.push_back(std::make_shared<Object>( teapotMesh, material, Matrix4x4()));
 
 	scene->buildAccelerationStructure();
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+
+	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -114,16 +120,31 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	renderTarget->clear();
 
-	int SampleNum = 1;
+	int SampleNum = 4;
 
 	renderTarget->render(scene, SampleNum, [&](const Vector2f& pFilm, const std::shared_ptr<Sampler>& sampler, Vector3f& color) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
 		SurfaceInteraction isect;
-
+		
 		if (scene->intersect(ray, &isect)) {
-			Vector3f dLight = normalize(Vector3f(1, 1, -1));
-			color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+			//Vector3f dLight = normalize(Vector3f(1, 1, -1));
+			//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+
+			ray.depth += 1;
+			while (ray.depth < 10) {
+				ray.tMax = Infinity;
+				isect.object->material->sampleSpecular(isect, sampler, &ray.d);
+				ray.o = isect.p + 0.0001f * ray.d;
+				if (!scene->intersect(ray, &isect)) {
+					color += scene->skySphere->getRadiance(ray.d);
+					break;
+				}
+				ray.depth += 1;
+			}
+
+		} else {
+			color += scene->skySphere->getRadiance(ray.d);
 		}
 	});
 

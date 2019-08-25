@@ -1,0 +1,11 @@
+
+## メモ
+
+cinder と stb を併用するとエラーが出る。
+回避するために stb/stbi_image.h の
+void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
+を
+static void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
+に変更する必要がある。
+
+https://github.com/cinder/Cinder/issues/1743
