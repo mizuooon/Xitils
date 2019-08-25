@@ -57,9 +57,11 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene = std::make_shared<Scene>();
 
-	scene->camera = std::make_shared<PinholeCamera>(
-		translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
-		);
+	//scene->camera = std::make_shared<PinholeCamera>(
+	//	translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
+	//	);
+	scene->camera = std::make_shared<OrthographicCamera>(
+		translate(0, 0.5f, -3), 4, 3);
 
 	const int subdivision = 100;
 	auto teapot = std::make_shared<Teapot>();
