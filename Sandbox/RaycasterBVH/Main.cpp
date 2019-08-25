@@ -1,8 +1,9 @@
 
+#include <Xitils/AccelerationStructure.h>
 #include <Xitils/App.h>
 #include <Xitils/Camera.h>
 #include <Xitils/Geometry.h>
-#include <Xitils/AccelerationStructure.h>
+#include <Xitils/Scene.h>
 #include <Xitils/TriangleMesh.h>
 #include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
@@ -34,10 +35,7 @@ private:
 	
 	gl::TextureRef texture;
 
-	std::shared_ptr<PinholeCamera> camera;
-	std::shared_ptr<TriangleMesh> teapotMesh;
-	std::shared_ptr<Object> teapotObj;
-	std::shared_ptr<AccelerationStructure> accel;
+	std::shared_ptr<Scene> scene;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 
 	std::shared_ptr<RenderTarget> renderTarget;
@@ -57,7 +55,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	ui::initialize();
 
-	camera = std::make_shared<PinholeCamera>(
+	scene = std::make_shared<Scene>();
+
+	scene->camera = std::make_shared<PinholeCamera>(
 		translate(0,0.5f,-3), 60 * ToRad, (float)ImageSize.y / ImageSize.x
 		);
 
@@ -81,23 +81,21 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		indices[i + 2] = teapotMeshData->getIndices()[i + 2];
 	}
 
-	teapotMesh = std::make_shared<TriangleMesh>();
+	auto teapotMesh = std::make_shared<TriangleMesh>();
 	teapotMesh->setGeometry(
 		positions.data(), positions.size(),
 		normals.data(), normals.size(),
 		indices.data(), indices.size()
 	);
-	teapotObj = std::make_shared<Object>( teapotMesh, Matrix4x4());
+	scene->objects.push_back(std::make_shared<Object>( teapotMesh, Matrix4x4()));
 
-	std::vector<Object*> objects;
-	objects.push_back(teapotObj.get());
-
-	accel = std::make_shared<AccelerationStructure>(objects);
+	scene->buildAccelerationStructure();
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData->triNum = teapotMeshData->getNumTriangles();
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -107,10 +105,10 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
-	teapotObj->objectToWorld = rotateYXZ(uiFrameData.rot);
-	std::vector<Object*> objects;
-	objects.push_back(teapotObj.get());
-	accel = std::make_shared<AccelerationStructure>(objects);
+	for (auto& obj : scene->objects) {
+		obj->objectToWorld = rotateYXZ(uiFrameData.rot);
+	}
+	scene->buildAccelerationStructure();
 
 	renderTarget->clear();
 
@@ -130,11 +128,11 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 					Vector3f color(0, 0, 0);
 
-					auto ray = camera->GenerateRay(pFilm, tile.sampler);
+					auto ray = scene->camera->GenerateRay(pFilm, tile.sampler);
 
 					SurfaceInteraction isect;
 
-					if (accel->intersect(ray, &isect)) {
+					if (scene->intersect(ray, &isect)) {
 						Vector3f dLight = normalize(Vector3f(1, 1, -1));
 						color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 					}
@@ -161,7 +159,6 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
-	frameData.triNum = teapotMesh->triangleNum();
 }
 
 void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {

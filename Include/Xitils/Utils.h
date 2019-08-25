@@ -43,17 +43,12 @@ namespace Xitils {
 	inline bool inRange(float x, float minVal, float maxVal) { return minVal <= x && x <= maxVal; }
 	inline bool inRange01(float x) { return inRange(x, 0.0f, 1.0f); }
 
-	template <typename A, typename ValueType, typename U> void map(const A& src, A* dest, const std::function<U(ValueType)>& f) {
+	template <typename T, typename U> void map(const std::vector<T>& src, std::vector<U>* dest, const std::function<U(const T&)>& f) {
 		dest->clear();
-		dest->reserve(src->size());
+		dest->resize(src.size());
 		std::transform(src.begin(), src.end(), dest->begin(), f);
 	}
 
-	template <typename A, typename ValueType> void map(const A& src, A* dest, const std::function<ValueType(ValueType, ValueType)>& f) {
-		dest->clear();
-		dest->reserve(src->size());
-		std::transform(src.begin(), src.end(), dest->begin(), f);
-	}
 
 	template <typename A, typename ValueType, typename U> U reduce(const A& src, U initialValue, const std::function<U(U, ValueType)>& f) {
 		return std::accumulate(src.begin(), src.end(), initialValue, f);

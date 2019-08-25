@@ -99,4 +99,28 @@ namespace Xitils {
 
 	};
 
+	class Cube : public TriangleMesh {
+	public:
+
+		Cube() {
+			std::array<Vector3f,8> positions;
+			for (int i = 0; i < 8; ++i) {
+				positions[i] = Vector3f( i & 1 ? -0.5f : 0.5f,
+										 i & 2 ? -0.5f : 0.5f,
+									     i & 4 ? -0.5f : 0.5f);
+			}
+			std::array<int, 3 * 6 * 2> indices{
+				0,1,2, 1,3,2,
+				2,3,6, 3,7,6,
+				0,4,1, 4,5,1,
+				0,2,6, 0,6,4,
+				1,5,3, 5,7,3,
+				4,6,5, 6,7,5
+			};
+
+			setGeometry(positions.data(), positions.size(), indices.data(), indices.size());
+		}
+
+	};
+
 }

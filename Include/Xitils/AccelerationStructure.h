@@ -30,6 +30,12 @@ namespace Xitils {
 	class _NaiveAccelerationStructure : public _AccelerationStructure {
 	public:
 		_NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) : primitives(primitives) {}
+		_NaiveAccelerationStructure(const std::vector<Object*>& objects) {
+			map<Object*, Primitive*>(objects, &primitives, [](const Primitive* object) { return (Primitive*)object; });
+		}
+		_NaiveAccelerationStructure(const std::vector<Shape*>& shapes) {
+			map<Shape*, Primitive*>(shapes, &primitives, [](const Primitive* shape) { return (Primitive*)shape; });
+		}
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
@@ -154,7 +160,7 @@ namespace Xitils {
 				aabbPrimitives.push_back(PrimBounds(prim, bound, bound.center()));
 			}
 
-			int treeDepth = cinder::log2ceil(primNum);
+			int treeDepth = ceil(log2((float)primNum));
 			nodes = (BVHNode*)calloc(pow(2, treeDepth + 1), sizeof(BVHNode));
 
 			nodeRoot = &nodes[nodeCount++];
