@@ -10,7 +10,14 @@
 
 namespace Xitils {
 
-	class AccelerationStructure {
+	class _NaiveAccelerationStructure;
+	class _BVH;
+
+	using AccelerationStructure = _BVH;
+
+	//---------------------------------------------------
+
+	class _AccelerationStructure {
 	public:
 		virtual bool intersect(Ray& ray, SurfaceInteraction *isect) const = 0;
 		virtual bool intersectAny(const Ray& ray) const {
@@ -20,9 +27,9 @@ namespace Xitils {
 		}
 	};
 
-	class NaiveAccelerationStructure : public AccelerationStructure {
+	class _NaiveAccelerationStructure : public _AccelerationStructure {
 	public:
-		NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) : primitives(primitives) {}
+		_NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) : primitives(primitives) {}
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
@@ -49,21 +56,21 @@ namespace Xitils {
 		BVHNode* children[2];
 	};
 
-	class BVH : public AccelerationStructure {
+	class _BVH : public _AccelerationStructure {
 	public:
-		BVH(const std::vector<Primitive*>& primitives) {
+		_BVH(const std::vector<Primitive*>& primitives) {
 			buildBVH((const Primitive**)primitives.data(), primitives.size());
 		}
 
-		BVH(const std::vector<Object*>& objects) {
+		_BVH(const std::vector<Object*>& objects) {
 			buildBVH((const Primitive**)objects.data(), objects.size());
 		}
 
-		BVH(const std::vector<Shape*>& shapes) {
+		_BVH(const std::vector<Shape*>& shapes) {
 			buildBVH((const Primitive**)shapes.data(), shapes.size());
 		}
 
-		~BVH() {
+		~_BVH() {
 			delete nodes;
 		}
 

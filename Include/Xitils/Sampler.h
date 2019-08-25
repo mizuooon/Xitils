@@ -5,9 +5,19 @@
 
 namespace Xitils {
 
-	class Sampler {
+	class _SamplerMersenneTwister;
+	class _SamplerXORShift;
+
+	using Sampler = _SamplerXORShift;
+
+	//---------------------------------------------------
+
+	class _Sampler {
 	public:
-		virtual float randf() = 0;
+		virtual float randf() {
+			return (float)rand() / 0xFFFFFFFF;
+		}
+
 		float randf(float max) {
 			return randf() * max;
 		}
@@ -16,38 +26,43 @@ namespace Xitils {
 			float u = randf();
 			return (1-u) * min + u * max;
 		}
+
+	protected:
+		virtual unsigned int rand() = 0;
 	};
 
-	class SamplerMersenneTwister : public Sampler {
+	class _SamplerMersenneTwister : public _Sampler {
 	public:
 		
-		SamplerMersenneTwister(int seed) :
-			rand(seed)
+		_SamplerMersenneTwister(int seed) :
+			gen(seed),
+			dist(0, 0xFFFFFFFF - 1)
 		{}
 
-		float randf() {
-			return dist(rand);
+	protected:
+		unsigned int rand() override {
+			return dist(gen);
 		}
 
 	private:
-		std::mt19937 rand;
-		std::uniform_real_distribution<float> dist;
+		std::mt19937 gen;
+		std::uniform_int_distribution<unsigned int> dist;
 	};
 
-	class SamplerXORShift : public Sampler {
+	class _SamplerXORShift : public _Sampler {
 	public:
 
-		SamplerXORShift(int seed) :
+		_SamplerXORShift(int seed) :
 			x(seed)
 		{}
 
-		float randf() {
+	protected:
+		unsigned int rand() override {
 			x ^= x << 13;
 			x ^= x >> 17;
 			x ^= x << 5;
-			return (float)x / (0xFFFFFFFF);
+			return (x != 0xFFFFFFFF) ? x : randf(); // 0xFFFFFFFF ‚ÍŠÜ‚Ü‚È‚¢‚æ‚¤‚É‚·‚é
 		}
-
 
 	private:
 		int x;

@@ -47,7 +47,7 @@ namespace Xitils {
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
 			Ray rayTmp = Ray(ray);
-			if (bvh->intersect(rayTmp, isect)) {
+			if (accel->intersect(rayTmp, isect)) {
 				*tHit = rayTmp.tMax;
 				return true;
 			}
@@ -55,7 +55,7 @@ namespace Xitils {
 		}
 
 		bool intersectAny(const Ray& ray) const override {
-			return bvh->intersectAny(ray);
+			return accel->intersectAny(ray);
 		}
 
 	private:
@@ -64,7 +64,7 @@ namespace Xitils {
 		std::vector<int> indices;
 		std::vector<Shape*> triangles;
 
-		std::unique_ptr<AccelerationStructure> bvh;
+		std::unique_ptr<AccelerationStructure> accel;
 
 		void buildBVH() {
 			int faceNum = indices.size() / 3;
@@ -76,7 +76,7 @@ namespace Xitils {
 				triangles[i] = new TriangleIndexed(positions.data(), !normals.empty() ? normals.data() : nullptr, indices.data(), i);
 			}
 
-			bvh = std::make_unique<BVH>(triangles);
+			accel = std::make_unique<AccelerationStructure>(triangles);
 		}
 
 		void setPositions(const Vector3f* data, int num){

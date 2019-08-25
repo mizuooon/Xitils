@@ -25,6 +25,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Primitive.h
 	${XITILS_INCLUDE_DIR}/Xitils/Ray.h
 	${XITILS_INCLUDE_DIR}/Xitils/Sampler.h
+	${XITILS_INCLUDE_DIR}/Xitils/Scene.h
 	${XITILS_INCLUDE_DIR}/Xitils/Shape.h
 	${XITILS_INCLUDE_DIR}/Xitils/Transform.h
 	${XITILS_INCLUDE_DIR}/Xitils/TriangleMesh.h

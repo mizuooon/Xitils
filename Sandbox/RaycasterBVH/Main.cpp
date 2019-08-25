@@ -37,7 +37,7 @@ private:
 	std::shared_ptr<PinholeCamera> camera;
 	std::shared_ptr<TriangleMesh> teapotMesh;
 	std::shared_ptr<Object> teapotObj;
-	std::shared_ptr<AccelerationStructure> bvh;
+	std::shared_ptr<AccelerationStructure> accel;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 600);
 
 	std::shared_ptr<RenderTarget> renderTarget;
@@ -92,7 +92,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	std::vector<Object*> objects;
 	objects.push_back(teapotObj.get());
 
-	bvh = std::make_shared<BVH>(objects);
+	accel = std::make_shared<AccelerationStructure>(objects);
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
@@ -110,7 +110,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	teapotObj->objectToWorld = rotateYXZ(uiFrameData.rot);
 	std::vector<Object*> objects;
 	objects.push_back(teapotObj.get());
-	bvh = std::make_shared<BVH>(objects);
+	accel = std::make_shared<AccelerationStructure>(objects);
 
 	renderTarget->clear();
 
@@ -126,7 +126,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 					if (tile.offset.x + lx >= renderTarget->width) { continue; }
 
 					Vector2i localPos = Vector2i(lx, ly);
-					auto pFilm = tile.GenerateFilmPosition(localPos);
+					auto pFilm = tile.GenerateFilmPosition(localPos, false);
 
 					Vector3f color(0, 0, 0);
 
@@ -134,19 +134,19 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 					SurfaceInteraction isect;
 
-					if (bvh->intersect(ray, &isect)) {
+					if (accel->intersect(ray, &isect)) {
 						Vector3f dLight = normalize(Vector3f(1, 1, -1));
 						color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 					}
 
-					//if (bvh->intersect(ray, &isect)) {
+					//if (accel->intersect(ray, &isect)) {
 					//	Vector3f dLight = normalize(Vector3f(1, 1, -1));
 
 					//	Xitils::Ray shadowRay;
 					//	shadowRay.d = dLight;
 					//	shadowRay.o = isect.p + shadowRay.d*0.0001f;
 					//	shadowRay.depth = ray.depth + 1;
-					//	if (!bvh->intersectAny(shadowRay)) {
+					//	if (!accel->intersectAny(shadowRay)) {
 					//		color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 					//	}
 					//}

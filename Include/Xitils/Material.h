@@ -18,27 +18,27 @@ namespace Xitils {
 
 		// bsdf_cos の値を返し、wi のサンプリングも行う
 		// スペキュラの物体ではデルタ関数になるので実装しない
-		virtual Vector3f evalAndSample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, Sampler& sampler) const {
+		virtual Vector3f evalAndSample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, const std::shared_ptr<Sampler>& sampler) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
 		// wi のサンプリングのみを行う
 		// スペキュラの物体では pdf がデルタ関数になるので実装しない
-		virtual void sample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, Sampler& sampler) const {
+		virtual void sample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, const std::shared_ptr<Sampler>& sampler) const {
 			NOT_IMPLEMENTED;
 		}
 
 		// スペキュラの物体でのみ実装する
 		// BSDF * cos / pdf の値を返す
-		virtual Vector3f evalAndSampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, Sampler& sampler) const {
+		virtual Vector3f evalAndSampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, const std::shared_ptr<Sampler>& sampler) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
 		// スペキュラの物体でのみ実装する
 		// wi のサンプリングのみを行う
-		virtual void sampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, Sampler& sampler) const = 0;
+		virtual void sampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, const std::shared_ptr<Sampler>& sampler) const = 0;
 	};
 
 	class Diffuse : public Material {
@@ -56,14 +56,14 @@ namespace Xitils {
 			return albedo * fabs(dot(fn, wi)) * dot(wi, n) / M_PI;
 		}
 
-		Vector3f evalAndSample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, Sampler& sampler) const override {
+		Vector3f evalAndSample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, const std::shared_ptr<Sampler>& sampler) const override {
 			Vector3f fn = faceForward(n, wo);
 			*wi = sampleVectorFromCosinedHemiSphere(fn, sampler);
 			*pdf = dot(*wi, fn);
 			return albedo * fabs(dot(fn, *wi)) * dot(*wi, fn) / M_PI;
 		}
 
-		void sample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, Sampler& sampler) const override {
+		void sample(const Vector3f& wo, Vector3f* wi, const Vector3f& n, float* pdf, const std::shared_ptr<Sampler>& sampler) const override {
 			Vector3f fn = faceForward(n, wo);
 			*wi = sampleVectorFromCosinedHemiSphere(fn, sampler);
 			*pdf = dot(*wi, fn);
@@ -80,13 +80,13 @@ namespace Xitils {
 			specular = true;
 		}
 
-		Vector3f evalAndSampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, Sampler& sampler) const {
+		Vector3f evalAndSampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, const std::shared_ptr<Sampler>& sampler) const {
 			Vector3f fn = faceForward(n, wo);
 			*wi = -(wo - 2 * dot(fn, wo) * fn).normalize();
 			return albedo;
 		}
 
-		void sampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, Sampler& sampler) const override {
+		void sampleSpecular(const Vector3f& wo, Vector3f* wi, const Vector3f& n, const std::shared_ptr<Sampler>& sampler) const override {
 			Vector3f fn = faceForward(n, wo);
 			*wi = -( wo - 2 * dot(fn, wo) * fn ).normalize();
 		}

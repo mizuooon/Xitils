@@ -672,10 +672,10 @@ namespace Xitils {
 		Vector3f toGlobal(const Vector3f& v) { return e1 * v.x + e2 * v.y + e3 * v.z; }
 	};
 
-	Vector3f sampleVectorFromHemiSphere(const Vector3f& v, Sampler& sampler) {
+	Vector3f sampleVectorFromHemiSphere(const Vector3f& v, const std::shared_ptr<Sampler>& sampler) {
 		BasisVectors basis(v);
-		float phai = asinf(sampler.randf(1.0f));
-		float theta = sampler.randf(2.0f * Pi);
+		float phai = asinf(sampler->randf(1.0f));
+		float theta = sampler->randf(2.0f * Pi);
 		return basis.toGlobal(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
 	}
 
@@ -685,11 +685,12 @@ namespace Xitils {
 		return Vector3f(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
 	}
 
-	Vector3f sampleVectorFromCosinedHemiSphere(const Vector3f& v, Sampler& sampler) {
+	Vector3f sampleVectorFromCosinedHemiSphere(const Vector3f& v, const std::shared_ptr<Sampler>& sampler) {
 		BasisVectors basis(v);
-		float u = sampler.randf(1.0f);
+		
+		float u = sampler->randf(1.0f);
 		float r = sqrtf(u);
-		float theta = sampler.randf(2.0f * Pi);
+		float theta = sampler->randf(2.0f * Pi);
 		return basis.toGlobal(sqrt(clampPositive(1.0f - u)), r * cosf(theta), r * sinf(theta));
 	}
 
