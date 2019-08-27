@@ -165,8 +165,6 @@ namespace Xitils {
 
 			nodeRoot = &nodes[nodeCount++];
 			nodeRoot->depth = 0;
-			nodeRoot->axis = -1;
-
 
 			nodeRoot->aabb = Bounds3f();
 			for (auto it = aabbPrimitives.begin(); it != aabbPrimitives.end(); ++it) {
@@ -191,6 +189,7 @@ namespace Xitils {
 			}
 
 			int axis = node->aabb.size().maxDimension();
+			node->axis = axis;
 			std::sort(begin, end, [axis](const PrimBounds& a, const PrimBounds& b) {
 				return a.center[axis] < b.center[axis];
 				});
@@ -274,8 +273,6 @@ namespace Xitils {
 			node->children[1] = &nodes[nodeCount++];
 			node->children[0]->depth = node->depth + 1;
 			node->children[1]->depth = node->depth + 1;
-			node->children[0]->axis = axis;
-			node->children[1]->axis = axis;
 			node->children[0]->parent = node;
 			node->children[1]->parent = node;
 
