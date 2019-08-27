@@ -10,26 +10,20 @@ namespace Xitils {
 
 		Vector3f o;
 		Vector3f d;
-		int depth;
 		float tMax;
-		float weight;
 
 		Ray():
-			depth(0),
-			tMax(Infinity),
-			weight(1.0f)
+			tMax(Infinity)
 		{}
 
 		Ray(const Vector3f& o, const Vector3f& d, int depth = 0, float tMax = Infinity, float weight = 1.0f):
-			o(o), d(d), depth(depth), tMax(tMax), weight(1.0f)
+			o(o), d(d), tMax(tMax)
 		{}
 
 		Ray(const Ray& ray) :
 			o(ray.o),
 			d(ray.d),
-			depth(ray.depth),
-			tMax(ray.tMax),
-			weight(ray.weight)
+			tMax(ray.tMax)
 		{}
 
 		Vector3f operator()(float t) const {

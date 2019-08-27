@@ -135,11 +135,11 @@ namespace Xitils {
 		}
 
 		Ray operator()(const Ray& r) const {
-			return Ray( (*this)(r.o), asVector(r.d), r.depth, r.tMax );
+			return Ray( (*this)(r.o), asVector(r.d), r.tMax );
 		}
 
 		Ray inverse(const Ray& r) const {
-			return Ray(inverse(r.o), asVectorInverse(r.d), r.depth, r.tMax);
+			return Ray(inverse(r.o), asVectorInverse(r.d), r.tMax);
 		}
 
 		Bounds3f operator()(const Bounds3f& b) const {

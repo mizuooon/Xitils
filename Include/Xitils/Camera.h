@@ -41,7 +41,6 @@ namespace Xitils {
 					 tanf(fov/2 * aspectRatio) * (pFilm.y - 0.5f) * 2,
 				     1
 				).normalize();
-			ray.weight = 1.0f;
 
 			return cameraToWorld(ray);
 		}
@@ -64,7 +63,6 @@ namespace Xitils {
 			Ray ray;
 			ray.o = Vector3f((pFilm.x - 0.5f) * width, (pFilm.y - 0.5f) * height, 0);
 			ray.d = Vector3f(0, 0, 1);
-			ray.weight = 1.0f;
 
 			return cameraToWorld(ray);
 		}

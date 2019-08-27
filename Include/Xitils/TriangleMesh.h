@@ -124,4 +124,24 @@ namespace Xitils {
 
 	};
 
+	class Plane : public TriangleMesh {
+	public:
+
+		Plane() {
+			std::array<Vector3f, 4> positions;
+			for (int i = 0; i < 4; ++i) {
+				positions[i] = Vector3f(i & 1 ? -0.5f : 0.5f,
+					i & 2 ? -0.5f : 0.5f,
+					0);
+			}
+			std::array<int, 3 * 2> indices{
+				0,2,1, 1,2,3
+			};
+
+			setGeometry(positions.data(), positions.size(), indices.data(), indices.size());
+
+		}
+
+	};
+
 }

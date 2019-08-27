@@ -4,6 +4,7 @@
 #include <Xitils/App.h>
 #include <Xitils/Camera.h>
 #include <Xitils/Geometry.h>
+#include <Xitils/PathTracer.h>
 #include <Xitils/Scene.h>
 #include <Xitils/TriangleMesh.h>
 #include <Xitils/RenderTarget.h>
@@ -20,6 +21,7 @@ struct MyFrameData {
 	float frameElapsed;
 	Surface surface;
 	int triNum;
+	int sampleNum = 0;
 };
 
 struct MyUIFrameData {
@@ -41,6 +43,7 @@ private:
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 800);
 
 	std::shared_ptr<RenderTarget> renderTarget;
+	std::shared_ptr<NaivePathTracer> pathTracer;
 
 };
 
@@ -49,6 +52,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->frameElapsed = 0.0f;
+	frameData->sampleNum = 0;
 	frameData->triNum = 0;
 
 	getWindow()->setTitle("Xitils");
@@ -65,7 +69,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->camera = std::make_shared<OrthographicCamera>(
 	//	translate(0, 0.5f, -3), 4, 3);
 
-	const int subdivision = 100;
+	const int subdivision = 10;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
@@ -91,17 +95,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		normals.data(), normals.size(),
 		indices.data(), indices.size()
 	);
-	auto material = std::make_shared<SpecularReflection>();
-	//material->index = 1.02f;
+	auto material = std::make_shared<SpecularFresnel>();
+	material->index = 1.2f;
 
-	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.95f));
 	
-	scene->objects.push_back(std::make_shared<Object>( teapotMesh, diffuse_white, Matrix4x4()));
 
-	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.2f, 0.2f));
-	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.2f, 0.8f, 0.2f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.9f) * 5);
+	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.9f, 0.1f, 0.1f));
+	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.9f, 0.1f));
+	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 40);
 	auto cube = std::make_shared<Xitils::Cube>();
+	auto plane = std::make_shared<Xitils::Plane>();
 	scene->objects.push_back(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
@@ -118,12 +122,21 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
 	scene->objects.push_back(
-		std::make_shared<Object>(cube, emission, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(1, 0.02f, 1)))
+		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(1, 1, 1)))
+	);
+
+	scene->objects.push_back(std::make_shared<Object>(teapotMesh, material, 
+		transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
+		)));
+	scene->objects.push_back(
+		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	);
 
 	scene->buildAccelerationStructure();
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+
+	pathTracer = std::make_shared<NaivePathTracer>();
 
 	auto time_end = std::chrono::system_clock::now();
 
@@ -138,53 +151,57 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
-	scene->objects[0]->objectToWorld = rotateYXZ(uiFrameData.rot);
-	scene->buildAccelerationStructure();
+	//scene->objects[0]->objectToWorld = rotateYXZ(uiFrameData.rot);
+	//scene->buildAccelerationStructure();
 
-	renderTarget->clear();
+	//renderTarget->clear();
 
-	int SampleNum = 10;
+	int sample = 1;
 
-	renderTarget->render(scene, SampleNum, [&](const Vector2f& pFilm, const std::shared_ptr<Sampler>& sampler, Vector3f& color) {
+	frameData.sampleNum += sample;
+
+	renderTarget->render(scene, sample, [&](const Vector2f& pFilm, const std::shared_ptr<Sampler>& sampler, Vector3f& color) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-		SurfaceInteraction isect;
-		
-		if (scene->intersect(ray, &isect)) {
-			//Vector3f dLight = normalize(Vector3f(1, 1, -1));
-			//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
+		color += pathTracer->eval(scene, sampler, ray);
 
-			Vector3f wi;
-			Vector3f f;
-			if (isect.object->material->emissive) {
-				color += isect.object->material->emission(isect);
-			}
-			if (isect.object->material->specular) {
-				f = isect.object->material->evalAndSampleSpecular(isect, sampler, &wi);
-			} else {
-				float pdf;
-				f = isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
-			}
-			if (!f.isZero()) {
+		//SurfaceInteraction isect;
+		//
+		//if (scene->intersect(ray, &isect)) {
+		//	//Vector3f dLight = normalize(Vector3f(1, 1, -1));
+		//	//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
 
-				Xitils::Ray ray2;
-				SurfaceInteraction isect2;
-				ray2.d = wi;
-				ray2.o = isect.p + ray2.d * 0.001f;
-				if (scene->intersect(ray2,&isect2)) {
-					if (isect2.object->material->emissive) {
-						color += f * isect2.object->material->emission(isect2) * 10;
-					}
-				}
+		//	Vector3f wi;
+		//	Vector3f f;
+		//	if (isect.object->material->emissive) {
+		//		color += isect.object->material->emission(isect);
+		//	}
+		//	if (isect.object->material->specular) {
+		//		f = isect.object->material->evalAndSampleSpecular(isect, sampler, &wi);
+		//	} else {
+		//		float pdf;
+		//		f = isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
+		//	}
+		//	if (!f.isZero()) {
 
-			}
+		//		Xitils::Ray ray2;
+		//		SurfaceInteraction isect2;
+		//		ray2.d = wi;
+		//		ray2.o = isect.p + ray2.d * 0.001f;
+		//		if (scene->intersect(ray2,&isect2)) {
+		//			if (isect2.object->material->emissive) {
+		//				color += f * isect2.object->material->emission(isect2) * 10;
+		//			}
+		//		}
 
-			//color += isect.shading.n * 0.5f + Vector3f(0.5f);
+		//	}
 
-		}
+		//	//color += isect.shading.n * 0.5f + Vector3f(0.5f);
+
+		//}
 	});
 
-	renderTarget->toneMap(&frameData.surface, SampleNum);
+	renderTarget->toneMap(&frameData.surface, frameData.sampleNum);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -204,6 +221,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed per frame: " + std::_Floating_to_string("%.1f", frameData.frameElapsed) + " ms").c_str());
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
+	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());
 
 	float rot[3];
 	rot[0] = uiFrameData.rot.x;

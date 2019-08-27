@@ -8,7 +8,7 @@ namespace Xitils {
 	class _SamplerMersenneTwister;
 	class _SamplerXORShift;
 
-	using Sampler = _SamplerXORShift;
+	using Sampler = _SamplerMersenneTwister;
 
 	//---------------------------------------------------
 
@@ -65,7 +65,7 @@ namespace Xitils {
 		}
 
 	private:
-		int x;
+		unsigned int x;
 	};
 
 }

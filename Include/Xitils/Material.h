@@ -256,7 +256,7 @@ namespace Xitils {
 		}
 
 		Vector3f emission(const SurfaceInteraction& isect) const override {
-			return power;
+			return dot(isect.wo,isect.n) > 0.0f ? power : Vector3f();
 		}
 	};
 
