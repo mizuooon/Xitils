@@ -15,6 +15,14 @@ namespace Xitils {
 	class Object : public Primitive {
 	public:
 
+		struct SampledSurface {
+			const Object* object;
+			const Shape* shape;
+			Vector3f p;
+			Vector3f n;
+			Vector3f shadingN;
+		};
+
 		Transform objectToWorld;
 		std::shared_ptr<Shape> shape;
 		std::shared_ptr<Material> material;
@@ -28,11 +36,8 @@ namespace Xitils {
 		}
 
 		float surfaceArea() const override {
-
-			// TODO Transform‚É‚æ‚é–ÊÏ‚Ì•Ï‰»‚ðl—¶
-			NOT_IMPLEMENTED 
-
-			return shape->surfaceArea();
+			Vector3f scaling = objectToWorld.getScaling();
+			return shape->surfaceArea() * scaling.x * scaling.y * scaling.z;
 		}
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
@@ -49,8 +54,27 @@ namespace Xitils {
 			}
 			return false;
 		}
+
 		bool intersectAny(const Ray& ray) const override {
 			return shape->intersectAny(objectToWorld.inverse(ray));
+		}
+
+		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
+			auto sampled = shape->sampleSurface(sampler, pdf);
+
+			Vector3f scaling = objectToWorld.getScaling();
+			*pdf = scaling.x * scaling.y * scaling.z;
+
+			SampledSurface res;
+			res.object = this;
+			res.p = sampled.p;
+			res.n = sampled.n;
+			res.shadingN = sampled.shadingN;
+			return res;
+		}
+
+		float surfacePDF(const Vector3f& p, const Shape* shape) const {
+			return 1.0f / surfaceArea();
 		}
 
 	};

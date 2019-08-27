@@ -45,10 +45,12 @@ private:
 	std::shared_ptr<RenderTarget> renderTarget;
 	std::shared_ptr<NaivePathTracer> pathTracer;
 
+	decltype(std::chrono::system_clock::now()) time_start;
 };
 
 void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
-	auto time_start = std::chrono::system_clock::now();
+	time_start = std::chrono::system_clock::now();
+	auto init_time_start = std::chrono::system_clock::now();
 	
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->frameElapsed = 0.0f;
@@ -103,32 +105,32 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.9f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.9f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 40);
+	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 40*25);
 	auto cube = std::make_shared<Xitils::Cube>();
 	auto plane = std::make_shared<Xitils::Plane>();
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
 	);
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>(cube, diffuse_red, transformTRS(Vector3f(-2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
 	);
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 2, 2), Vector3f(), Vector3f(4, 4, 0.01f)))
 	);
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
-	scene->objects.push_back(
-		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(1, 1, 1)))
+	scene->addObject(
+		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(0.2f)))
 	);
 
-	scene->objects.push_back(std::make_shared<Object>(teapotMesh, material, 
+	scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
 		transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
 		)));
-	scene->objects.push_back(
+	scene->addObject(
 		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	);
 
@@ -140,7 +142,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto time_end = std::chrono::system_clock::now();
 
-	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - init_time_start).count();
 	frameData->triNum = teapotMeshData->getNumTriangles();
 }
 
@@ -218,19 +220,19 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
-	ImGui::Text(("Elapsed per frame: " + std::_Floating_to_string("%.1f", frameData.frameElapsed) + " ms").c_str());
-	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
+	//ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
+	ImGui::Text(("Elapsed : " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - time_start).count()) + " s").c_str());
+	//ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());
 
-	float rot[3];
-	rot[0] = uiFrameData.rot.x;
-	rot[1] = uiFrameData.rot.y;
-	rot[2] = uiFrameData.rot.z;
-	ImGui::SliderFloat3("Rotation", rot, -180, 180 );
-	uiFrameData.rot.x = rot[0];
-	uiFrameData.rot.y = rot[1];
-	uiFrameData.rot.z = rot[2];
+	//float rot[3];
+	//rot[0] = uiFrameData.rot.x;
+	//rot[1] = uiFrameData.rot.y;
+	//rot[2] = uiFrameData.rot.z;
+	//ImGui::SliderFloat3("Rotation", rot, -180, 180 );
+	//uiFrameData.rot.x = rot[0];
+	//uiFrameData.rot.y = rot[1];
+	//uiFrameData.rot.z = rot[2];
 
 	ImGui::End();
 }

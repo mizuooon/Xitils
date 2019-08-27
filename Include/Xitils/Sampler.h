@@ -14,7 +14,7 @@ namespace Xitils {
 
 	class _Sampler {
 	public:
-		virtual float randf() {
+		float randf() {
 			return (float)rand() / 0xFFFFFFFF;
 		}
 
@@ -25,6 +25,18 @@ namespace Xitils {
 		float randf(float min, float max) {
 			float u = randf();
 			return (1-u) * min + u * max;
+		}
+
+		int randi(int max) {
+			return rand() % max;
+		}
+
+		template<typename T> T& select(std::vector<T>& v) {
+			return v[randi(v.size()-1)];
+		}
+
+		template<typename T> const T& select(const std::vector<T>& v) {
+			return v[randi(v.size() - 1)];
 		}
 
 	protected:

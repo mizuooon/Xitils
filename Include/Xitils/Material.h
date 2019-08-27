@@ -31,6 +31,11 @@ namespace Xitils {
 			NOT_IMPLEMENTED;
 		}
 
+		// スペキュラの物体ではデルタ関数になるので実装しない
+		virtual float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const {
+			NOT_IMPLEMENTED;
+		}
+
 		// スペキュラの物体でのみ実装する
 		// BSDF * cos / pdf の値を返す
 		// 戻り値が 0 のときには wi は有効ではない
@@ -46,7 +51,7 @@ namespace Xitils {
 		}
 
 		// emissive のマテリアルのみで使用する
-		virtual Vector3f emission(const SurfaceInteraction& isect) const {
+		virtual Vector3f emission(const Vector3f& wo, const Vector3f& n) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
@@ -79,6 +84,11 @@ namespace Xitils {
 			const auto& n = isect.shading.n;
 			*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			*pdf = dot(*wi, n);
+		}
+
+		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+			const auto& n = isect.shading.n;
+			return clampPositive(dot(wi, n));
 		}
 	};
 
@@ -255,8 +265,8 @@ namespace Xitils {
 			;
 		}
 
-		Vector3f emission(const SurfaceInteraction& isect) const override {
-			return dot(isect.wo,isect.n) > 0.0f ? power : Vector3f();
+		Vector3f emission(const Vector3f& wo, const Vector3f& n) const override {
+			return dot(wo,n) > 0.0f ? power : Vector3f();
 		}
 	};
 

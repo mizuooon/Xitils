@@ -58,80 +58,90 @@ namespace Xitils {
 			matInv = t.matInv * matInv;
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> operator()(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f operator()(const Vector3f& v) const {
 			const auto& m = mat;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
-			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
+			float wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
 			if (wp == 1) {
-				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+				return Vector3f(xp, yp, zp);
 			} else {
-				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp) / wp;
+				return Vector3f(xp, yp, zp) / wp;
 			}
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> operator()(const Vector4<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector4f operator()(const Vector4f& v) const {
 			const auto& m = mat;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
-			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
-			return Vector4<T, T_SIMD, T_SIMDMASK>(xp, yp, zp, wp);
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
+			float wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
+			return Vector4f(xp, yp, zp, wp);
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> inverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f inverse(const Vector3f& v) const {
 			const auto& m = matInv;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
-			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
+			float wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3];
 			if (wp == 1) {
-				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+				return Vector3f(xp, yp, zp);
 			} else {
-				return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp) / wp;
+				return Vector3f(xp, yp, zp) / wp;
 			}
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector4<T, T_SIMD, T_SIMDMASK> inverse(const Vector4<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector4f inverse(const Vector4f& v) const {
 			const auto& m = matInv;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
-			T wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
-			return Vector4<T, T_SIMD, T_SIMDMASK>(xp, yp, zp, wp);
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3];
+			float wp = m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3];
+			return Vector4f(xp, yp, zp, wp);
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asVector(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f asVector(const Vector3f& v) const {
 			const auto& m = mat;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3f(xp, yp, zp);
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asVectorInverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f asVectorInverse(const Vector3f& v) const {
 			const auto& m = matInv;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp);
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3f(xp, yp, zp);
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormal(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f asNormal(const Vector3f& v) const {
 			const auto& m = mat;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp).normalize();
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3f(xp, yp, zp).normalize();
 		}
 
-		template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector3<T, T_SIMD, T_SIMDMASK> asNormalInverse(const Vector3<T, T_SIMD, T_SIMDMASK>& v) const {
+		Vector3f asNormalInverse(const Vector3f& v) const {
 			const auto& m = matInv;
-			T xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-			T yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-			T zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-			return Vector3<T, T_SIMD, T_SIMDMASK>(xp, yp, zp).normalize();
+			float xp = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+			float yp = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+			float zp = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+			return Vector3f(xp, yp, zp).normalize();
+		}
+
+		Vector3f getScaling() const {
+			const auto& m = mat;
+			return Vector3f(m[0][0], m[1][1], m[2][2]);
+		}
+
+		Vector3f getScalingInverse() const {
+			const auto& m = matInv;
+			return Vector3f(m[0][0], m[1][1], m[2][2]);
 		}
 
 		Ray operator()(const Ray& r) const {

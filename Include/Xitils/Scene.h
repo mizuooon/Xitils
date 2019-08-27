@@ -2,6 +2,7 @@
 
 #include "AccelerationStructure.h"
 #include "Camera.h"
+#include "Shape.h"
 #include "SkySphere.h"
 #include "Utils.h"
 
@@ -11,8 +12,14 @@ namespace Xitils {
 	public:
 
 		std::shared_ptr<Camera> camera;
-		std::vector<std::shared_ptr<Object>> objects;
 		std::shared_ptr<SkySphere> skySphere;
+
+		void addObject(const std::shared_ptr<Object>& object) {
+			objects.push_back(object);
+			if (object->material->emissive) {
+				lights.push_back(object);
+			}
+		}
 
 		void buildAccelerationStructure() {
 			std::vector<Object*> tmp;
@@ -28,8 +35,24 @@ namespace Xitils {
 			return accel->intersectAny(ray);
 		}
 
+		Object::SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
+			// TODO: すべての Object から等確率でサンプリングしているが、
+			//       本当は面積に比例した確率で選ぶべき
+			auto& light = sampler->select(lights);
+			auto res = light->sampleSurface(sampler, pdf);
+			*pdf /= lights.size();
+			return res;
+		}
+
+		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape) const {
+			// TODO: 上記を直したらこちらも直す
+			return object->surfacePDF(p, shape) / lights.size();
+		}
+
 	private:
 		std::shared_ptr<AccelerationStructure> accel;
+		std::vector<std::shared_ptr<Object>> objects;
+		std::vector<std::shared_ptr<Object>> lights;
 	};
 
 }

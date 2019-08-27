@@ -12,11 +12,21 @@ namespace Xitils {
 
 	class Shape : public Primitive {
 	public:
+
+		struct SampledSurface {
+			const Shape* shape;
+			Vector3f p;
+			Vector3f n;
+			Vector3f shadingN;
+		};
+
 		virtual bool intersectAny(const Ray& ray) const override {
 			float tHit = ray.tMax;
 			SurfaceInteraction isect;
 			return intersect(ray, &tHit, &isect);
 		}
+
+		virtual SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const = 0;
 	};
 
 	class TriangleIndexed : public Shape {
@@ -128,7 +138,42 @@ namespace Xitils {
 			}
 			isect->shading.n = faceForward(isect->shading.n, isect->wo);
 
+			isect->shape = this;
+
 			return true;
+		}
+
+		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float *pdf) const override {
+			float t0 = sampler->randf();
+			float t1 = sampler->randf();
+			float t2 = sampler->randf();
+			float s = t0 + t1 + t2;
+			if(s != 0.0f){
+				float inv = 1.0f / s;
+				t0 *= inv;
+				t1 *= inv;
+			}
+
+			*pdf = 1.0f / surfaceArea();
+
+			const Vector3f& p0 = position(0);
+			const Vector3f& p1 = position(1);
+			const Vector3f& p2 = position(2);
+			SampledSurface res;
+			res.p = lerp(p0, p1, p2, t0, t1);
+			res.n = cross(p1 - p0, p2 - p0).normalize();
+			if (normals == nullptr) {
+				res.shadingN = res.n;
+			} else {
+				res.shadingN = lerp(normal(0), normal(1), normal(2), t0, t1).normalize();
+			}
+			res.shape = this;
+			return res;
+		}
+
+		float surfacePDF(const Vector3f& p, const Shape* shape) const {
+			ASSERT(shape == this);
+			return 1.0f / surfaceArea();
 		}
 	};
 
