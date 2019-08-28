@@ -41,12 +41,23 @@ namespace Xitils {
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
-			for(const auto& prim : geometries) {
-				if (prim->intersect(ray, &ray.tMax, isect)) {
+			for(const auto& geometry : geometries) {
+				if (geometry->intersect(ray, &ray.tMax, isect)) {
 					hit = true;
 				}
 			}
 			return hit;
+		}
+
+		bool intersectAny(const Ray& ray) const override {
+			Ray rayTmp(ray);
+			SurfaceInteraction isect;
+			for (const auto& geometry : geometries) {
+				if (geometry->intersect(rayTmp, &rayTmp.tMax, &isect)) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 	private:
@@ -136,15 +147,14 @@ namespace Xitils {
 				return node->geometry->intersectAny(ray);
 			}
 
-			bool hit0, hit1;
 			if (ray.d[node->axis] > 0) {
-				hit0 = intersectAnySub(ray, node->children[0]);
-				hit1 = intersectAnySub(ray, node->children[1]);
+				if (    intersectAnySub(ray, node->children[0])
+					 || intersectAnySub(ray, node->children[1])){ return true; }
 			} else {
-				hit1 = intersectAnySub(ray, node->children[1]);
-				hit0 = intersectAnySub(ray, node->children[0]);
+				if (    intersectAnySub(ray, node->children[1])
+					 || intersectAnySub(ray, node->children[0])){ return true; }
 			}
-			return hit0 || hit1;
+			return false;
 		}
 
 		struct BucketComputation {

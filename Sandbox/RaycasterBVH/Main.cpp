@@ -127,12 +127,12 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-	scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
-		transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
-		)));
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
-	);
+	//scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
+	//	transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
+	//	)));
+	//scene->addObject(
+	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
+	//);
 
 	scene->buildAccelerationStructure();
 

@@ -172,9 +172,8 @@ namespace Xitils {
 							misWeight = 0.0f;
 						}
 
-						float G = fabs(dot(shadowRay.d, isect.shading.n) * dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq;
-						
 						if (misWeight > 0.0f) {
+							float G = fabs(dot(shadowRay.d, isect.shading.n) * dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq;
 							radiance +=
 								weight * misWeight
 								* isect.object->material->bsdf(isect, shadowRay.d)
