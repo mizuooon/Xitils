@@ -43,7 +43,7 @@ private:
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 800);
 
 	std::shared_ptr<RenderTarget> renderTarget;
-	std::shared_ptr<NaivePathTracer> pathTracer;
+	std::shared_ptr<StandardPathTracer> pathTracer;
 
 	decltype(std::chrono::system_clock::now()) time_start;
 };
@@ -100,12 +100,12 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto material = std::make_shared<SpecularFresnel>();
 	material->index = 1.2f;
 
-	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.95f));
+	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
 
-	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.9f, 0.1f, 0.1f));
-	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.9f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 40*25);
+	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
+	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
+	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
 	auto cube = std::make_shared<Xitils::Cube>();
 	auto plane = std::make_shared<Xitils::Plane>();
 	scene->addObject(
@@ -124,7 +124,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
 	scene->addObject(
-		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(0.2f)))
+		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4-0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
 	scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
@@ -138,7 +138,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
-	pathTracer = std::make_shared<NaivePathTracer>();
+	pathTracer = std::make_shared<StandardPathTracer>();
 
 	auto time_end = std::chrono::system_clock::now();
 
@@ -220,7 +220,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	//ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
+	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed : " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - time_start).count()) + " s").c_str());
 	//ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());

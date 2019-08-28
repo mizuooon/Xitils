@@ -7,6 +7,7 @@ namespace Xitils {
 
 	class Object;
 	class Shape;
+	class Primitive;
 
 	class Interaction {
 	public:
@@ -19,7 +20,7 @@ namespace Xitils {
 		Vector3f n;
 		const Object* object = nullptr;
 		const Shape* shape = nullptr;
-		Vector3f wo;
+		const Primitive* primitive = nullptr;
 
 		struct Shading {
 			Vector3f n;

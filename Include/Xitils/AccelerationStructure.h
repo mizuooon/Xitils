@@ -29,17 +29,19 @@ namespace Xitils {
 
 	class _NaiveAccelerationStructure : public _AccelerationStructure {
 	public:
-		_NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) : primitives(primitives) {}
+		_NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) {
+			map<Primitive*, Geometry*>(primitives, &geometries, [](const Geometry* primitive) { return (Geometry*)primitive; });
+		}
 		_NaiveAccelerationStructure(const std::vector<Object*>& objects) {
-			map<Object*, Primitive*>(objects, &primitives, [](const Primitive* object) { return (Primitive*)object; });
+			map<Object*, Geometry*>(objects, &geometries, [](const Geometry* object) { return (Geometry*)object; });
 		}
 		_NaiveAccelerationStructure(const std::vector<Shape*>& shapes) {
-			map<Shape*, Primitive*>(shapes, &primitives, [](const Primitive* shape) { return (Primitive*)shape; });
+			map<Shape*, Geometry*>(shapes, &geometries, [](const Geometry* shape) { return (Geometry*)shape; });
 		}
 
 		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
 			bool hit = false;
-			for(const auto& prim : primitives) {
+			for(const auto& prim : geometries) {
 				if (prim->intersect(ray, &ray.tMax, isect)) {
 					hit = true;
 				}
@@ -48,7 +50,7 @@ namespace Xitils {
 		}
 
 	private:
-		std::vector<Primitive*> primitives;
+		std::vector<Geometry*> geometries;
 	};
 
 	struct BVHNode {
@@ -58,22 +60,22 @@ namespace Xitils {
 		Bounds3f aabb;
 		BVHNode* parent;
 		int axis;
-		const Primitive* primitive;
+		const Geometry* geometry;
 		BVHNode* children[2];
 	};
 
 	class _BVH : public _AccelerationStructure {
 	public:
 		_BVH(const std::vector<Primitive*>& primitives) {
-			buildBVH((const Primitive**)primitives.data(), primitives.size());
+			buildBVH((const Geometry**)primitives.data(), primitives.size());
 		}
 
 		_BVH(const std::vector<Object*>& objects) {
-			buildBVH((const Primitive**)objects.data(), objects.size());
+			buildBVH((const Geometry**)objects.data(), objects.size());
 		}
 
 		_BVH(const std::vector<Shape*>& shapes) {
-			buildBVH((const Primitive**)shapes.data(), shapes.size());
+			buildBVH((const Geometry**)shapes.data(), shapes.size());
 		}
 
 		~_BVH() {
@@ -94,12 +96,12 @@ namespace Xitils {
 		int nodeCount = 0;
 
 		struct PrimBounds {
-			const Primitive* primitive;
+			const Geometry* geometry;
 			Bounds3f bound;
 			Vector3f center;
 
-			PrimBounds(const Primitive* primitive, const Bounds3f& bound, const Vector3f& center):
-				primitive(primitive),
+			PrimBounds(const Geometry* geometry, const Bounds3f& bound, const Vector3f& center):
+				geometry(geometry),
 				bound(bound),
 				center(center)
 			{}
@@ -110,8 +112,8 @@ namespace Xitils {
 				return false;
 			}
 
-			if (node->primitive) {
-				return node->primitive->intersect(ray, &ray.tMax, isect);
+			if (node->geometry) {
+				return node->geometry->intersect(ray, &ray.tMax, isect);
 			}
 
 			bool hit0, hit1;
@@ -130,8 +132,8 @@ namespace Xitils {
 				return false;
 			}
 
-			if (node->primitive) {
-				return node->primitive->intersectAny(ray);
+			if (node->geometry) {
+				return node->geometry->intersectAny(ray);
 			}
 
 			bool hit0, hit1;
@@ -150,12 +152,12 @@ namespace Xitils {
 			std::vector<int> bucketSizes, bucketSizes1, bucketSizes2;
 		};
 
-		void buildBVH(const Primitive** data, int primNum) {
+		void buildBVH(const Geometry** data, int primNum) {
 			ASSERT(primNum > 0);
 			std::vector<PrimBounds> aabbPrimitives;
 			aabbPrimitives.reserve(primNum);
 			for (int i = 0; i < primNum; ++i) {
-				const Primitive* prim = data[i];
+				const Geometry* prim = data[i];
 				Bounds3f bound = prim->bound();
 				aabbPrimitives.push_back(PrimBounds(prim, bound, bound.center()));
 			}
@@ -179,7 +181,7 @@ namespace Xitils {
 		void buildBVHSub(typename std::vector<PrimBounds>::iterator begin, const typename std::vector<PrimBounds>::iterator& end, BVHNode* node, BucketComputation& bucket, int depth = 0, const Bounds3f& aabb = Bounds3f()) {
 
 			if (end - begin == 1) {
-				node->primitive = begin->primitive;
+				node->geometry = begin->geometry;
 				node->aabb = begin->bound;
 				return;
 			}

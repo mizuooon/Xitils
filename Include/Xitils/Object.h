@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Bounds.h"
+#include "Geometry.h"
 #include "Interaction.h"
 #include "Material.h"
 #include "Transform.h"
@@ -12,12 +13,13 @@
 
 namespace Xitils {
 
-	class Object : public Primitive {
+	class Object : public Geometry {
 	public:
 
 		struct SampledSurface {
 			const Object* object;
 			const Shape* shape;
+			const Primitive* primitive;
 			Vector3f p;
 			Vector3f n;
 			Vector3f shadingN;
@@ -35,9 +37,8 @@ namespace Xitils {
 			return objectToWorld(shape->bound());
 		}
 
-		float surfaceArea() const override {
-			Vector3f scaling = objectToWorld.getScaling();
-			return shape->surfaceArea() * scaling.x * scaling.y * scaling.z;
+		float surfaceArea() const {
+			return shape->surfaceArea() * shape->surfaceAreaScaling(objectToWorld);
 		}
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
@@ -62,19 +63,22 @@ namespace Xitils {
 		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
 			auto sampled = shape->sampleSurface(sampler, pdf);
 
-			Vector3f scaling = objectToWorld.getScaling();
-			*pdf = scaling.x * scaling.y * scaling.z;
+			*pdf /= shape->surfaceAreaScaling(objectToWorld);
 
 			SampledSurface res;
 			res.object = this;
-			res.p = sampled.p;
-			res.n = sampled.n;
-			res.shadingN = sampled.shadingN;
+			res.shape = sampled.shape;
+			res.primitive = sampled.primitive;
+			res.p = objectToWorld(sampled.p);
+			res.n = objectToWorld.asNormal(sampled.n);
+			res.shadingN = objectToWorld.asNormal(sampled.shadingN);
+
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Shape* shape) const {
-			return 1.0f / surfaceArea();
+		float surfacePDF(const Vector3f& p, const Shape* shape, const Primitive* primitive) const {
+			Vector3f scaling = objectToWorld.getScaling();
+			return shape->surfacePDF(objectToWorld.inverse(p), primitive) / shape->surfaceAreaScaling(objectToWorld);
 		}
 
 	};

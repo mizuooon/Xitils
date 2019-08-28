@@ -43,9 +43,19 @@ namespace Xitils {
 			return area;
 		}
 
+		float surfaceAreaScaling(const Transform& t)  const override {
+			// TODO: 高速化
+			float scaledArea = 0.0f;
+			for (const auto& tri : triangles) {
+				scaledArea += tri->surfaceArea() * tri->surfaceAreaScaling(t);
+			}
+			return scaledArea / area;
+		}
+
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
 			Ray rayTmp = Ray(ray);
 			if (accel->intersect(rayTmp, isect)) {
+				isect->shape = this;
 				*tHit = rayTmp.tMax;
 				return true;
 			}
@@ -60,24 +70,32 @@ namespace Xitils {
 			// TODO: すべての Triangle から等確率でサンプリングしているが、
 			//       本当は面積に比例した確率で選ぶべき
 			auto& tri = sampler->select(triangles);
-			auto res = tri->sampleSurface(sampler, pdf);
+			auto sampled = tri->sampleSurface(sampler, pdf);
 			*pdf /= triangleNum();
+
+			SampledSurface res;
+			res.shape = this;
+			res.primitive = sampled.primitive;
+			res.p = sampled.p;
+			res.n = sampled.n;
+			res.shadingN = sampled.shadingN;
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Shape* shape) const {
+		float surfacePDF(const Vector3f& p, const Primitive* primitive) const override {
 			// TODO: 上記を直したらこちらも直す
-			return shape->surfacePDF(p, shape) / triangleNum();
+			return primitive->surfacePDF(p) / triangleNum();
 		}
 
 	private:
 		std::vector<Vector3f> positions;
 		std::vector<Vector3f> normals;
 		std::vector<int> indices;
-		std::vector<Shape*> triangles;
-		float area = 0.0f;
+		std::vector<Primitive*> triangles;
 
 		std::unique_ptr<AccelerationStructure> accel;
+
+		float area;
 
 		void calcSurfaceArea() {
 			area = 0.0f;

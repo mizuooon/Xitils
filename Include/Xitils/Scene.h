@@ -44,9 +44,9 @@ namespace Xitils {
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape) const {
+		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const Primitive* primitive) const {
 			// TODO: ã‹L‚ð’¼‚µ‚½‚ç‚±‚¿‚ç‚à’¼‚·
-			return object->surfacePDF(p, shape) / lights.size();
+			return object->surfacePDF(p, shape, primitive) / lights.size();
 		}
 
 	private:
