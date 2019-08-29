@@ -8,10 +8,39 @@
 
 namespace Xitils {
 
-	class NaivePathTracer {
+	class PathTracer {
+	public:
+		virtual Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const = 0;
+	};
+
+	class DebugRayCaster : public PathTracer {
 	public:
 
-		Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const {
+		DebugRayCaster(std::function<Vector3f(const SurfaceInteraction&)> f) :
+			f(f)
+		{}
+
+		Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const override {
+
+			Vector3f color;
+			SurfaceInteraction isect;
+
+			Ray tmpRay(ray);
+			if (scene->intersect(tmpRay, &isect)) {
+				color = f(isect);
+			}
+
+			return color;
+		}
+
+	private:
+		std::function<Vector3f(const SurfaceInteraction&)> f;
+	};
+
+	class NaivePathTracer : public PathTracer {
+	public:
+
+		Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const override {
 
 			Vector3f radiance;
 			Vector3f weight(1.0f);
@@ -67,12 +96,12 @@ namespace Xitils {
 		float russianRouletteProb = 0.9f;
 	};
 
-	class StandardPathTracer {
+	class StandardPathTracer : public PathTracer {
 	public:
 
 		// NEE ‚Æ BRDF ƒTƒ“ƒvƒŠƒ“ƒO‚Ì MIS
 
-		Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const {
+		Vector3f eval(const std::shared_ptr<Scene>& scene, const std::shared_ptr<Sampler>& sampler, const Ray& ray) const override {
 
 			Vector3f radiance;
 			Vector3f weight(1.0f);

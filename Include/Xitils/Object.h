@@ -46,8 +46,26 @@ namespace Xitils {
 				isect->p = objectToWorld(isect->p);
 				isect->n = objectToWorld.asNormal(isect->n);
 				isect->wo = objectToWorld.asNormal(isect->wo);
+
+
+				// ノーマルマップが設定されていた場合それを適用
+				if (material->normalmap != nullptr) {
+					// shading.n は変化させるが、tangnet と bitangent は変化させないので注意
+
+					Vector3f t = material->normalmap->rgb(isect->texCoord) * 2 - Vector3f(1.0f);
+					isect->shading.n =
+						(     t.b * isect->shading.n
+							+ t.r * isect->shading.tangent
+							- t.g * isect->shading.bitangent
+						).normalize();
+				}
+
 				isect->shading.n = objectToWorld.asNormal(isect->shading.n);
-				// tHit は変換しなくてよい
+				isect->shading.tangent = objectToWorld.asNormal(isect->shading.tangent);
+				isect->shading.bitangent = objectToWorld.asNormal(isect->shading.bitangent);
+
+				// texCoord, tHit は変換しなくてよい
+				// tangent と bitangent は変換後の値使ってないので変換しなくてよい？
 
 				isect->object = this;
 

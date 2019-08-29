@@ -11,6 +11,8 @@ namespace Xitils {
 		bool specular = false;
 		bool emissive = false;
 
+		std::shared_ptr<Texture> normalmap;
+
 		// BSDF の値を返す
 		// スペキュラの物体ではデルタ関数になるので実装しない
 		virtual Vector3f bsdf(const SurfaceInteraction& isect, const Vector3f& wi) const {

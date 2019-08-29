@@ -43,7 +43,7 @@ private:
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 800);
 
 	std::shared_ptr<RenderTarget> renderTarget;
-	std::shared_ptr<StandardPathTracer> pathTracer;
+	std::shared_ptr<PathTracer> pathTracer;
 
 	decltype(std::chrono::system_clock::now()) time_start;
 };
@@ -84,7 +84,11 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
 	auto texture = std::make_shared<TextureChecker>(4, Vector3f(1.0f), Vector3f(0.5f));
-	diffuse_white->texture = texture;
+	auto normalmap = std::make_shared<TextureFromFile>("normalmap.png");
+	normalmap->filter = false;
+
+	auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
+	teapot_material->normalmap = normalmap;
 
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
@@ -117,7 +121,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	//);
 
-	scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.3f)
 		)));
 
@@ -126,6 +130,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
+	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
+	//	return (isect.shading.n) *0.5f + Vector3f(0.5f);
+	//	} );
 
 	auto time_end = std::chrono::system_clock::now();
 

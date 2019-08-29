@@ -68,11 +68,11 @@ namespace Xitils {
 		Vector3f rgb(Vector2f uv) const override {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
-				int y0 = uv.v * height + 0.5f;
+				int y0 = (1-uv.v) * height + 0.5f;
 				int x1 = x0 + 1;
 				int y1 = y0 + 1;
 				float wx1 = (uv.u * width + 0.5f) - x0;
-				float wy1 = (uv.v * height + 0.5f) - y0;
+				float wy1 = ((1-uv.v) * height + 0.5f) - y0;
 				float wx0 = 1.0f - wx1;
 				float wy0 = 1.0f - wy1;
 
@@ -85,7 +85,7 @@ namespace Xitils {
 					+ wx1 * wy1 * rgb(x1, y1);
 			} else {
 				int x = uv.u * width;
-				int y = uv.v * height;
+				int y = (1-uv.v) * height;
 				warp(x, y);
 				return rgb(x, y);
 			}
