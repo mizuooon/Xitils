@@ -14,6 +14,36 @@ namespace Xitils {
 			}
 		}
 
+		void setGeometry(const std::shared_ptr<cinder::TriMesh>& mesh) {
+
+			positions.resize(mesh->getNumVertices());
+			for (int i = 0; i < positions.size(); ++i) {
+				positions[i] = Vector3f(mesh->getPositions<3>()[i]);
+			}
+			normals.resize(mesh->getNumVertices());
+			for (int i = 0; i < normals.size(); ++i) {
+				normals[i] = Vector3f(mesh->getNormals()[i]);
+			}
+			texCoords.resize(mesh->getNumVertices());
+			for (int i = 0; i < texCoords.size(); ++i) {
+				texCoords[i] = Vector2f(mesh->getTexCoords0<2>()[i]);
+			}
+			tangents.resize(mesh->getTangents().size());
+			for (int i = 0; i < tangents.size(); ++i) {
+				tangents[i] = Vector3f(mesh->getTangents()[i]);
+			}
+			
+			indices.resize(mesh->getNumTriangles() * 3);
+			for (int i = 0; i < indices.size(); i += 3) {
+				indices[i + 0] = mesh->getIndices()[i + 0];
+				indices[i + 1] = mesh->getIndices()[i + 1];
+				indices[i + 2] = mesh->getIndices()[i + 2];
+			}
+
+			buildBVH();
+			calcSurfaceArea();
+		}
+
 		void setGeometry(const Vector3f* positionData, int positionNum, int* indexData, int indexNum) {
 			setPositions(positionData, positionNum);
 			setIndices(indexData, indexNum);
@@ -90,6 +120,8 @@ namespace Xitils {
 	private:
 		std::vector<Vector3f> positions;
 		std::vector<Vector3f> normals;
+		std::vector<Vector2f> texCoords;
+		std::vector<Vector3f> tangents;
 		std::vector<int> indices;
 		std::vector<Primitive*> triangles;
 
@@ -111,7 +143,13 @@ namespace Xitils {
 			triangles.resize(faceNum);
 			
 			for (int i = 0; i < faceNum; ++i) {
-				triangles[i] = new TriangleIndexed(positions.data(), !normals.empty() ? normals.data() : nullptr, indices.data(), i);
+				triangles[i] =
+					new TriangleIndexed(
+						positions.data(),
+						!texCoords.empty() ? texCoords.data() : nullptr,
+						!normals.empty() ? normals.data() : nullptr,
+						!tangents.empty() ? tangents.data() : nullptr,
+						indices.data(), i);
 			}
 
 			accel = std::make_unique<AccelerationStructure>(triangles);
@@ -124,9 +162,15 @@ namespace Xitils {
 		}
 
 		void setNormals(const Vector3f* data, int num) {
-			normals.clear();
-			normals.resize(num);
-			memcpy(normals.data(), data, sizeof(Vector3f) * num);
+			texCoords.clear();
+			texCoords.resize(num);
+			memcpy(texCoords.data(), data, sizeof(Vector2f) * num);
+		}
+
+		void setTexCoordinates(const Vector2f* data, int num) {
+			indices.clear();
+			indices.resize(num);
+			memcpy(indices.data(), data, sizeof(int) * num);
 		}
 
 		void setIndices(int* data, int num) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Texture.h"
 #include "Utils.h"
 #include "Vector.h"
 
@@ -56,6 +57,7 @@ namespace Xitils {
 	class Diffuse : public Material {
 	public:
 		Vector3f albedo;
+		std::shared_ptr<Texture> texture;
 
 		Diffuse (const Vector3f& albedo):
 			albedo(albedo)
@@ -64,14 +66,22 @@ namespace Xitils {
 		}
 
 		Vector3f bsdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
-			return albedo / M_PI;
+			if (texture == nullptr) {
+				return albedo / M_PI;
+			} else {
+				return albedo / M_PI * texture->rgb(isect.texCoord);
+			}
 		}
 
 		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& n = isect.shading.n;
 			*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			*pdf = dot(*wi, n) / M_PI;
-			return albedo;
+			if (texture == nullptr) {
+				return albedo;
+			} else {
+				return albedo * texture->rgb(isect.texCoord);
+			}
 		}
 
 		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {

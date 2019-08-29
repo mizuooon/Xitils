@@ -30,7 +30,7 @@ namespace Xitils {
 			return tex.rgb(Vector2f(u, v));
 		}
 	private:
-		Texture tex;
+		TextureFromFile tex;
 	};
 
 	class SkySphereUniform : SkySphere {

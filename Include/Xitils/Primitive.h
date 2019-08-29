@@ -31,26 +31,25 @@ namespace Xitils {
 	public:
 
 		const Vector3f* positions;
+		const Vector2f* texCoords;
 		const Vector3f* normals;
+		const Vector3f* tangents;
 		const int* indices;
 		int index;
 
-		TriangleIndexed(const Vector3f* positions, const int* indices, int index) :
+		TriangleIndexed(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const int* indices, int index) :
 			positions(positions),
-			normals(nullptr),
-			indices(indices),
-			index(index)
-		{}
-
-		TriangleIndexed(const Vector3f* positions, const Vector3f* normals, const int* indices, int index) :
-			positions(positions),
+			texCoords(texCoords),
 			normals(normals),
+			tangents(tangents),
 			indices(indices),
 			index(index)
 		{}
 
 		const Vector3f& position(int i) const { return positions[indices[index * 3 + i]]; }
+		const Vector2f& texCoord(int i) const { return texCoords[indices[index * 3 + i]]; }
 		const Vector3f& normal(int i) const { return normals[indices[index * 3 + i]]; }
+		const Vector3f& tangent(int i) const { return tangents[indices[index * 3 + i]]; }
 
 		Bounds3f bound() const override {
 			const auto& p0 = position(0);
@@ -139,11 +138,27 @@ namespace Xitils {
 
 			isect->wo = normalize(-ray.d);
 
-			if (normals == nullptr) {
-				isect->shading.n = isect->n;
+			if(texCoords != nullptr){
+				isect->texCoord = lerp(texCoord(0), texCoord(1), texCoord(2), b0, b1);
 			} else {
-				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
+				isect->texCoord = Vector2f();
 			}
+
+			if (normals != nullptr) {
+				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
+			} else {
+				isect->shading.n = isect->n;
+			}
+
+			if (tangents != nullptr) {
+				isect->shading.tangent = lerp(tangent(0), tangent(1), tangent(2), b0, b1);
+				isect->shading.bitangent = cross(isect->shading.n, isect->shading.tangent).normalize();
+				isect->shading.tangent = cross(isect->shading.bitangent, isect->shading.n).normalize();
+			} else {
+				isect->shading.tangent = Vector3f();
+				isect->shading.bitangent = Vector3f();
+			}
+
 			isect->shading.n = faceForward(isect->shading.n, isect->wo);
 
 			isect->primitive = this;

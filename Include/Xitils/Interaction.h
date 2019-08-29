@@ -17,6 +17,7 @@ namespace Xitils {
 
 	class SurfaceInteraction : public Interaction {
 	public:
+		Vector2f texCoord;
 		Vector3f n;
 		const Object* object = nullptr;
 		const Shape* shape = nullptr;
@@ -24,6 +25,7 @@ namespace Xitils {
 
 		struct Shading {
 			Vector3f n;
+			Vector3f tangent, bitangent;
 		};
 		Shading shading;
 	};

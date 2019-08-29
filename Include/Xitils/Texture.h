@@ -13,11 +13,29 @@ namespace Xitils {
 
 		bool filter = true;
 		bool warpClamp = true;
-		
-		Texture(const std::string& filename) {
+
+		virtual Vector3f rgb(Vector2f uv) const = 0;
+
+	protected:
+
+		void warp(float& u, float& v) const {
+			if (warpClamp) {
+				u = clamp(u, 0.0f, 1.0f);
+				v = clamp(v, 0.0f, 1.0f);
+			} else {
+				u = u - floorf(u);
+				v = v - floorf(v);
+			}
+		}
+	};
+
+	class TextureFromFile : public Texture {
+	public:
+
+		TextureFromFile(const std::string& filename) {
 			float* tmp = stbi_loadf(filename.c_str(), &width, &height, &channel, STBI_rgb);
 			data.resize(width * height * channel);
-			memcpy_s(data.data(), data.size()*sizeof(float), tmp, data.size()*sizeof(float));
+			memcpy_s(data.data(), data.size() * sizeof(float), tmp, data.size() * sizeof(float));
 
 			stbi_image_free(tmp);
 		}
@@ -37,7 +55,7 @@ namespace Xitils {
 		}
 		float& a(int x, int y) {
 			warp(x, y);
-			ASSERT(channel==4);
+			ASSERT(channel == 4);
 			return data[(x + y * width) * channel + 3];
 		}
 
@@ -47,7 +65,7 @@ namespace Xitils {
 			return Vector3f(data[i + 0], data[i + 1], data[i + 2]);
 		}
 
-		Vector3f rgb(Vector2f uv) const {
+		Vector3f rgb(Vector2f uv) const override {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
 				int y0 = uv.v * height + 0.5f;
@@ -93,14 +111,25 @@ namespace Xitils {
 			}
 		}
 
-		void warp(float& u, float& v) const {
-			if (warpClamp) {
-				u = clamp(u, 0.0f, 1.0f);
-				v = clamp(v, 0.0f, 1.0f);
-			} else {
-				u = u - floorf(u);
-				v = v - floorf(v);
-			}
+	};
+
+	class TextureChecker : public Texture {
+	public:
+		
+		int split;
+		Vector3f col0, col1;
+
+		TextureChecker(int split, const Vector3f& col0, const Vector3f& col1):
+			split(split),
+			col0(col0),
+			col1(col1)
+		{}
+
+		Vector3f rgb(Vector2f uv) const override {
+			warp(uv.u, uv.v);
+			int x = uv.u * split;
+			int y = uv.v * split;
+			return (x + y) % 2 == 0 ? col0 : col1;
 		}
 	};
 
