@@ -16,7 +16,7 @@ namespace Xitils {
 			tMax(Infinity)
 		{}
 
-		Ray(const Vector3f& o, const Vector3f& d, int depth = 0, float tMax = Infinity, float weight = 1.0f):
+		Ray(const Vector3f& o, const Vector3f& d, float tMax = Infinity):
 			o(o), d(d), tMax(tMax)
 		{}
 

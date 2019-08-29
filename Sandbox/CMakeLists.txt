@@ -29,6 +29,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Scene.h
 	${XITILS_INCLUDE_DIR}/Xitils/Shape.h
 	${XITILS_INCLUDE_DIR}/Xitils/SkySphere.h
+	${XITILS_INCLUDE_DIR}/Xitils/Texture.h
 	${XITILS_INCLUDE_DIR}/Xitils/Transform.h
 	${XITILS_INCLUDE_DIR}/Xitils/TriangleMesh.h
 	${XITILS_INCLUDE_DIR}/Xitils/Utils.h

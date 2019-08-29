@@ -51,9 +51,8 @@ namespace Xitils {
 
 		bool intersectAny(const Ray& ray) const override {
 			Ray rayTmp(ray);
-			SurfaceInteraction isect;
 			for (const auto& geometry : geometries) {
-				if (geometry->intersect(rayTmp, &rayTmp.tMax, &isect)) {
+				if (geometry->intersectAny(rayTmp)) {
 					return true;
 				}
 			}

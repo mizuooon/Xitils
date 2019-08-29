@@ -84,7 +84,11 @@ namespace Xitils {
 
 			int pathLength = 1;
 
-			if (scene->intersect(currentRay, &isect)) {
+			if (!scene->intersect(currentRay, &isect)) {
+				if (scene->skySphere) {
+					radiance += weight * scene->skySphere->getRadiance(currentRay.d);
+				}
+			}else{
 
 				++pathLength;
 
@@ -121,13 +125,12 @@ namespace Xitils {
 						if (scene->intersect(currentRay, &nextIsect)) {
 
 							if (nextIsect.object->material->emissive) {
-								float pdf_light_x_bsdf = scene->surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
-								float cosLight = fabsf(dot(currentRay.d, nextIsect.shading.n));
-								float distSq = powf(currentRay.tMax, 2.0f);
-								pdf_light_x_bsdf *= distSq / cosLight;
-
 								float misWeight;
-								if (!isect.object->material->specular) {
+								if (!isect.object->material->specular && scene->canSampleLight()) {
+									float pdf_light_x_bsdf = scene->surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
+									float cosLight = fabsf(dot(currentRay.d, nextIsect.shading.n));
+									float distSq = powf(currentRay.tMax, 2.0f);
+									pdf_light_x_bsdf *= distSq / cosLight;
 									misWeight = powf(pdf_bsdf_x_bsdf, 2.0f) / (powf(pdf_bsdf_x_bsdf, 2.0f) + powf(pdf_light_x_bsdf, 2.0f));
 								} else {
 									misWeight = 1.0f;
@@ -152,35 +155,37 @@ namespace Xitils {
 
 					//-------------------------------------
 
-					float pdf_light_x_light;
-					const auto& sampledLightSurface = scene->sampleSurface(sampler, &pdf_light_x_light);
-					float sampledLightSurfaceDist = (sampledLightSurface.p - isect.p).length();
-					shadowRay.d = (sampledLightSurface.p - isect.p) / sampledLightSurfaceDist;
-					shadowRay.o = isect.p + rayOriginOffset * shadowRay.d;
-					shadowRay.tMax = sampledLightSurfaceDist - shadowRayMargin;
-					if (dot(shadowRay.d, sampledLightSurface.n) < 0 && !scene->intersectAny(shadowRay)) {
-						float misWeight;
-						float pdf_bsdf_x_light;
-						float distSq = powf(sampledLightSurfaceDist, 2.0f);
-						if (!isect.object->material->specular) {
-							pdf_bsdf_x_light = isect.object->material->pdf(isect, shadowRay.d);
-							float cosLight = fabsf(dot(-shadowRay.d, sampledLightSurface.shadingN));
-							pdf_bsdf_x_light *= cosLight / distSq;
+					if (scene->canSampleLight()) {
+						float pdf_light_x_light;
+						const auto& sampledLightSurface = scene->sampleSurface(sampler, &pdf_light_x_light);
+						float sampledLightSurfaceDist = (sampledLightSurface.p - isect.p).length();
+						shadowRay.d = (sampledLightSurface.p - isect.p) / sampledLightSurfaceDist;
+						shadowRay.o = isect.p + rayOriginOffset * shadowRay.d;
+						shadowRay.tMax = sampledLightSurfaceDist - shadowRayMargin;
+						if (dot(shadowRay.d, sampledLightSurface.n) < 0 && !scene->intersectAny(shadowRay)) {
+							float misWeight;
+							float pdf_bsdf_x_light;
+							float distSq = powf(sampledLightSurfaceDist, 2.0f);
+							if (!isect.object->material->specular) {
+								pdf_bsdf_x_light = isect.object->material->pdf(isect, shadowRay.d);
+								float cosLight = fabsf(dot(-shadowRay.d, sampledLightSurface.shadingN));
+								pdf_bsdf_x_light *= cosLight / distSq;
 
-							misWeight = powf(pdf_light_x_light, 2.0f) / (powf(pdf_bsdf_x_light, 2.0f) + powf(pdf_light_x_light, 2.0f));
-						} else {
-							misWeight = 0.0f;
+								misWeight = powf(pdf_light_x_light, 2.0f) / (powf(pdf_bsdf_x_light, 2.0f) + powf(pdf_light_x_light, 2.0f));
+							} else {
+								misWeight = 0.0f;
+							}
+
+							if (misWeight > 0.0f) {
+								float G = fabs(dot(shadowRay.d, isect.shading.n) * dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq;
+								radiance +=
+									weight * misWeight
+									* isect.object->material->bsdf(isect, shadowRay.d)
+									* sampledLightSurface.object->material->emission(-shadowRay.d, sampledLightSurface.n, sampledLightSurface.shadingN)
+									* G / pdf_light_x_light;
+							}
+
 						}
-
-						if (misWeight > 0.0f) {
-							float G = fabs(dot(shadowRay.d, isect.shading.n) * dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq;
-							radiance +=
-								weight * misWeight
-								* isect.object->material->bsdf(isect, shadowRay.d)
-								* sampledLightSurface.object->material->emission(-shadowRay.d, sampledLightSurface.n, sampledLightSurface.shadingN)
-								* G / pdf_light_x_light;
-						}
-
 					}
 
 					//-------------------------------------
@@ -196,11 +201,6 @@ namespace Xitils {
 					}
 				}
 
-
-
-			} else if (scene->skySphere) {
-				//radiance += clampPositive(weight * scene->skySphere->getRadiance(currentRay.d));
-				//break;
 			}
 
 			return radiance;

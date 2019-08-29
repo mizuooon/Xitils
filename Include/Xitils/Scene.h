@@ -35,6 +35,8 @@ namespace Xitils {
 			return accel->intersectAny(ray);
 		}
 
+		bool canSampleLight() const { return !lights.empty(); }
+
 		Object::SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
 			// TODO: すべての Object から等確率でサンプリングしているが、
 			//       本当は面積に比例した確率で選ぶべき
@@ -46,6 +48,9 @@ namespace Xitils {
 
 		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const Primitive* primitive) const {
 			// TODO: 上記を直したらこちらも直す
+
+			if (lights.empty()) { return 0.0f; }
+
 			return object->surfacePDF(p, shape, primitive) / lights.size();
 		}
 

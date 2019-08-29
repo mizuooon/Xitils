@@ -47,7 +47,7 @@ namespace Xitils {
 				isect->n = objectToWorld.asNormal(isect->n);
 				isect->wo = objectToWorld.asNormal(isect->wo);
 				isect->shading.n = objectToWorld.asNormal(isect->shading.n);
-				*tHit = (isect->p - ray.o).length();
+				// tHit ‚Í•ÏŠ·‚µ‚È‚­‚Ä‚æ‚¢
 
 				isect->object = this;
 
