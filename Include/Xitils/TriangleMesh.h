@@ -14,7 +14,7 @@ namespace Xitils {
 			}
 		}
 
-		void setGeometry(const std::shared_ptr<cinder::TriMesh>& mesh) {
+		void setGeometry(const std::shared_ptr<cinder::TriMesh>& mesh, const std::shared_ptr<Texture> displacement = nullptr, float displacemntMax =0.0f) {
 
 			positions.resize(mesh->getNumVertices());
 			for (int i = 0; i < positions.size(); ++i) {
@@ -38,6 +38,31 @@ namespace Xitils {
 				indices[i + 0] = mesh->getIndices()[i + 0];
 				indices[i + 1] = mesh->getIndices()[i + 1];
 				indices[i + 2] = mesh->getIndices()[i + 2];
+			}
+
+			if (displacement) {
+				for (int i = 0; i < positions.size(); i += 3) {
+					positions[i] += displacemntMax * displacement->rgb(texCoords[i]).x * normals[i];
+				}
+				// normal を再計算
+				normals.clear();
+				normals.resize(mesh->getNumVertices());
+				for (int i = 0; i < indices.size(); i += 3) {
+					const auto& p0 = positions[indices[i + 0]];
+					const auto& p1 = positions[indices[i + 1]];
+					const auto& p2 = positions[indices[i + 2]];
+					auto n = cross(p1 - p0, p2 - p0);
+					if (!n.isZero()) { n.normalize(); }
+					normals[indices[i + 0]] += n;
+					normals[indices[i + 1]] += n;
+					normals[indices[i + 2]] += n;
+				}
+				for (int i = 0; i < normals.size(); ++i) {
+					if (!normals[i].isZero()) { normals[i].normalize(); }
+				}
+
+				// displacement map を適用した場合、tangent は無効化している
+				tangents.clear();
 			}
 
 			buildBVH();

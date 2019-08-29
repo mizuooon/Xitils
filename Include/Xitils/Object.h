@@ -61,8 +61,12 @@ namespace Xitils {
 				}
 
 				isect->shading.n = objectToWorld.asNormal(isect->shading.n);
-				isect->shading.tangent = objectToWorld.asNormal(isect->shading.tangent);
-				isect->shading.bitangent = objectToWorld.asNormal(isect->shading.bitangent);
+				if (!isect->shading.tangent.isZero()) {
+					isect->shading.tangent = objectToWorld.asNormal(isect->shading.tangent);
+				}
+				if (!isect->shading.bitangent.isZero()) {
+					isect->shading.bitangent = objectToWorld.asNormal(isect->shading.bitangent);
+				}
 
 				// texCoord, tHit ‚Í•ÏŠ·‚µ‚È‚­‚Ä‚æ‚¢
 				// tangent ‚Æ bitangent ‚Í•ÏŠ·Œã‚Ì’lg‚Á‚Ä‚È‚¢‚Ì‚Å•ÏŠ·‚µ‚È‚­‚Ä‚æ‚¢H
