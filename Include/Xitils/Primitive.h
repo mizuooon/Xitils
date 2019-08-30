@@ -34,14 +34,16 @@ namespace Xitils {
 		const Vector2f* texCoords;
 		const Vector3f* normals;
 		const Vector3f* tangents;
+		const Vector3f* bitangents;
 		const int* indices;
 		int index;
 
-		TriangleIndexed(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const int* indices, int index) :
+		TriangleIndexed(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, const int* indices, int index) :
 			positions(positions),
 			texCoords(texCoords),
 			normals(normals),
 			tangents(tangents),
+			bitangents(bitangents),
 			indices(indices),
 			index(index)
 		{}
@@ -50,6 +52,7 @@ namespace Xitils {
 		const Vector2f& texCoord(int i) const { return texCoords[indices[index * 3 + i]]; }
 		const Vector3f& normal(int i) const { return normals[indices[index * 3 + i]]; }
 		const Vector3f& tangent(int i) const { return tangents[indices[index * 3 + i]]; }
+		const Vector3f& bitangent(int i) const { return bitangents[indices[index * 3 + i]]; }
 
 		Bounds3f bound() const override {
 			const auto& p0 = position(0);
@@ -152,8 +155,7 @@ namespace Xitils {
 
 			if (tangents != nullptr) {
 				isect->shading.tangent = lerp(tangent(0), tangent(1), tangent(2), b0, b1);
-				isect->shading.bitangent = cross(isect->shading.n, isect->shading.tangent).normalize();
-				isect->shading.tangent = cross(isect->shading.bitangent, isect->shading.n).normalize();
+				isect->shading.bitangent = lerp(bitangent(0), bitangent(1), bitangent(2), b0, b1);
 			} else {
 				isect->shading.tangent = Vector3f();
 				isect->shading.bitangent = Vector3f();

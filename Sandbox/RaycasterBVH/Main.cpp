@@ -77,7 +77,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
-	auto dispmap = std::make_shared<TextureFromFile>("displacement.png");
+	auto dispmap = std::make_shared<TextureFromFile>("displacement_.png");
 	teapotMesh->setGeometry(teapotMeshData, dispmap, 0.05f);
 	auto material = std::make_shared<SpecularFresnel>();
 	material->index = 1.2f;
@@ -122,7 +122,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//);
 
 	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
-		transformTRS(Vector3f(0.0f, 0, 1.0f), Vector3f(0, 0, 0), Vector3f(2.0f))
+		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
 
 	scene->buildAccelerationStructure();

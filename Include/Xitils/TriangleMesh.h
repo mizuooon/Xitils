@@ -14,55 +14,48 @@ namespace Xitils {
 			}
 		}
 
-		void setGeometry(const std::shared_ptr<cinder::TriMesh>& mesh, const std::shared_ptr<Texture> displacement = nullptr, float displacemntMax =0.0f) {
+		void setGeometry(const std::shared_ptr<const cinder::TriMesh>& mesh, const std::shared_ptr<Texture> displacement = nullptr, float displacemntMax =0.0f) {
 
-			positions.resize(mesh->getNumVertices());
-			for (int i = 0; i < positions.size(); ++i) {
-				positions[i] = Vector3f(mesh->getPositions<3>()[i]);
-			}
-			normals.resize(mesh->getNumVertices());
-			for (int i = 0; i < normals.size(); ++i) {
-				normals[i] = Vector3f(mesh->getNormals()[i]);
-			}
-			texCoords.resize(mesh->getNumVertices());
-			for (int i = 0; i < texCoords.size(); ++i) {
-				texCoords[i] = Vector2f(mesh->getTexCoords0<2>()[i]);
-			}
-			tangents.resize(mesh->getTangents().size());
-			for (int i = 0; i < tangents.size(); ++i) {
-				tangents[i] = Vector3f(mesh->getTangents()[i]);
-			}
-			
-			indices.resize(mesh->getNumTriangles() * 3);
-			for (int i = 0; i < indices.size(); i += 3) {
-				indices[i + 0] = mesh->getIndices()[i + 0];
-				indices[i + 1] = mesh->getIndices()[i + 1];
-				indices[i + 2] = mesh->getIndices()[i + 2];
-			}
+			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh->clone());
 
 			if (displacement) {
-				for (int i = 0; i < positions.size(); i += 3) {
-					positions[i] += displacemntMax * displacement->rgb(texCoords[i]).x * normals[i];
+				for (int i = 0; i < tmpMesh->getNumVertices(); ++i) {
+					tmpMesh->getPositions<3>()[i] += 
+						displacemntMax * displacement->rgb(Vector2f(tmpMesh->getTexCoords0<2>()[i])).x * tmpMesh->getNormals()[i];
 				}
-				// normal を再計算
-				normals.clear();
-				normals.resize(mesh->getNumVertices());
-				for (int i = 0; i < indices.size(); i += 3) {
-					const auto& p0 = positions[indices[i + 0]];
-					const auto& p1 = positions[indices[i + 1]];
-					const auto& p2 = positions[indices[i + 2]];
-					auto n = cross(p1 - p0, p2 - p0);
-					if (!n.isZero()) { n.normalize(); }
-					normals[indices[i + 0]] += n;
-					normals[indices[i + 1]] += n;
-					normals[indices[i + 2]] += n;
-				}
-				for (int i = 0; i < normals.size(); ++i) {
-					if (!normals[i].isZero()) { normals[i].normalize(); }
-				}
+				tmpMesh->recalculateNormals();
+			}
 
-				// displacement map を適用した場合、tangent は無効化している
-				tangents.clear();
+			positions.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < positions.size(); ++i) {
+				positions[i] = Vector3f(tmpMesh->getPositions<3>()[i]);
+			}
+			normals.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < normals.size(); ++i) {
+				normals[i] = Vector3f(tmpMesh->getNormals()[i]);
+			}
+			texCoords.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < texCoords.size(); ++i) {
+				texCoords[i] = Vector2f(tmpMesh->getTexCoords0<2>()[i]);
+			}
+
+			//tmpMesh->recalculateTangents();
+			//tmpMesh->recalculateBitangents();
+
+			//tangents.resize(tmpMesh->getTangents().size());
+			//for (int i = 0; i < tangents.size(); ++i) {
+			//	tangents[i] = Vector3f(tmpMesh->getTangents()[i]);
+			//}
+			//bitangents.resize(tmpMesh->getBitangents().size());
+			//for (int i = 0; i < bitangents.size(); ++i) {
+			//	bitangents[i] = Vector3f(tmpMesh->getBitangents()[i]);
+			//}
+			
+			indices.resize(tmpMesh->getNumTriangles() * 3);
+			for (int i = 0; i < indices.size(); i += 3) {
+				indices[i + 0] = tmpMesh->getIndices()[i + 0];
+				indices[i + 1] = tmpMesh->getIndices()[i + 1];
+				indices[i + 2] = tmpMesh->getIndices()[i + 2];
 			}
 
 			buildBVH();
@@ -147,6 +140,7 @@ namespace Xitils {
 		std::vector<Vector3f> normals;
 		std::vector<Vector2f> texCoords;
 		std::vector<Vector3f> tangents;
+		std::vector<Vector3f> bitangents;
 		std::vector<int> indices;
 		std::vector<Primitive*> triangles;
 
@@ -174,6 +168,7 @@ namespace Xitils {
 						!texCoords.empty() ? texCoords.data() : nullptr,
 						!normals.empty() ? normals.data() : nullptr,
 						!tangents.empty() ? tangents.data() : nullptr,
+						!bitangents.empty() ? bitangents.data() : nullptr,
 						indices.data(), i);
 			}
 
