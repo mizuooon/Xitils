@@ -197,6 +197,7 @@ public:
 			}
 
 			float g = G1(wr, wm, wp, wt, wg);
+
 			if (sampler->randf() < g ) {
 				break;
 			}
@@ -307,7 +308,7 @@ private:
 		return a_p(w, wp, wg) / (a_p(w, wp, wg) + a_t(w, wp, wt, wg));
 	};
 	float G1 (const Vector3f& w, const Vector3f& wm, const Vector3f& wp, const Vector3f& wt, const Vector3f& wg) const{
-		return dot(w, wm) > 0.0f ? min(1.0f, fabsf(dot(w, wg)) / (a_p(w, wp, wg) + a_t(w, wp, wt, wg))) : 0.0f;
+		return dot(w, wm) > 0.0f ? min(1.0f, clampPositive(dot(w, wg)) / (a_p(w, wp, wg) + a_t(w, wp, wt, wg))) : 0.0f;
 	};
 };
 
@@ -400,6 +401,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//auto sphere_material = std::make_shared<DiffuseClamped>(Vector3f(0.8f));
 	auto sphere_material = std::make_shared<SpecularMicrofacetNormalMapping>(
 		std::make_shared<DiffuseClamped>(Vector3f(0.8f)),
+		//std::make_shared<SpecularClamped>(),
 		SpecularMicrofacetNormalMapping::TangentFacetMode::SpecularExplicit
 		);
 
@@ -415,7 +417,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
-	pathTracer = std::make_shared<NaivePathTracer>();
+	pathTracer = std::make_shared<StandardPathTracer>();
 	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
 	//	return (isect.shading.bitangent) *0.5f + Vector3f(0.5f);
 	//	} );
