@@ -147,7 +147,7 @@ namespace Xitils {
 
 							if (nextIsect.object->material->emissive) {
 								float misWeight;
-								if (!isect.object->material->specular && scene->canSampleLight()) {
+								if (pdf_bsdf_x_bsdf >= 0.0f && scene->canSampleLight()) {
 									float pdf_light_x_bsdf = scene->surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
 									float cosLight = fabsf(dot(currentRay.d, nextIsect.shading.n));
 									float distSq = powf(currentRay.tMax, 2.0f);
@@ -187,7 +187,7 @@ namespace Xitils {
 							float misWeight;
 							float pdf_bsdf_x_light;
 							float distSq = powf(sampledLightSurfaceDist, 2.0f);
-							if (!isect.object->material->specular) {
+							if (pdf_bsdf_x_bsdf >= 0.0f) {
 								pdf_bsdf_x_light = isect.object->material->pdf(isect, shadowRay.d);
 								float cosLight = fabsf(dot(-shadowRay.d, sampledLightSurface.shadingN));
 								pdf_bsdf_x_light *= cosLight / distSq;

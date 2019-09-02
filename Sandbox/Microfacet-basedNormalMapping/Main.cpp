@@ -22,9 +22,7 @@ public:
 
 	DiffuseClamped(const Vector3f& albedo) :
 		albedo(albedo)
-	{
-		specular = false;
-	}
+	{}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
 		return dot(isect.wo, isect.shading.n) > 0.0f && dot(wi, isect.n) > 0.0f ? albedo / M_PI * clampPositive(dot(wi, isect.shading.n)) : Vector3f(0.0f);
@@ -46,15 +44,12 @@ public:
 class SpecularClamped : public Material {
 public:
 
-	SpecularClamped() {
-		specular = true;
-	}
-
 	Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
 		const auto& wo = isect.wo;
 
 		const auto& n = isect.shading.n;
 		*wi = -(wo - 2 * dot(n, wo) * n).normalize();
+		*pdf = -1.0f;
 		return dot(*wi, n) > 0.0f ? Vector3f(1.0f) : Vector3f(0.0f);
 	}
 
@@ -65,17 +60,13 @@ public:
 	
 	enum TangentFacetMode {
 		SameMaterialExplicit,
-		SameMaterialAnalyticDiffuse,
-		SpecularExplicit,
-		SpecularAnalytic2nd
+		SpecularExplicit
 	};
 
 	SpecularMicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp, TangentFacetMode tangentFacetMode):
 		material_wp(material_wp),
 		tangentFacetMode(tangentFacetMode)
-	{
-		specular = material_wp->specular;
-	}
+	{}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
@@ -115,6 +106,13 @@ public:
 			isectfacet.wo = -wr;
 
 			if (d) {
+
+				if (tangentFacetMode == SpecularExplicit) {
+					Vector3f wi_dash = -(wi - 2 * dot(wt, wi) * wt).normalize();
+					wi_dash *= -1;
+					result += weight * (1.0f - G1(wi_dash, wp, wp, wt, wg)) * G1(wi, wt, wp, wt, wg) * material_wp->bsdfCos(isectfacet, sampler, wi_dash);
+				}
+
 				result += weight * G1(wi, wm, wp, wt, wg) * material_wp->bsdfCos(isectfacet, sampler, wi);
 				weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &pdf);
 
@@ -176,17 +174,23 @@ public:
 		SurfaceInteraction isectfacet;
 		isectfacet = isect;
 		int i = 0;
+		float tmppdf;
+		bool specular = true;
 		while (true) {
+			++i;
+
 			const Vector3f& wm = d ? wp : wt;
 
 			isectfacet.n = wm;
 			isectfacet.shading.n = wm;
 			isectfacet.wo = -wr;
 			if (d) {
-				weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, pdf);
+				weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &tmppdf);
+				if (tmppdf >= 0.0f) { specular = false; }
 			} else {
 				if(tangentFacetMode == SameMaterialExplicit) {
-					weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, pdf);
+					weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &tmppdf);
+					if (tmppdf >= 0.0f) { specular = false; }
 				}else if (tangentFacetMode == SpecularExplicit) {
 					wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
 				}
@@ -201,9 +205,7 @@ public:
 
 			if (weight.isZero()) { break; }
 
-			++i;
 			if (i > 100) {
-				//printf("%f %f %f %f\n", G1(wr, wm), a_p(wr), a_t(wt), dot(wp, wg));
 				weight *= Vector3f(0.0f);
 				break;
 			}
@@ -212,7 +214,11 @@ public:
 		result += weight;
 		*wi = wr;
 
-		*pdf = this->pdf(isect, *wi);
+		if (!specular) {
+			*pdf = this->pdf(isect, *wi);
+		} else {
+			*pdf = -1.0f;
+		}
 
 		return result;
 	}
@@ -250,11 +256,10 @@ public:
 		float diff_pdf = 0.0f;
 
 		float g_wi_wp = G1(wi, wp, wp, wt, wg);
-		float pdf_wi_wp = material_wp->pdf(isectfacet, wi);
 		if (probability_wp > 0.0f) {
 			isectfacet.n = wp;
 			isectfacet.shading.n = wp;
-			pdf += probability_wp * g_wi_wp * pdf_wi_wp;
+			pdf += probability_wp * g_wi_wp * material_wp->pdf(isectfacet, wi);
 			diff_pdf += probability_wp * (1.0f - g_wi_wp);
 		}
 
@@ -263,17 +268,26 @@ public:
 			isectfacet.shading.n = wt;
 			float g_wi_wt = G1(wi, wt, wp, wt, wg);
 			if (tangentFacetMode == SameMaterialExplicit) {
-				pdf += g_wi_wt * clampPositive(dot(wi,wt)) / M_PI;
+				pdf += probability_wp * g_wi_wt * material_wp->pdf(isectfacet, wi);
 				diff_pdf += probability_wp * g_wi_wt;
 			} else if (tangentFacetMode == SpecularExplicit) {
 				Vector3f wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
 				float g_wr_wt = G1(wr, wt, wp, wt, wg);
-				pdf += probability_wp * (1.0f - g_wr_wt) * g_wi_wp * pdf_wi_wp;
+				
+				isectfacet.n = wp;
+				isectfacet.shading.n = wp;
+				isectfacet.wo = -wr;
+
+				pdf += probability_wp * (1.0f - g_wr_wt) * g_wi_wp * material_wp->pdf(isectfacet, wi);
 				diff_pdf += probability_wp * (1.0f - g_wr_wt) * (1.0f - g_wi_wp);
 			}
 		}
-
-		return pdf + diff_pdf * clampPositive(dot(wi, wg)) / M_PI;
+		
+		if (tangentFacetMode == SameMaterialExplicit) {
+			return pdf + diff_pdf * clampPositive(dot(wi, wg)) / M_PI;
+		} else if (tangentFacetMode == SpecularExplicit) {
+			return pdf + diff_pdf * clampPositive(dot(wi, wg)) / M_PI * 0.5f;
+		}
 	}
 
 private:
@@ -401,7 +415,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
-	pathTracer = std::make_shared<StandardPathTracer>();
+	pathTracer = std::make_shared<NaivePathTracer>();
 	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
 	//	return (isect.shading.bitangent) *0.5f + Vector3f(0.5f);
 	//	} );

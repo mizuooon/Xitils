@@ -8,7 +8,6 @@ namespace Xitils {
 
 	class Material {
 	public:
-		bool specular = false;
 		bool emissive = false;
 
 		std::shared_ptr<Texture> normalmap;
@@ -21,7 +20,7 @@ namespace Xitils {
 		}
 
 		// BSDF * cos / pdf の値を返し、wi のサンプリングも行う
-		// スペキュラの物体ではデルタ関数になるので pdf は返さない
+		// スペキュラの物体ではデルタ関数になり、このとき pdf は -1 として表される
 		// 戻り値が 0 のときには wi と pdf は有効ではない
 		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
@@ -49,9 +48,7 @@ namespace Xitils {
 
 		Diffuse (const Vector3f& albedo):
 			albedo(albedo)
-		{
-			specular = false;
-		}
+		{}
 
 		Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
 			if (texture == nullptr) {
@@ -81,15 +78,12 @@ namespace Xitils {
 	class SpecularReflection : public Material {
 	public:
 
-		SpecularReflection(){
-			specular = true;
-		}
-
 		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 
 			const auto& n = isect.shading.n;
 			*wi = -(wo - 2 * dot(n, wo) * n).normalize();
+			*pdf = -1.0f;
 			return Vector3f(1.0f);
 		}
 
@@ -99,10 +93,6 @@ namespace Xitils {
 	public:
 
 		float index = 1.0f;
-
-		SpecularRefraction(){
-			specular = true;
-		}
 
 		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
@@ -121,6 +111,7 @@ namespace Xitils {
 			float rindex = eta_o / eta_i;
 			float cos = dot(-wo, n);
 			*wi = rindex * (-wo - cos * n) - safeSqrt(1 - powf(rindex, 2) * (1 - powf(cos, 2))) * n;
+			*pdf = -1.0f;
 
 			return Vector3f(1.0f);
 		}
@@ -131,10 +122,6 @@ namespace Xitils {
 	public:
 
 		float index = 1.0f;
-
-		SpecularFresnel() {
-			specular = true;
-		}
 
 		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
@@ -157,6 +144,8 @@ namespace Xitils {
 				float cos = dot(-wo, n);
 				*wi = rindex * (-wo - cos * n) - safeSqrt(1 - powf(rindex, 2) * (1 - powf(cos, 2))) * n;
 			}
+
+			*pdf = -1.0f;
 
 			return Vector3f(1.0f);
 		}
