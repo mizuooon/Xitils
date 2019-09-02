@@ -11,7 +11,6 @@ namespace Xitils {
 	class Texture {
 	public:
 
-		bool filter = true;
 		bool warpClamp = true;
 
 		virtual Vector3f rgb(Vector2f uv) const = 0;
@@ -31,6 +30,8 @@ namespace Xitils {
 
 	class TextureFromFile : public Texture {
 	public:
+
+		bool filter = true;
 
 		TextureFromFile(const std::string& filename) {
 			float* tmp = stbi_loadf(filename.c_str(), &width, &height, &channel, STBI_rgb);
@@ -68,11 +69,11 @@ namespace Xitils {
 		Vector3f rgb(Vector2f uv) const override {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
-				int y0 = (1-uv.v) * height + 0.5f;
+				int y0 = (1 - uv.v) * height + 0.5f;
 				int x1 = x0 + 1;
 				int y1 = y0 + 1;
 				float wx1 = (uv.u * width + 0.5f) - x0;
-				float wy1 = ((1-uv.v) * height + 0.5f) - y0;
+				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
 				float wx0 = 1.0f - wx1;
 				float wy0 = 1.0f - wy1;
 
@@ -85,7 +86,7 @@ namespace Xitils {
 					+ wx1 * wy1 * rgb(x1, y1);
 			} else {
 				int x = uv.u * width;
-				int y = (1-uv.v) * height;
+				int y = (1 - uv.v) * height;
 				warp(x, y);
 				return rgb(x, y);
 			}
@@ -115,11 +116,11 @@ namespace Xitils {
 
 	class TextureChecker : public Texture {
 	public:
-		
+
 		int split;
 		Vector3f col0, col1;
 
-		TextureChecker(int split, const Vector3f& col0, const Vector3f& col1):
+		TextureChecker(int split, const Vector3f& col0, const Vector3f& col1) :
 			split(split),
 			col0(col0),
 			col1(col1)
@@ -133,4 +134,45 @@ namespace Xitils {
 		}
 	};
 
+	class TextureNormalHump : public Texture {
+	public:
+
+		int numU, numV;
+		float scale;
+
+		TextureNormalHump(int numU, int numV, float scale) :
+			numU(numU),
+			numV(numV),
+			scale(scale)
+		{}
+
+		Vector3f rgb(Vector2f uv) const override {
+			warp(uv.u, uv.v);
+			uv.u *= numU;
+			uv.v *= numV;
+			uv.u -= (int)uv.u;
+			uv.v -= (int)uv.v;
+
+			Vector3f v;
+
+			v.x = (uv.u - 0.5f) * 2;
+			v.y = (uv.v - 0.5f) * 2;
+			v.y *= -1;
+
+			// x^2 + y^2 + (z*scale)^2 = 1;
+			// z = sqrt(1 - x^2 - y^2) * scale
+
+			float sq = 1 - v.x * v.x - v.y * v.y;
+			if (sq >= 0.0f) {
+				v.z = sqrtf(sq);
+				v.z /= scale;
+			} else {
+				v = Vector3f(0, 0, 1);
+			}
+
+			Vector3f n = clamp01((v.normalize() + Vector3f(1.0f)) * 0.5f);
+
+			return n;
+		}
+	};
 }

@@ -39,18 +39,18 @@ namespace Xitils {
 				texCoords[i] = Vector2f(tmpMesh->getTexCoords0<2>()[i]);
 			}
 
-			//tmpMesh->recalculateTangents();
-			//tmpMesh->recalculateBitangents();
+			tmpMesh->recalculateTangents();
+			tmpMesh->recalculateBitangents();
 
-			//tangents.resize(tmpMesh->getTangents().size());
-			//for (int i = 0; i < tangents.size(); ++i) {
-			//	tangents[i] = Vector3f(tmpMesh->getTangents()[i]);
-			//}
-			//bitangents.resize(tmpMesh->getBitangents().size());
-			//for (int i = 0; i < bitangents.size(); ++i) {
-			//	bitangents[i] = Vector3f(tmpMesh->getBitangents()[i]);
-			//}
-			
+			tangents.resize(tmpMesh->getTangents().size());
+			for (int i = 0; i < tangents.size(); ++i) {
+				tangents[i] = Vector3f(tmpMesh->getTangents()[i]);
+			}
+			bitangents.resize(tmpMesh->getBitangents().size());
+			for (int i = 0; i < bitangents.size(); ++i) {
+				bitangents[i] = Vector3f(tmpMesh->getBitangents()[i]);
+			}
+
 			indices.resize(tmpMesh->getNumTriangles() * 3);
 			for (int i = 0; i < indices.size(); i += 3) {
 				indices[i + 0] = tmpMesh->getIndices()[i + 0];

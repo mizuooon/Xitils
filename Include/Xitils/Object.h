@@ -47,7 +47,6 @@ namespace Xitils {
 				isect->n = objectToWorld.asNormal(isect->n);
 				isect->wo = objectToWorld.asNormal(isect->wo);
 
-
 				// ノーマルマップが設定されていた場合それを適用
 				if (material->normalmap != nullptr) {
 					// shading.n は変化させるが、tangnet と bitangent は変化させないので注意

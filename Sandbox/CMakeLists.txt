@@ -53,7 +53,7 @@ function(add_sandbox TargetName)
 		)
 	set_target_properties(
 	${TargetName} PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../Data"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Data"
 	)
 	#set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${TargetName})
 	
@@ -78,3 +78,5 @@ add_definitions(/MP)
 add_subdirectory(RaycasterBVH)
 # add_subdirectory(RaycasterEmbree)
 # add_subdirectory(RaycasterOptix)
+
+add_subdirectory(Microfacet-basedNormalMapping)

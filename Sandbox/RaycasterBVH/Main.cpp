@@ -71,24 +71,26 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->camera = std::make_shared<OrthographicCamera>(
 	//	translate(0, 0.5f, -3), 4, 3);
 
-	const int subdivision = 100;
+	const int subdivision = 10;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	auto dispmap = std::make_shared<TextureFromFile>("displacement_.png");
-	teapotMesh->setGeometry(teapotMeshData, dispmap, 0.05f);
+	teapotMesh->setGeometry(teapotMeshData);
 	auto material = std::make_shared<SpecularFresnel>();
 	material->index = 1.2f;
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
 	auto texture = std::make_shared<TextureChecker>(4, Vector3f(1.0f), Vector3f(0.5f));
-	auto normalmap = std::make_shared<TextureFromFile>("normalmap.png");
+	//auto normalmap = std::make_shared<TextureFromFile>("normalmap.png");
+	auto normalmap = std::make_shared<TextureNormalHump>(4,4,0.5f);
 
-	auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
-	//teapot_material->normalmap = normalmap;
+	//auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto teapot_material = std::make_shared<SpecularReflection>();
+	teapot_material->normalmap = normalmap;
 
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
@@ -98,21 +100,21 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_red, transformTRS(Vector3f(-2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 2, 2), Vector3f(), Vector3f(4, 4, 0.01f)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
-	);
+	//scene->addObject(
+	//	std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
+	//);
+	//scene->addObject(
+	//	std::make_shared<Object>(cube, diffuse_red, transformTRS(Vector3f(-2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
+	//);
+	//scene->addObject(
+	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 2, 2), Vector3f(), Vector3f(4, 4, 0.01f)))
+	//);
+	//scene->addObject(
+	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
+	//);
+	//scene->addObject(
+	//	std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
+	//);
 
 	//scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
 	//	transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
@@ -126,6 +128,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		));
 
 	scene->buildAccelerationStructure();
+
+	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 

@@ -146,13 +146,13 @@ namespace Xitils {
 			return *this;
 		}
 
-		bool operator==(const _V& v) {
+		bool operator==(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_eq(val1, val2);
 			return simdpp::reduce_and(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 		}
-		bool operator!=(const _V& v) {
+		bool operator!=(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_neq(val1, val2);
@@ -299,13 +299,13 @@ namespace Xitils {
 			return *this;
 		}
 
-		bool operator==(const _V& v) {
+		bool operator==(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_eq(val1, val2);
 			return simdpp::reduce_and(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 		}
-		bool operator!=(const _V& v) {
+		bool operator!=(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_neq(val1, val2);
@@ -461,13 +461,13 @@ namespace Xitils {
 			return *this;
 		}
 
-		bool operator==(const _V& v) {
+		bool operator==(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_eq(val1, val2);
 			return simdpp::reduce_and(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 		}
-		bool operator!=(const _V& v) {
+		bool operator!=(const _V& v) const {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_u<T_SIMD>(&v);
 			auto mask = simdpp::cmp_neq(val1, val2);

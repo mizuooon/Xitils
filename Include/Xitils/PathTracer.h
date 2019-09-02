@@ -66,12 +66,8 @@ namespace Xitils {
 						radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
 					}
 
-					if (isect.object->material->specular) {
-						weight *= isect.object->material->evalAndSampleSpecular(isect, sampler, &wi);
-					} else {
-						float pdf;
-						weight *= isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
-					}
+					float pdf;
+					weight *= isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
 
 					if (weight.isZero()) { break; }
 
@@ -141,11 +137,7 @@ namespace Xitils {
 
 					float pdf_bsdf_x_bsdf;
 					Vector3f material_eval;
-					if (!isect.object->material->specular) {
-						material_eval = isect.object->material->evalAndSample(isect, sampler, &currentRay.d, &pdf_bsdf_x_bsdf);
-					} else {
-						material_eval = isect.object->material->evalAndSampleSpecular(isect, sampler, &currentRay.d);
-					}
+					material_eval = isect.object->material->evalAndSample(isect, sampler, &currentRay.d, &pdf_bsdf_x_bsdf);
 
 					if (!material_eval.isZero()) {
 						currentRay.o = isect.p + rayOriginOffset * currentRay.d;
@@ -206,10 +198,10 @@ namespace Xitils {
 							}
 
 							if (misWeight > 0.0f) {
-								float G = fabs(dot(shadowRay.d, isect.shading.n) * dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq;
+								float G = fabs(dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq; // bsdfCos にオブジェクト側のコサイン項は既に含まれている
 								radiance +=
 									weight * misWeight
-									* isect.object->material->bsdf(isect, shadowRay.d)
+									* isect.object->material->bsdfCos(isect, sampler, shadowRay.d)
 									* sampledLightSurface.object->material->emission(-shadowRay.d, sampledLightSurface.n, sampledLightSurface.shadingN)
 									* G / pdf_light_x_light;
 							}
