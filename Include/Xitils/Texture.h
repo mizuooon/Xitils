@@ -99,7 +99,7 @@ namespace Xitils {
 		}
 
 		Vector3f rgbDifferentialV(int x, int y) const {
-			return (rgb(x, y + 1) - rgb(x, y - 1)) / 2.0f * height;
+			return -(rgb(x, y + 1) - rgb(x, y - 1)) / 2.0f * height;
 		}
 
 		Vector3f rgbDifferentialU(const Vector2f& uv) const override {

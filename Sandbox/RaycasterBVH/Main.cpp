@@ -77,7 +77,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
-	auto dispmap = std::make_shared<TextureFromFile>("displacement_.png");
+	auto dispmap = std::make_shared<TextureFromFile>("displacement.png");
 	//teapotMesh->setGeometry(teapotMeshData);
 	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.05f, 128);
 	auto material = std::make_shared<SpecularFresnel>();
