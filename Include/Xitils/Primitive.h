@@ -8,6 +8,7 @@
 #include "Transform.h"
 #include "Ray.h"
 #include "Interaction.h"
+#include "Texture.h"
 
 namespace Xitils {
 
@@ -135,17 +136,24 @@ namespace Xitils {
 			float b2 = e2 * invDet;
 			float t = tScaled * invDet;
 
+			Vector2f texCoordTmp;
+			if (texCoords != nullptr) {
+				texCoordTmp = lerp(texCoord(0), texCoord(1), texCoord(2), b0, b1);
+			} else {
+				texCoordTmp = Vector2f();
+			}
+
+			if (discardByAlpha(texCoordTmp)) {
+				return false;
+			}
+
+			isect->texCoord = texCoordTmp;
+
 			*tHit = t;
 			isect->p = lerp(p0, p1, p2, b0, b1);
 			isect->n = cross(p1 - p0, p2 - p0).normalize();
 
 			isect->wo = normalize(-ray.d);
-
-			if(texCoords != nullptr){
-				isect->texCoord = lerp(texCoord(0), texCoord(1), texCoord(2), b0, b1);
-			} else {
-				isect->texCoord = Vector2f();
-			}
 
 			if (normals != nullptr) {
 				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
@@ -164,6 +172,8 @@ namespace Xitils {
 			isect->shading.n = faceForward(isect->shading.n, isect->wo);
 
 			isect->primitive = this;
+
+			perturbIntersection(*isect);
 
 			return true;
 		}
@@ -203,5 +213,47 @@ namespace Xitils {
 		float surfacePDF(const Vector3f& p) const override {
 			return 1.0f / surfaceArea();
 		}
+
+	protected:
+		virtual bool discardByAlpha(const Vector2f& texCoord) const { return false; }
+		virtual void perturbIntersection(SurfaceInteraction& isect) const {}
 	};
+
+
+	class TriangleIndexedWithShellMapping : public TriangleIndexed {
+	public:
+		float height; // [0,1] ‚Ì”ÍˆÍ
+		float displacementScale;
+		std::shared_ptr<const Texture> displacementMapTexture;
+
+		TriangleIndexedWithShellMapping(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, const int* indices, int index, std::shared_ptr<const Texture>& displacementMapTexture, float displacementScale, float height) :
+			TriangleIndexed(positions, texCoords, normals, tangents, bitangents, indices, index),
+			displacementMapTexture(displacementMapTexture),
+			displacementScale(displacementScale),
+			height(height)
+		{}
+
+	protected:
+
+		virtual bool discardByAlpha(const Vector2f& texCoord) const override {
+			return displacementMapTexture->rgb(texCoord).x < height;
+		}
+
+		virtual void perturbIntersection(SurfaceInteraction& isect) const override {
+
+			Vector3f a;
+			a.x = displacementMapTexture->rgbDifferentialU(isect.texCoord).x * displacementScale;
+			a.y = displacementMapTexture->rgbDifferentialV(isect.texCoord).x * displacementScale;
+			a.z = 1;
+			a.normalize();
+
+			isect.n = (a.x * isect.shading.tangent - a.y * isect.shading.bitangent + a.z * isect.n).normalize();
+			isect.shading.n = isect.n;
+
+			// TODO: tangent ‚Æ bitangent
+			isect.shading.tangent = Vector3f();
+			isect.shading.bitangent = Vector3f();
+		}
+	};
+
 }

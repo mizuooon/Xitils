@@ -77,15 +77,15 @@ namespace Xitils {
 	class _BVH : public _AccelerationStructure {
 	public:
 		_BVH(const std::vector<Primitive*>& primitives) {
-			buildBVH((const Geometry**)primitives.data(), primitives.size());
+			buildTrianglesAndBVH((const Geometry**)primitives.data(), primitives.size());
 		}
 
 		_BVH(const std::vector<Object*>& objects) {
-			buildBVH((const Geometry**)objects.data(), objects.size());
+			buildTrianglesAndBVH((const Geometry**)objects.data(), objects.size());
 		}
 
 		_BVH(const std::vector<Shape*>& shapes) {
-			buildBVH((const Geometry**)shapes.data(), shapes.size());
+			buildTrianglesAndBVH((const Geometry**)shapes.data(), shapes.size());
 		}
 
 		~_BVH() {
@@ -161,7 +161,7 @@ namespace Xitils {
 			std::vector<int> bucketSizes, bucketSizes1, bucketSizes2;
 		};
 
-		void buildBVH(const Geometry** data, int primNum) {
+		void buildTrianglesAndBVH(const Geometry** data, int primNum) {
 			ASSERT(primNum > 0);
 			std::vector<PrimBounds> aabbPrimitives;
 			aabbPrimitives.reserve(primNum);

@@ -13,7 +13,9 @@ namespace Xitils {
 
 		bool warpClamp = true;
 
-		virtual Vector3f rgb(Vector2f uv) const = 0;
+		virtual Vector3f rgb(const Vector2f& uv) const = 0;
+		virtual Vector3f rgbDifferentialU(const Vector2f& uv) const = 0;
+		virtual Vector3f rgbDifferentialV(const Vector2f& uv) const = 0;
 
 	protected:
 
@@ -66,7 +68,7 @@ namespace Xitils {
 			return Vector3f(data[i + 0], data[i + 1], data[i + 2]);
 		}
 
-		Vector3f rgb(Vector2f uv) const override {
+		Vector3f rgb(const Vector2f& uv) const override {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
 				int y0 = (1 - uv.v) * height + 0.5f;
@@ -89,6 +91,66 @@ namespace Xitils {
 				int y = (1 - uv.v) * height;
 				warp(x, y);
 				return rgb(x, y);
+			}
+		}
+
+		Vector3f rgbDifferentialU(int x, int y) const {
+			return (rgb(x + 1, y) - rgb(x - 1, y)) / 2.0f * width;
+		}
+
+		Vector3f rgbDifferentialV(int x, int y) const {
+			return (rgb(x, y + 1) - rgb(x, y - 1)) / 2.0f * height;
+		}
+
+		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+			if (filter) {
+				int x0 = uv.u * width + 0.5f;
+				int y0 = (1 - uv.v) * height + 0.5f;
+				int x1 = x0 + 1;
+				int y1 = y0 + 1;
+				float wx1 = (uv.u * width + 0.5f) - x0;
+				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
+				float wx0 = 1.0f - wx1;
+				float wy0 = 1.0f - wy1;
+
+				warp(x0, y0);
+				warp(x1, y1);
+
+				return wx0 * wy0 * rgbDifferentialU(x0, y0)
+					+ wx0 * wy1 * rgbDifferentialU(x0, y1)
+					+ wx1 * wy0 * rgbDifferentialU(x1, y0)
+					+ wx1 * wy1 * rgbDifferentialU(x1, y1);
+			} else {
+				int x = uv.u * width;
+				int y = (1 - uv.v) * height;
+				warp(x, y);
+				return rgbDifferentialU(x, y);
+			}
+		}
+
+		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+			if (filter) {
+				int x0 = uv.u * width + 0.5f;
+				int y0 = (1 - uv.v) * height + 0.5f;
+				int x1 = x0 + 1;
+				int y1 = y0 + 1;
+				float wx1 = (uv.u * width + 0.5f) - x0;
+				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
+				float wx0 = 1.0f - wx1;
+				float wy0 = 1.0f - wy1;
+
+				warp(x0, y0);
+				warp(x1, y1);
+
+				return wx0 * wy0 * rgbDifferentialV(x0, y0)
+					+ wx0 * wy1 * rgbDifferentialV(x0, y1)
+					+ wx1 * wy0 * rgbDifferentialV(x1, y0)
+					+ wx1 * wy1 * rgbDifferentialV(x1, y1);
+			} else {
+				int x = uv.u * width;
+				int y = (1 - uv.v) * height;
+				warp(x, y);
+				return rgbDifferentialV(x, y);
 			}
 		}
 
@@ -126,11 +188,20 @@ namespace Xitils {
 			col1(col1)
 		{}
 
-		Vector3f rgb(Vector2f uv) const override {
-			warp(uv.u, uv.v);
-			int x = uv.u * split;
-			int y = uv.v * split;
+		Vector3f rgb(const Vector2f& uv) const override {
+			Vector2f warpedUV = uv;
+			warp(warpedUV.u, warpedUV.v);
+			int x = warpedUV.u * split;
+			int y = warpedUV.v * split;
 			return (x + y) % 2 == 0 ? col0 : col1;
+		}
+
+		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+			NOT_IMPLEMENTED;
+		}
+
+		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+			NOT_IMPLEMENTED;
 		}
 	};
 
@@ -146,12 +217,13 @@ namespace Xitils {
 			scale(scale)
 		{}
 
-		Vector3f rgb(Vector2f uv) const override {
-			warp(uv.u, uv.v);
-			uv.u *= numU;
-			uv.v *= numV;
-			uv.u -= (int)uv.u;
-			uv.v -= (int)uv.v;
+		Vector3f rgb(const Vector2f& uv) const override {
+			Vector2f warpedUV = uv;
+			warp(warpedUV.u, warpedUV.v);
+			warpedUV.u *= numU;
+			warpedUV.v *= numV;
+			warpedUV.u -= (int)warpedUV.u;
+			warpedUV.v -= (int)warpedUV.v;
 
 			Vector3f v;
 
@@ -173,6 +245,14 @@ namespace Xitils {
 			Vector3f n = clamp01((v.normalize() + Vector3f(1.0f)) * 0.5f);
 
 			return n;
+		}
+
+		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+			NOT_IMPLEMENTED;
+		}
+
+		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+			NOT_IMPLEMENTED;
 		}
 	};
 }
