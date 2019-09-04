@@ -247,7 +247,7 @@ namespace Xitils {
 			a.z = 1;
 			a.normalize();
 
-			isect.n = (a.x * isect.shading.tangent - a.y * isect.shading.bitangent + a.z * isect.n).normalize();
+			isect.n = (-a.x * isect.shading.tangent - a.y * isect.shading.bitangent + a.z * isect.n).normalize();
 			isect.shading.n = isect.n;
 
 			// TODO: tangent ‚Æ bitangent

@@ -79,7 +79,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	auto dispmap = std::make_shared<TextureFromFile>("displacement_.png");
 	//teapotMesh->setGeometry(teapotMeshData);
-	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.05f, 4);
+	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.05f, 128);
 	auto material = std::make_shared<SpecularFresnel>();
 	material->index = 1.2f;
 
