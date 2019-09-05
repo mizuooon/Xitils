@@ -37,10 +37,10 @@ namespace Xitils {
 
 		bool canSampleLight() const { return !lights.empty(); }
 
-		Object::SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
+		Object::SampledSurface sampleSurface(Sampler& sampler, float* pdf) const {
 			// TODO: すべての Object から等確率でサンプリングしているが、
 			//       本当は面積に比例した確率で選ぶべき
-			auto& light = sampler->select(lights);
+			auto& light = sampler.select(lights);
 			auto res = light->sampleSurface(sampler, pdf);
 			*pdf /= lights.size();
 			return res;

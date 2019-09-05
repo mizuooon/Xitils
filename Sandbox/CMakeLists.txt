@@ -34,6 +34,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/TriangleMesh.h
 	${XITILS_INCLUDE_DIR}/Xitils/Utils.h
 	${XITILS_INCLUDE_DIR}/Xitils/Vector.h
+	${XITILS_INCLUDE_DIR}/Xitils/VonMisesFisherDistribution.h
 	)
 target_include_directories(Xitils
 	INTERFACE ${XITILS_INCLUDE_DIR}
@@ -80,3 +81,5 @@ add_subdirectory(RaycasterBVH)
 # add_subdirectory(RaycasterOptix)
 
 add_subdirectory(Microfacet-basedNormalMapping)
+
+add_subdirectory(VonMisesFisherDistribution)

@@ -158,10 +158,10 @@ namespace Xitils {
 			return accel->intersectAny(ray);
 		}
 
-		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const override {
+		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const override {
 			// TODO: すべての Triangle から等確率でサンプリングしているが、
 			//       本当は面積に比例した確率で選ぶべき
-			auto& tri = sampler->select(triangles);
+			auto& tri = sampler.select(triangles);
 			auto sampled = tri->sampleSurface(sampler, pdf);
 			*pdf /= triangleNum();
 

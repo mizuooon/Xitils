@@ -39,6 +39,38 @@ namespace Xitils {
 			return v[randi(v.size())];
 		}
 
+		// ウェイトに比例した確率で整数値を取得
+		const int randiAlongWeights(const std::vector<float>& weights) {
+			std::vector<float> normalizedWeights = weights;
+			float weightSum = sum(normalizedWeights);
+			for (auto& w : normalizedWeights) {
+				w /= weightSum;
+			}
+
+			return randiAlongNormalizedWeights(weights);
+		}
+
+		const int randiAlongNormalizedWeights(const std::vector<float>& weights, bool omitLast = false) {
+			float u = randf();
+			float accum = 0.0f;
+			int i = 0;
+			for (; i < (omitLast ? weights.size() : weights.size() - 1); ++i) {
+				accum += weights[i];
+				if (u <= accum) { break; }
+			}
+			return i;
+		}
+
+		template<typename T> const T& selectAlongWeights(const std::vector<T>& v, const std::vector<float>& weights) {			
+			ASSERT(v.size() == weights.size());
+			return v[randiAlongWeights(weights)];
+		}
+
+		template<typename T> const T& selectAlongNormalizedWeights(const std::vector<T>& v, const std::vector<float>& weights) {
+			ASSERT(v.size() == weights.size() || v.size() == weights.size() + 1);
+			return v[randiAlongNormalizedWeights(weigths, v.size() == weights.size() + 1)];
+		}
+
 	protected:
 		virtual unsigned int rand() = 0;
 	};
@@ -61,6 +93,7 @@ namespace Xitils {
 		std::uniform_int_distribution<unsigned int> dist;
 	};
 
+	// TODO: バグってる
 	class _SamplerXORShift : public _Sampler {
 	public:
 

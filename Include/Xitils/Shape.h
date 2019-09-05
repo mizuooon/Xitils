@@ -23,7 +23,7 @@ namespace Xitils {
 
 		virtual float surfaceAreaScaling(const Transform& t) const = 0;
 
-		virtual SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const = 0;
+		virtual SampledSurface sampleSurface(Sampler& sampler, float* pdf) const = 0;
 		virtual float surfacePDF(const Vector3f& p, const Primitive* primitive) const = 0;
 	};
 
@@ -89,9 +89,9 @@ namespace Xitils {
 			return true;
 		}
 
-		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const override {
-			float r1 = sampler->randf();
-			float r2 = sampler->randf();
+		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const override {
+			float r1 = sampler.randf();
+			float r2 = sampler.randf();
 			SampledSurface sample;
 			sample.p.x = 2.0f * 1 * cosf(2.0f * M_PI * r1) * sqrtf(r2 * (1.0f - r2));
 			sample.p.y = 2.0f * 1 * (1.0f - 2.0f * r2);

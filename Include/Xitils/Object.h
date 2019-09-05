@@ -81,7 +81,7 @@ namespace Xitils {
 			return shape->intersectAny(objectToWorld.inverse(ray));
 		}
 
-		SampledSurface sampleSurface(const std::shared_ptr<Sampler>& sampler, float* pdf) const {
+		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const {
 			auto sampled = shape->sampleSurface(sampler, pdf);
 
 			*pdf /= shape->surfaceAreaScaling(objectToWorld);

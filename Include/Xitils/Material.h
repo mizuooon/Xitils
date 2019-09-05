@@ -14,7 +14,7 @@ namespace Xitils {
 
 		// BSDF * cos の値を返す
 		// スペキュラの物体ではデルタ関数になるので実装しない
-		virtual Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const {
+		virtual Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
@@ -22,7 +22,7 @@ namespace Xitils {
 		// BSDF * cos / pdf の値を返し、wi のサンプリングも行う
 		// スペキュラの物体ではデルタ関数になり、このとき pdf は -1 として表される
 		// 戻り値が 0 のときには wi と pdf は有効ではない
-		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const {
+		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
@@ -50,7 +50,7 @@ namespace Xitils {
 			albedo(albedo)
 		{}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
 			if (texture == nullptr) {
 				return albedo / M_PI * clampPositive(dot(isect.shading.n, wi));
 			} else {
@@ -58,7 +58,7 @@ namespace Xitils {
 			}
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& n = isect.shading.n;
 			*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			*pdf = dot(*wi, n) / M_PI;
@@ -78,7 +78,7 @@ namespace Xitils {
 	class SpecularReflection : public Material {
 	public:
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 
 			const auto& n = isect.shading.n;
@@ -94,7 +94,7 @@ namespace Xitils {
 
 		float index = 1.0f;
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 
@@ -123,7 +123,7 @@ namespace Xitils {
 
 		float index = 1.0f;
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 
@@ -137,7 +137,7 @@ namespace Xitils {
 				eta_i = 1.0f;
 			}
 
-			if (F_r(wo, n, eta_o, eta_i) >= sampler->randf()) {
+			if (F_r(wo, n, eta_o, eta_i) >= sampler.randf()) {
 				*wi = -(wo - 2 * dot(n, wo) * n).normalize();
 			} else {
 				float rindex = eta_o / eta_i;
@@ -183,11 +183,11 @@ namespace Xitils {
 			emissive = true;
 		}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
 			return Vector3f();
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			return Vector3f();
 		}
 
