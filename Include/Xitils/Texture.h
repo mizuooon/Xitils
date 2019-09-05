@@ -12,36 +12,31 @@ namespace Xitils {
 	public:
 
 		bool warpClamp = true;
-
-		virtual Vector3f rgb(const Vector2f& uv) const = 0;
-		virtual Vector3f rgbDifferentialU(const Vector2f& uv) const = 0;
-		virtual Vector3f rgbDifferentialV(const Vector2f& uv) const = 0;
-
-	protected:
-
-		void warp(float& u, float& v) const {
-			if (warpClamp) {
-				u = clamp(u, 0.0f, 1.0f);
-				v = clamp(v, 0.0f, 1.0f);
-			} else {
-				u = u - floorf(u);
-				v = v - floorf(v);
-			}
-		}
-	};
-
-	class TextureFromFile : public Texture {
-	public:
-
 		bool filter = true;
 
-		TextureFromFile(const std::string& filename) {
+		Texture(const std::string& filename) {
 			float* tmp = stbi_loadf(filename.c_str(), &width, &height, &channel, STBI_rgb);
 			data.resize(width * height * channel);
 			memcpy_s(data.data(), data.size() * sizeof(float), tmp, data.size() * sizeof(float));
 
 			stbi_image_free(tmp);
 		}
+
+		Texture(int width, int height):
+			width(width),
+			height(height),
+			channel(3)
+		{
+			data.resize(width * height * channel);
+			memset(data.data(), 0, sizeof(float) * data.size());
+		}
+
+		Texture(const Texture& tex) :
+			width(tex.width),
+			height(tex.height),
+			channel(tex.channel),
+			data(tex.data)
+		{}
 
 		float& operator[](int i) { return data[i]; }
 		float& r(int x, int y) {
@@ -68,7 +63,7 @@ namespace Xitils {
 			return Vector3f(data[i + 0], data[i + 1], data[i + 2]);
 		}
 
-		Vector3f rgb(const Vector2f& uv) const override {
+		Vector3f rgb(const Vector2f& uv) const {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
 				int y0 = (1 - uv.v) * height + 0.5f;
@@ -102,7 +97,7 @@ namespace Xitils {
 			return -(rgb(x, y + 1) - rgb(x, y - 1)) / 2.0f * height;
 		}
 
-		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+		Vector3f rgbDifferentialU(const Vector2f& uv) const {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
 				int y0 = (1 - uv.v) * height + 0.5f;
@@ -128,7 +123,7 @@ namespace Xitils {
 			}
 		}
 
-		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+		Vector3f rgbDifferentialV(const Vector2f& uv) const {
 			if (filter) {
 				int x0 = uv.u * width + 0.5f;
 				int y0 = (1 - uv.v) * height + 0.5f;
@@ -174,85 +169,94 @@ namespace Xitils {
 			}
 		}
 
-	};
-
-	class TextureChecker : public Texture {
-	public:
-
-		int split;
-		Vector3f col0, col1;
-
-		TextureChecker(int split, const Vector3f& col0, const Vector3f& col1) :
-			split(split),
-			col0(col0),
-			col1(col1)
-		{}
-
-		Vector3f rgb(const Vector2f& uv) const override {
-			Vector2f warpedUV = uv;
-			warp(warpedUV.u, warpedUV.v);
-			int x = warpedUV.u * split;
-			int y = warpedUV.v * split;
-			return (x + y) % 2 == 0 ? col0 : col1;
-		}
-
-		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
-			NOT_IMPLEMENTED;
-		}
-
-		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
-			NOT_IMPLEMENTED;
-		}
-	};
-
-	class TextureNormalHump : public Texture {
-	public:
-
-		int numU, numV;
-		float scale;
-
-		TextureNormalHump(int numU, int numV, float scale) :
-			numU(numU),
-			numV(numV),
-			scale(scale)
-		{}
-
-		Vector3f rgb(const Vector2f& uv) const override {
-			Vector2f warpedUV = uv;
-			warp(warpedUV.u, warpedUV.v);
-			warpedUV.u *= numU;
-			warpedUV.v *= numV;
-			warpedUV.u -= (int)warpedUV.u;
-			warpedUV.v -= (int)warpedUV.v;
-
-			Vector3f v;
-
-			v.x = (uv.u - 0.5f) * 2;
-			v.y = (uv.v - 0.5f) * 2;
-			v.y *= -1;
-
-			// x^2 + y^2 + (z*scale)^2 = 1;
-			// z = sqrt(1 - x^2 - y^2) * scale
-
-			float sq = 1 - v.x * v.x - v.y * v.y;
-			if (sq >= 0.0f) {
-				v.z = sqrtf(sq);
-				v.z /= scale;
+		void warp(float& u, float& v) const {
+			if (warpClamp) {
+				u = clamp(u, 0.0f, 1.0f);
+				v = clamp(v, 0.0f, 1.0f);
 			} else {
-				v = Vector3f(0, 0, 1);
+				u = u - floorf(u);
+				v = v - floorf(v);
 			}
-
-			Vector3f n = clamp01((v.normalize() + Vector3f(1.0f)) * 0.5f);
-
-			return n;
-		}
-
-		Vector3f rgbDifferentialU(const Vector2f& uv) const override {
-			NOT_IMPLEMENTED;
-		}
-
-		Vector3f rgbDifferentialV(const Vector2f& uv) const override {
-			NOT_IMPLEMENTED;
 		}
 	};
+
+	//class TextureChecker : public Texture {
+	//public:
+
+	//	int split;
+	//	Vector3f col0, col1;
+
+	//	TextureChecker(int split, const Vector3f& col0, const Vector3f& col1) :
+	//		split(split),
+	//		col0(col0),
+	//		col1(col1)
+	//	{}
+
+	//	Vector3f rgb(const Vector2f& uv) const override {
+	//		Vector2f warpedUV = uv;
+	//		warp(warpedUV.u, warpedUV.v);
+	//		int x = warpedUV.u * split;
+	//		int y = warpedUV.v * split;
+	//		return (x + y) % 2 == 0 ? col0 : col1;
+	//	}
+
+	//	Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+	//		NOT_IMPLEMENTED;
+	//	}
+
+	//	Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+	//		NOT_IMPLEMENTED;
+	//	}
+	//};
+
+	//class TextureNormalHump : public Texture {
+	//public:
+
+	//	int numU, numV;
+	//	float scale;
+
+	//	TextureNormalHump(int numU, int numV, float scale) :
+	//		numU(numU),
+	//		numV(numV),
+	//		scale(scale)
+	//	{}
+
+	//	Vector3f rgb(const Vector2f& uv) const override {
+	//		Vector2f warpedUV = uv;
+	//		warp(warpedUV.u, warpedUV.v);
+	//		warpedUV.u *= numU;
+	//		warpedUV.v *= numV;
+	//		warpedUV.u -= (int)warpedUV.u;
+	//		warpedUV.v -= (int)warpedUV.v;
+
+	//		Vector3f v;
+
+	//		v.x = (uv.u - 0.5f) * 2;
+	//		v.y = (uv.v - 0.5f) * 2;
+	//		v.y *= -1;
+
+	//		// x^2 + y^2 + (z*scale)^2 = 1;
+	//		// z = sqrt(1 - x^2 - y^2) * scale
+
+	//		float sq = 1 - v.x * v.x - v.y * v.y;
+	//		if (sq >= 0.0f) {
+	//			v.z = sqrtf(sq);
+	//			v.z /= scale;
+	//		} else {
+	//			v = Vector3f(0, 0, 1);
+	//		}
+
+	//		Vector3f n = clamp01((v.normalize() + Vector3f(1.0f)) * 0.5f);
+
+	//		return n;
+	//	}
+
+	//	Vector3f rgbDifferentialU(const Vector2f& uv) const override {
+	//		NOT_IMPLEMENTED;
+	//	}
+
+	//	Vector3f rgbDifferentialV(const Vector2f& uv) const override {
+	//		NOT_IMPLEMENTED;
+	//	}
+	//};
 }

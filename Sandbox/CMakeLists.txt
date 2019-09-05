@@ -83,3 +83,5 @@ add_subdirectory(RaycasterBVH)
 add_subdirectory(Microfacet-basedNormalMapping)
 
 add_subdirectory(VonMisesFisherDistribution)
+
+add_subdirectory(PrefilteringForRenderingDisplacement-MappedSurfaces)

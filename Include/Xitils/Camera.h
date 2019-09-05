@@ -17,7 +17,7 @@ namespace Xitils {
 			cameraToWorld(cameraToWorld)
 		{}
 
-		virtual Ray GenerateRay(const Vector2f pFilm, const std::shared_ptr<Sampler>& sampler) const = 0;
+		virtual Ray GenerateRay(const Vector2f pFilm, Sampler& sampler) const = 0;
 
 	};
 
@@ -33,7 +33,7 @@ namespace Xitils {
 			aspectRatio(aspectRatio)
 		{}
 
-		Ray GenerateRay(const Vector2f pFilm, const std::shared_ptr<Sampler>& sampler) const override {
+		Ray GenerateRay(const Vector2f pFilm, Sampler& sampler) const override {
 			Ray ray;
 			ray.o = Vector3f(0,0,0);
 			ray.d = Vector3f(
@@ -59,7 +59,7 @@ namespace Xitils {
 			height(height)
 		{}
 
-		Ray GenerateRay(const Vector2f pFilm, const std::shared_ptr<Sampler>& sampler) const override {
+		Ray GenerateRay(const Vector2f pFilm, Sampler& sampler) const override {
 			Ray ray;
 			ray.o = Vector3f((pFilm.x - 0.5f) * width, (pFilm.y - 0.5f) * height, 0);
 			ray.d = Vector3f(0, 0, 1);

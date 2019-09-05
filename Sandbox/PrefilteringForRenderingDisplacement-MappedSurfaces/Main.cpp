@@ -16,6 +16,66 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
+const int DownSamplingRate = 8;
+
+std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
+	
+	auto tex = std::make_shared<Texture>( 
+		(texOrig->getWidth()  + DownSamplingRate - 1) / DownSamplingRate, 
+		(texOrig->getHeight() + DownSamplingRate - 1) / DownSamplingRate);
+
+	// tex の初期値は普通に texOrig をダウンサンプリングした値
+
+	std::vector<Vector2f> ave_slope_orig ( tex->getWidth() * tex->getHeight() );
+	for (int py = 0; py < tex->getHeight(); ++py) {
+		for (int px = 0; px < tex->getWidth(); ++px) {
+
+			int count = 0;
+
+			for (int ly = 0; ly < DownSamplingRate; ++ly) {
+				int y = py * DownSamplingRate + ly;
+				if (y >= texOrig->getHeight()) { continue; }
+				for (int lx = 0; lx < DownSamplingRate; ++lx) {
+					int x = px * DownSamplingRate + lx;
+					if (x >= texOrig->getWidth()) { continue; }
+					
+					ave_slope_orig[py * tex->getWidth() + px] += Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
+					tex->r(px, py) += texOrig->r(x, y);
+
+					++count;
+				}
+			}
+			ave_slope_orig[py * tex->getWidth() + px] /= count;
+			tex->r(px, py) /= count;
+
+		}
+	}
+
+	auto L = [&](int px, int py, float dh) {
+		const float w = 0.01f;
+		
+		int x0 = px * DownSamplingRate;
+		int y0 = py * DownSamplingRate;
+		int x1 = Xitils::min(px + DownSamplingRate - 1, texOrig->getWidth()  - 1);
+		int y1 = Xitils::min(py + DownSamplingRate - 1, texOrig->getHeight() - 1);
+
+		float dhdu2 =  (tex->rgbDifferentialU(px + 1, py).r - tex->rgbDifferentialU(px - 1, py).r) / 2.0f;
+		float dhdv2 = -(tex->rgbDifferentialV(px, py + 1).r - tex->rgbDifferentialU(px, py - 1).r) / 2.0f; // y 方向と v 方向は逆なので符号反転
+
+		Vector2f ave_slope(
+			(tex->r(x1, y1) + tex->r(x1, y0) - tex->r(x0, y1) - tex->r(x0, y0)) / 2.0f,
+			-(tex->r(x1, y1) + tex->r(x0, y1) - tex->r(x1, y0) - tex->r(x0, y0)) / 2.0f // y 方向と v 方向は逆なので符号反転
+		);
+
+		return (ave_slope - ave_slope_orig[py * tex->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
+	};
+
+	// TODO: ダウンサンプリングの正規化項入れる
+
+	return tex;
+}
+
+
 struct MyFrameData {
 	float initElapsed;
 	float frameElapsed;
@@ -66,7 +126,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	scene = std::make_shared<Scene>();
 
 	scene->camera = std::make_shared<PinholeCamera>(
-		translate(0,2.0f,-5), 60 * ToRad, (float)ImageSize.y / ImageSize.x
+		transformTRS(Vector3f(0,1.5f,-4), Vector3f(10, 0, 0), Vector3f(1)), 
+		40 * ToRad, 
+		(float)ImageSize.y / ImageSize.x
 		);
 	//scene->camera = std::make_shared<OrthographicCamera>(
 	//	translate(0, 0.5f, -3), 4, 3);
@@ -77,7 +139,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
-	auto dispmap = std::make_shared<TextureFromFile>("dispcloth.jpg");
+	auto dispmap = downsampleTexture( std::make_shared<Texture>("dispcloth.jpg") );
 	//teapotMesh->setGeometry(teapotMeshData);
 	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.01f, 8);
 	auto material = std::make_shared<SpecularFresnel>();
@@ -85,9 +147,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
-	auto texture = std::make_shared<TextureChecker>(4, Vector3f(1.0f), Vector3f(0.5f));
+	//auto texture = std::make_shared<TextureChecker>(4, Vector3f(1.0f), Vector3f(0.5f));
 	//auto normalmap = std::make_shared<TextureFromFile>("normalmap.png");
-	auto normalmap = std::make_shared<TextureNormalHump>(4,4,0.5f);
+	//auto normalmap = std::make_shared<TextureNormalHump>(4,4,0.5f);
 
 	//auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
 	auto teapot_material = std::make_shared<SpecularReflection>();
