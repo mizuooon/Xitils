@@ -8,6 +8,7 @@
 #include <Xitils/Scene.h>
 #include <Xitils/TriangleMesh.h>
 #include <Xitils/RenderTarget.h>
+#include <Xitils/VonMisesFisherDistribution.h>
 #include <CinderImGui.h>
 
 
@@ -16,13 +17,83 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-const int DownSamplingRate = 8;
+const int DownSamplingRate = 16;
+const int VMFLobeNum = 6;
+const int ShellMappingLayerNum = 16;
 
-std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
+class MultiLobeSVBRDF : public Material {
+public:
+	std::shared_ptr<Material> baseMaterial;
+	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
+	std::shared_ptr<Texture> dispTexLow;
+	float displacementScale;
+
+	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		return baseMaterial->bsdfCos(perturbInteraction(isect, sampler), sampler, wi);
+	}
+
+	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		return baseMaterial->evalAndSample(perturbInteraction(isect, sampler), sampler, wi, pdf);
+	}
+
+	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+		
+		// TODO
+		
+		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
+	}
+
+private:
+
+	SurfaceInteraction perturbInteraction(const SurfaceInteraction& isect, Sampler& sampler) const {
+
+		SurfaceInteraction isectPerturbed = isect;
+
+		//int x, y;
+		//if (dispTexLow->filter) {
+		//	int x0 = isect.texCoord.u * dispTexLow->getWidth() + 0.5f;
+		//	int y0 = (1 - isect.texCoord.v) * dispTexLow->getHeight() + 0.5f;
+		//	int x1 = x0 + 1;
+		//	int y1 = y0 + 1;
+		//	float wx1 = (isect.texCoord.u * dispTexLow->getWidth() + 0.5f) - x0;
+		//	float wy1 = ((1 - isect.texCoord.v) * dispTexLow->getHeight() + 0.5f) - y0;
+
+		//	dispTexLow->warp(x0, y0);
+		//	dispTexLow->warp(x1, y1);
+
+		//	x = (sampler.randf() <= wx1) ? x1 : x0;
+		//	y = (sampler.randf() <= wy1) ? y1 : y0;
+		//} else {
+		//	x = isect.texCoord.u * dispTexLow->getWidth();
+		//	y = (1 - isect.texCoord.v) * dispTexLow->getHeight();
+		//	dispTexLow->warp(x, y);
+		//}
+
+		//Vector3f n = vmfs[y * dispTexLow->getWidth() + x].sample(sampler);
+
+		//isectPerturbed.shading.n =
+		//	(n.z * isect.n
+		//		+ n.x * isect.tangent
+		//		- n.y * isect.bitangent
+		//		).normalize();
+
+		//isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
+
+		return isectPerturbed;
+	}
+
+};
+
+std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::vector<VonMisesFisherDistribution<VMFLobeNum>>* vmfs) {
 	
+	Sampler sampler(0);
+
 	auto tex = std::make_shared<Texture>( 
 		(texOrig->getWidth()  + DownSamplingRate - 1) / DownSamplingRate, 
 		(texOrig->getHeight() + DownSamplingRate - 1) / DownSamplingRate);
+
+	vmfs->clear();
+	vmfs->resize(tex->getWidth() * tex->getHeight());
 
 	// tex の初期値は普通に texOrig をダウンサンプリングした値
 
@@ -31,6 +102,8 @@ std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
 		for (int px = 0; px < tex->getWidth(); ++px) {
 
 			int count = 0;
+			std::vector<Vector3f> normals;
+			normals.reserve(DownSamplingRate * DownSamplingRate);
 
 			for (int ly = 0; ly < DownSamplingRate; ++ly) {
 				int y = py * DownSamplingRate + ly;
@@ -39,8 +112,13 @@ std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
 					int x = px * DownSamplingRate + lx;
 					if (x >= texOrig->getWidth()) { continue; }
 					
-					ave_slope_orig[py * tex->getWidth() + px] += Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
+					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
+					Vector3f n = Vector3f(-slope.u * displacementScale, -slope.v * displacementScale, 1).normalize();
+
+					ave_slope_orig[py * tex->getWidth() + px] += slope;
 					tex->r(px, py) += texOrig->r(x, y);
+
+					normals.push_back(n);
 
 					++count;
 				}
@@ -48,6 +126,7 @@ std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
 			ave_slope_orig[py * tex->getWidth() + px] /= count;
 			tex->r(px, py) /= count;
 
+			(*vmfs)[py * tex->getWidth() + px] = VonMisesFisherDistribution<VMFLobeNum>::approximateBySEM(normals, sampler);
 		}
 	}
 
@@ -74,7 +153,6 @@ std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig) {
 
 	return tex;
 }
-
 
 struct MyFrameData {
 	float initElapsed;
@@ -138,23 +216,25 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	teapot->subdivisions(subdivision);
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
+
+	auto teapot_material = std::make_shared<MultiLobeSVBRDF>();
+	teapot_material->baseMaterial = std::make_shared<Diffuse>(Vector3f(0.8f));
+	teapot_material->displacementScale = 0.01f;
+	teapot_material->dispTexLow = std::make_shared<Texture>("dispcloth.jpg");
+	teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
+	auto& dispmap = teapot_material->dispTexLow;
+
+	//auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
+	//auto dispmap = std::make_shared<Texture>("dispcloth.jpg");
+
 	auto teapotMesh = std::make_shared<TriangleMesh>();
-	auto dispmap = downsampleTexture( std::make_shared<Texture>("dispcloth.jpg") );
 	//teapotMesh->setGeometry(teapotMeshData);
-	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.01f, 8);
+	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, teapot_material->displacementScale, ShellMappingLayerNum);
 	auto material = std::make_shared<SpecularFresnel>();
 	material->index = 1.2f;
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
-	//auto texture = std::make_shared<TextureChecker>(4, Vector3f(1.0f), Vector3f(0.5f));
-	//auto normalmap = std::make_shared<TextureFromFile>("normalmap.png");
-	//auto normalmap = std::make_shared<TextureNormalHump>(4,4,0.5f);
-
-	//auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
-	auto teapot_material = std::make_shared<SpecularReflection>();
-	//teapot_material->normalmap = normalmap;
-
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
 	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
@@ -186,7 +266,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	//);
 
-	scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
 

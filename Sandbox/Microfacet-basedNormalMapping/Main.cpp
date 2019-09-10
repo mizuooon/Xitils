@@ -68,7 +68,7 @@ public:
 		tangentFacetMode(tangentFacetMode)
 	{}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
+	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -92,7 +92,7 @@ public:
 
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
-		bool d = sampler->randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
+		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
 		Vector3f wr = -wo;
 		SurfaceInteraction isectfacet;
 		isectfacet = isect;
@@ -127,7 +127,7 @@ public:
 
 			float g = G1(wr, wm, wp, wt, wg);
 
-			if (sampler->randf() < g) {
+			if (sampler.randf() < g) {
 				break;
 			}
 
@@ -145,7 +145,7 @@ public:
 		return result;
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
+	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -198,7 +198,7 @@ public:
 
 			float g = G1(wr, wm, wp, wt, wg);
 
-			if (sampler->randf() < g ) {
+			if (sampler.randf() < g ) {
 				break;
 			}
 

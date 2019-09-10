@@ -19,6 +19,7 @@ namespace Xitils {
 	public:
 		Vector2f texCoord;
 		Vector3f n;
+		Vector3f tangent, bitangent;
 		const Object* object = nullptr;
 		const Shape* shape = nullptr;
 		const Primitive* primitive = nullptr;

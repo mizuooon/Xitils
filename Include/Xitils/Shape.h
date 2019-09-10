@@ -77,8 +77,10 @@ namespace Xitils {
 			isect->texCoord.u = clamp01(isect->texCoord.u / (2 * M_PI));
 			isect->texCoord.v = clamp01((asinf(isect->n.y) + M_PI / 2) / M_PI);
 
-			isect->shading.tangent = cross(Vector3f(0, 1, 0) - isect->p, Vector3f(0, -1, 0) - isect->p).normalize();
-			isect->shading.bitangent = cross(isect->n, isect->shading.tangent).normalize();
+			isect->tangent = cross(Vector3f(0, 1, 0) - isect->p, Vector3f(0, -1, 0) - isect->p).normalize();
+			isect->bitangent = cross(isect->n, isect->shading.tangent).normalize();
+			isect->shading.tangent = isect->tangent;
+			isect->shading.bitangent = isect->bitangent;
 
 			isect->shading.n = isect->n;
 			if (back) { isect->shading.n *= -1; }

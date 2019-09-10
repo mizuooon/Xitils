@@ -5,6 +5,7 @@
 #define GLM_FORCE_AVX2
 //#define GLM_FORCE_INLNIE
 
+#include <array>
 #include <vector>
 #include <random>
 #include <math.h>

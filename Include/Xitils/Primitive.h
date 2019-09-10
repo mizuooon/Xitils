@@ -162,9 +162,13 @@ namespace Xitils {
 			}
 
 			if (tangents != nullptr) {
-				isect->shading.tangent = lerp(tangent(0), tangent(1), tangent(2), b0, b1);
-				isect->shading.bitangent = lerp(bitangent(0), bitangent(1), bitangent(2), b0, b1);
+				isect->tangent = lerp(tangent(0), tangent(1), tangent(2), b0, b1).normalize();
+				isect->bitangent = lerp(bitangent(0), bitangent(1), bitangent(2), b0, b1).normalize();
+				isect->shading.tangent = isect->tangent;
+				isect->shading.bitangent = isect->bitangent;
 			} else {
+				isect->tangent = Vector3f();
+				isect->bitangent = Vector3f();
 				isect->shading.tangent = Vector3f();
 				isect->shading.bitangent = Vector3f();
 			}
@@ -247,12 +251,13 @@ namespace Xitils {
 			a.z = 1;
 			a.normalize();
 
-			isect.n = (-a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.n).normalize();
-			isect.shading.n = isect.n;
+			isect.shading.n = (-a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.n).normalize();
 
 			// TODO: tangent ‚Æ bitangent
 			isect.shading.tangent = Vector3f();
 			isect.shading.bitangent = Vector3f();
+
+			//isect.shading.n = faceForward(isect.shading.n, isect.wo);
 		}
 	};
 

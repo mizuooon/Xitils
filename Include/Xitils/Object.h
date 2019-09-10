@@ -44,7 +44,15 @@ namespace Xitils {
 		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
 			if (shape->intersect(objectToWorld.inverse(ray), tHit, isect)) {
 				isect->p = objectToWorld(isect->p);
+				
 				isect->n = objectToWorld.asNormal(isect->n);
+				if (!isect->tangent.isZero()) {
+					isect->tangent = objectToWorld.asNormal(isect->tangent);
+				}
+				if (!isect->bitangent.isZero()) {
+					isect->bitangent = objectToWorld.asNormal(isect->bitangent);
+				}
+
 				isect->wo = objectToWorld.asNormal(isect->wo);
 
 				// ノーマルマップが設定されていた場合それを適用
@@ -68,7 +76,6 @@ namespace Xitils {
 				}
 
 				// texCoord, tHit は変換しなくてよい
-				// tangent と bitangent は変換後の値使ってないので変換しなくてよい？
 
 				isect->object = this;
 

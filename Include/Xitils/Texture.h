@@ -153,10 +153,6 @@ namespace Xitils {
 		int getHeight() const { return height; }
 		int getChannel() const { return channel; }
 
-	private:
-		int width, height, channel;
-		std::vector<float> data;
-
 		void warp(int& x, int& y) const {
 			if (warpClamp) {
 				x = clamp(x, 0, width - 1);
@@ -178,6 +174,10 @@ namespace Xitils {
 				v = v - floorf(v);
 			}
 		}
+
+	private:
+		int width, height, channel;
+		std::vector<float> data;
 	};
 
 	//class TextureChecker : public Texture {
