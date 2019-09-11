@@ -52,7 +52,7 @@ public:
 	}
 
 	void vectorToIndexWeighted(const Vector3f& v, int* indices, float* weights) const {
-		NOT_IMPLEMENTED;
+		angleToIndexWeighted(vectorToAngle(v), indices, weights);
 	}
 
 	Vector3f indexToVector(int index) const {
@@ -63,23 +63,65 @@ public:
 
 private:
 	Vector2f vectorToAngle(const Vector3f& v) const {
-		NOT_IMPLEMENTED;
-		return Vector2f();
+		Vector3f n = normalize(v);
+		if (n.z < 0) { n.z *= -1; }
+		float theta = asinf(n.z); // [0, PI/2]
+		float phai = atan2(n.y, n.x); // [-PI, PI];
+		if (phai < 0.0f) { phai += M_PI; } // [0, 2PI]
+		return Vector2f(theta, phai);
 	}
 
 	Vector3f angleToVector(const Vector2f& a) const {
-		NOT_IMPLEMENTED;
-		return Vector3f();
+		float theta = a.x;
+		float phai = a.y;
+		return Vector3f( cosf(theta) * cosf(phai), cosf(theta) * sinf(phai), sinf(theta));
 	}
 
 	Vector2f indexToAngle(int index) const {
-		NOT_IMPLEMENTED;
-		return Vector2f();
+		int thetaIndex = index / resolutionPhai;
+		int phaiIndex = index % resolutionPhai;
+		float theta = (thetaIndex + 0.5f) / resolutionTheta;
+		float phai = (phaiIndex + 0.5f) / resolutionPhai;
+		return Vector2f(theta, phai);
 	}
 
 	int angleToIndex(const Vector2f& a) const {
-		NOT_IMPLEMENTED;
-		return 0;
+		float theta = a.x;
+		float phai = a.y;
+		int thetaIndex = (int)(theta * resolutionTheta);
+		int phaiIndex = (int)(phai * resolutionPhai);
+		thetaIndex = Xitils::clamp(thetaIndex, 0, resolutionTheta - 1);
+		phaiIndex = Xitils::clamp(phaiIndex, 0, resolutionPhai - 1);
+		return thetaIndex * resolutionPhai + phaiIndex;
+	}
+
+	void angleToIndexWeighted(const Vector2f& a, int* indices, float* weights) const {
+		float theta = a.x;
+		float phai = a.y;
+
+		int thetaIndex0 = (int)(theta * resolutionTheta - 0.5f);
+		int phaiIndex0 = (int)(phai * resolutionPhai - 0.5f);
+		int thetaIndex1 = thetaIndex0 + 1;
+		int phaiIndex1 = phaiIndex0 + 1;
+
+		float wTheta1 = (theta * resolutionTheta - 0.5f) - thetaIndex0;
+		float wPhai1 = (phai * resolutionPhai - 0.5f) - phaiIndex0;
+		float wTheta0 = 1.0f - wTheta0;
+		float wPhai0 = 1.0f - wPhai0;
+
+		if (thetaIndex0 < 0) { thetaIndex0 = resolutionTheta - 1; }
+		if (thetaIndex1 >= resolutionTheta) { thetaIndex0 = 0; }
+		phaiIndex0 = Xitils::clamp(phaiIndex0, 0, resolutionPhai - 1);
+		phaiIndex1 = Xitils::clamp(phaiIndex1, 0, resolutionPhai - 1);
+
+		indices[0] = thetaIndex0 * resolutionPhai + phaiIndex0;
+		weights[0] = wTheta0 * wPhai0;
+		indices[1] = thetaIndex0 * resolutionPhai + phaiIndex1;
+		weights[1] = wTheta0 * wPhai1;
+		indices[2] = thetaIndex1 * resolutionPhai + phaiIndex0;
+		weights[2] = wTheta1 * wPhai0;
+		indices[3] = thetaIndex1 * resolutionPhai + phaiIndex1;
+		weights[3] = wTheta1 * wPhai1;
 	}
 
 	int resolutionTheta;
@@ -89,30 +131,54 @@ private:
 class SpatialParam {
 public:
 
-	SpatialParam(int resolutionX, int resolutionY):
-		resolutionX(resolutionX),
-		resolutionY(resolutionY)
+	SpatialParam(int resolutionU, int resolutionV):
+		resolutionU(resolutionU),
+		resolutionV(resolutionV)
 	{}
 
 	int positionToIndex(const Vector2f& p) const {
-		NOT_IMPLEMENTED;
-		return 0;
+		int uIndex = Xitils::clamp((int)(p.u * resolutionU), 0, resolutionU - 1);
+		int vIndex = Xitils::clamp((int)(p.v * resolutionV), 0, resolutionV - 1);
+		return uIndex * resolutionV + vIndex;
 	}
 
 	void positionToIndexWeighted(const Vector2f& p, int* indices, float* weights) const {
-		NOT_IMPLEMENTED;
+		int uIndex0 = (int)(p.u * resolutionU - 0.5f);
+		int vIndex0 = (int)(p.v * resolutionV - 0.5f);
+		int uIndex1 = uIndex0 + 1;
+		int vIndex1 = vIndex0 + 1;
+
+		float wu1 = (p.u * resolutionU - 0.5f) - uIndex0;
+		float wv1 = (p.v * resolutionV - 0.5f) - vIndex0;
+		float wu0 = 1.0f - wu1;
+		float wv0 = 1.0f - wv1;
+
+		if (uIndex0 < 0) { uIndex0 = resolutionU - 1; }
+		if (uIndex1 >= resolutionU) { uIndex1 = 0; }
+		if (vIndex0 < 0) { vIndex0 = resolutionV - 1; }
+		if (vIndex1 >= resolutionV) { vIndex1 = 0; }
+
+		indices[0] = uIndex0 * resolutionV + vIndex0;
+		weights[0] = wu0 * wv0;
+		indices[1] = uIndex0 * resolutionV + vIndex1;
+		weights[1] = wu0 * wv1;
+		indices[2] = uIndex1 * resolutionV + vIndex0;
+		weights[2] = wu1 * wv0;
+		indices[3] = uIndex1 * resolutionV + vIndex1;
+		weights[3] = wu1 * wv1;
 	}
 
 	Vector2f indexToPosition(int index) const {
-		NOT_IMPLEMENTED;
-		return Vector2f();
+		int uIndex = index / resolutionV;
+		int vIndex = index % resolutionV;
+		return Vector2f( (uIndex + 0.5f) / resolutionU, (vIndex + 0.5f) / resolutionV );
 	}
 
-	int size() const { return resolutionX * resolutionY; }
+	int size() const { return resolutionU * resolutionV; }
 
 private:
-	int resolutionX;
-	int resolutionY;
+	int resolutionU;
+	int resolutionV;
 };
 
 class AngularTable {
@@ -729,21 +795,21 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
 
-	auto teapot_material = std::make_shared<MultiLobeSVBRDF>();
-	teapot_material->baseMaterial = std::make_shared<Diffuse>(Vector3f(0.8f));
-	teapot_material->displacementScale = 0.01f;
-	teapot_material->dispTexLow = std::make_shared<Texture>("dispcloth.jpg");
-	teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
-	auto& dispmap = teapot_material->dispTexLow;
+	//auto teapot_material = std::make_shared<MultiLobeSVBRDF>();
+	//teapot_material->baseMaterial = std::make_shared<Diffuse>(Vector3f(0.8f));
+	//teapot_material->displacementScale = 0.01f;
+	//teapot_material->dispTexLow = std::make_shared<Texture>("dispcloth.jpg");
+	//teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
+	//auto& dispmap = teapot_material->dispTexLow;
 
-	//auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
-	//auto dispmap = std::make_shared<Texture>("dispcloth.jpg");
+	auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto dispmap = std::make_shared<Texture>("dispcloth.jpg");
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	//teapotMesh->setGeometry(teapotMeshData);
-	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, teapot_material->displacementScale, ShellMappingLayerNum);
-	auto material = std::make_shared<SpecularFresnel>();
-	material->index = 1.2f;
+	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.01f, ShellMappingLayerNum);
+	//auto material = std::make_shared<SpecularFresnel>();
+	//material->index = 1.2f;
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	

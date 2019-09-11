@@ -70,8 +70,8 @@ namespace Xitils {
 
 		_V lerp(const Vector2f& t) const {
 			return _V(
-				lerp(min.x, max.x, t.x),
-				lerp(min.y, max.y, t.y));
+				Xitils::lerp(min.x, max.x, t.x),
+				Xitils::lerp(min.y, max.y, t.y));
 		}
 
 		_V offset(const _V& p) const {

@@ -171,7 +171,7 @@ namespace Xitils {
 		static Vector2f toAngle(const Vector3f& vec) {
 			auto n = normalize(vec);
 			float theta = asinf(n.z); // [-PI/2, PI/2]
-			float phai = (cos(theta) != 0.0f) ? atan2(n.y, n.x) : 0.0f; // [PI, PI]
+			float phai = (cos(theta) != 0.0f) ? atan2(n.y, n.x) : 0.0f; // [-PI, PI]
 			return Vector2f( theta, phai );
 		}
 
