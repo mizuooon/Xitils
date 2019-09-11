@@ -14,7 +14,7 @@ namespace Xitils {
 		std::shared_ptr<Camera> camera;
 		std::shared_ptr<SkySphere> skySphere;
 
-		void addObject(const std::shared_ptr<Object>& object) {
+		void addObject(std::shared_ptr<Object> object) {
 			objects.push_back(object);
 			if (object->material->emissive) {
 				lights.push_back(object);

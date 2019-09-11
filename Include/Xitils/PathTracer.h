@@ -10,7 +10,7 @@ namespace Xitils {
 
 	class PathTracer {
 	public:
-		virtual Vector3f eval(const std::shared_ptr<Scene>& scene, Sampler& sampler, const Ray& ray) const = 0;
+		virtual Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const = 0;
 	};
 
 	class DebugRayCaster : public PathTracer {
@@ -20,13 +20,13 @@ namespace Xitils {
 			f(f)
 		{}
 
-		Vector3f eval(const std::shared_ptr<Scene>& scene, Sampler& sampler, const Ray& ray) const override {
+		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
 			Vector3f color;
 			SurfaceInteraction isect;
 
 			Ray tmpRay(ray);
-			if (scene->intersect(tmpRay, &isect)) {
+			if (scene.intersect(tmpRay, &isect)) {
 				color = f(isect);
 			}
 
@@ -40,7 +40,7 @@ namespace Xitils {
 	class NaivePathTracer : public PathTracer {
 	public:
 
-		Vector3f eval(const std::shared_ptr<Scene>& scene, Sampler& sampler, const Ray& ray) const override {
+		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
 			Vector3f radiance;
 			Vector3f weight(1.0f);
@@ -61,7 +61,7 @@ namespace Xitils {
 					}
 				}
 
-				if (scene->intersect(currentRay, &isect)) {
+				if (scene.intersect(currentRay, &isect)) {
 					if (isect.object->material->emissive) {
 						radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
 					}
@@ -75,8 +75,8 @@ namespace Xitils {
 					currentRay.o = isect.p + rayOriginOffset * currentRay.d;
 					currentRay.tMax = Infinity;
 
-				} else if (scene->skySphere) {
-					radiance += clampPositive( weight * scene->skySphere->getRadiance(currentRay.d) );
+				} else if (scene.skySphere) {
+					radiance += clampPositive( weight * scene.skySphere->getRadiance(currentRay.d) );
 					break;
 				}
 
@@ -97,7 +97,7 @@ namespace Xitils {
 
 		// NEE ‚Æ BRDF ƒTƒ“ƒvƒŠƒ“ƒO‚Ì MIS
 
-		Vector3f eval(const std::shared_ptr<Scene>& scene, Sampler& sampler, const Ray& ray) const override {
+		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
 			Vector3f radiance;
 			Vector3f weight(1.0f);
@@ -109,9 +109,9 @@ namespace Xitils {
 
 			int pathLength = 1;
 
-			if (!scene->intersect(currentRay, &isect)) {
-				if (scene->skySphere) {
-					radiance += weight * scene->skySphere->getRadiance(currentRay.d);
+			if (!scene.intersect(currentRay, &isect)) {
+				if (scene.skySphere) {
+					radiance += weight * scene.skySphere->getRadiance(currentRay.d);
 				}
 			}else{
 
@@ -143,12 +143,12 @@ namespace Xitils {
 						currentRay.o = isect.p + rayOriginOffset * currentRay.d;
 						currentRay.tMax = Infinity;
 
-						if (scene->intersect(currentRay, &nextIsect)) {
+						if (scene.intersect(currentRay, &nextIsect)) {
 
 							if (nextIsect.object->material->emissive) {
 								float misWeight;
-								if (pdf_bsdf_x_bsdf >= 0.0f && scene->canSampleLight()) {
-									float pdf_light_x_bsdf = scene->surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
+								if (pdf_bsdf_x_bsdf >= 0.0f && scene.canSampleLight()) {
+									float pdf_light_x_bsdf = scene.surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
 									float cosLight = fabsf(dot(currentRay.d, nextIsect.shading.n));
 									float distSq = powf(currentRay.tMax, 2.0f);
 									pdf_light_x_bsdf *= distSq / cosLight;
@@ -167,8 +167,8 @@ namespace Xitils {
 							}
 
 						} else {
-							if (scene->skySphere) {
-								radiance += weight * material_eval * scene->skySphere->getRadiance(currentRay.d);
+							if (scene.skySphere) {
+								radiance += weight * material_eval * scene.skySphere->getRadiance(currentRay.d);
 							}
 							nextSampled = false;
 						}
@@ -176,14 +176,14 @@ namespace Xitils {
 
 					//-------------------------------------
 
-					if (scene->canSampleLight()) {
+					if (scene.canSampleLight()) {
 						float pdf_light_x_light;
-						const auto& sampledLightSurface = scene->sampleSurface(sampler, &pdf_light_x_light);
+						const auto& sampledLightSurface = scene.sampleSurface(sampler, &pdf_light_x_light);
 						float sampledLightSurfaceDist = (sampledLightSurface.p - isect.p).length();
 						shadowRay.d = (sampledLightSurface.p - isect.p) / sampledLightSurfaceDist;
 						shadowRay.o = isect.p + rayOriginOffset * shadowRay.d;
 						shadowRay.tMax = sampledLightSurfaceDist - shadowRayMargin;
-						if (dot(shadowRay.d, sampledLightSurface.n) < 0 && !scene->intersectAny(shadowRay)) {
+						if (dot(shadowRay.d, sampledLightSurface.n) < 0 && !scene.intersectAny(shadowRay)) {
 							float misWeight;
 							float pdf_bsdf_x_light;
 							float distSq = powf(sampledLightSurfaceDist, 2.0f);

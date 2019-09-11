@@ -14,17 +14,8 @@ namespace Xitils {
 			}
 		}
 
-		void setGeometry(const std::shared_ptr<const cinder::TriMesh>& mesh, const std::shared_ptr<Texture> displacement = nullptr, float displacemntScale =0.0f) {
-
-			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh->clone());
-
-			if (displacement) {
-				for (int i = 0; i < tmpMesh->getNumVertices(); ++i) {
-					tmpMesh->getPositions<3>()[i] += 
-						displacemntScale * displacement->rgb(Vector2f(tmpMesh->getTexCoords0<2>()[i])).x * tmpMesh->getNormals()[i];
-				}
-				tmpMesh->recalculateNormals();
-			}
+		void setGeometry(const cinder::TriMesh& mesh) {
+			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh.clone());
 
 			positions.resize(tmpMesh->getNumVertices());
 			for (int i = 0; i < positions.size(); ++i) {
@@ -63,9 +54,17 @@ namespace Xitils {
 			calcSurfaceArea();
 		}
 
-		void setGeometryWithShellMapping(const std::shared_ptr<const cinder::TriMesh>& mesh, std::shared_ptr<const Texture> displacement, float displacemntScale, int layerNum) {
+		void setGeometry(const cinder::TriMesh& mesh, std::shared_ptr<const Texture> displacement, float displacemntScale) {
 
-			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh->clone());
+			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh.clone());
+
+			this->displacementMap = displacement;
+			this->displacementScale = displacementScale;
+			for (int i = 0; i < tmpMesh->getNumVertices(); ++i) {
+				tmpMesh->getPositions<3>()[i] +=
+					displacemntScale * displacement->rgb(Vector2f(tmpMesh->getTexCoords0<2>()[i])).x * tmpMesh->getNormals()[i];
+			}
+			tmpMesh->recalculateNormals();
 
 			positions.resize(tmpMesh->getNumVertices());
 			for (int i = 0; i < positions.size(); ++i) {
@@ -99,7 +98,51 @@ namespace Xitils {
 				indices[i + 2] = tmpMesh->getIndices()[i + 2];
 			}
 
-			buildTrianglesWithShellMapping(displacement, displacemntScale, layerNum);
+			buildTriangles();
+			buildBVH();
+			calcSurfaceArea();
+		}
+
+		void setGeometryWithShellMapping(const cinder::TriMesh& mesh, std::shared_ptr<const Texture> displacement, float displacemntScale, int layerNum) {
+
+			std::shared_ptr <cinder::TriMesh> tmpMesh((cinder::TriMesh*)mesh.clone());
+
+			this->displacementMap = displacement;
+			this->displacementScale = displacementScale;
+
+			positions.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < positions.size(); ++i) {
+				positions[i] = Vector3f(tmpMesh->getPositions<3>()[i]);
+			}
+			normals.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < normals.size(); ++i) {
+				normals[i] = Vector3f(tmpMesh->getNormals()[i]);
+			}
+			texCoords.resize(tmpMesh->getNumVertices());
+			for (int i = 0; i < texCoords.size(); ++i) {
+				texCoords[i] = Vector2f(tmpMesh->getTexCoords0<2>()[i]);
+			}
+
+			tmpMesh->recalculateTangents();
+			tmpMesh->recalculateBitangents();
+
+			tangents.resize(tmpMesh->getTangents().size());
+			for (int i = 0; i < tangents.size(); ++i) {
+				tangents[i] = Vector3f(tmpMesh->getTangents()[i]);
+			}
+			bitangents.resize(tmpMesh->getBitangents().size());
+			for (int i = 0; i < bitangents.size(); ++i) {
+				bitangents[i] = Vector3f(tmpMesh->getBitangents()[i]);
+			}
+
+			indices.resize(tmpMesh->getNumTriangles() * 3);
+			for (int i = 0; i < indices.size(); i += 3) {
+				indices[i + 0] = tmpMesh->getIndices()[i + 0];
+				indices[i + 1] = tmpMesh->getIndices()[i + 1];
+				indices[i + 2] = tmpMesh->getIndices()[i + 2];
+			}
+
+			buildTrianglesWithShellMapping(displacement.get(), displacemntScale, layerNum);
 			buildBVH();
 			calcSurfaceArea();
 		}
@@ -190,6 +233,9 @@ namespace Xitils {
 
 		std::unique_ptr<AccelerationStructure> accel;
 
+		std::shared_ptr<const Texture> displacementMap;
+		float displacementScale;
+
 		float area;
 
 		void calcSurfaceArea() {
@@ -218,7 +264,7 @@ namespace Xitils {
 			}
 		}
 
-		void buildTrianglesWithShellMapping(std::shared_ptr<const Texture>& displacement, float displacemntScale, int layerNum) {
+		void buildTrianglesWithShellMapping(const Texture* displacement, float displacemntScale, int layerNum) {
 
 			int origFaceNum = indices.size() / 3;
 

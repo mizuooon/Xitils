@@ -29,7 +29,7 @@ namespace Xitils {
 		std::shared_ptr<Shape> shape;
 		std::shared_ptr<Material> material;
 
-		Object(const std::shared_ptr<Shape>& shape, const std::shared_ptr<Material>& material, const Transform& objectToWorld):
+		Object(std::shared_ptr<Shape> shape, std::shared_ptr<Material> material, const Transform& objectToWorld):
 			shape(shape), material(material), objectToWorld(objectToWorld)
 		{}
 

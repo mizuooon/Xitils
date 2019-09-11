@@ -29,7 +29,7 @@ namespace Xitils {
 			memset(data.data(), 0, width * height * sizeof(Vector3f));
 		}
 
-		void render(const std::shared_ptr<Scene>& scene, int sampleNum, std::function<void(const Vector2f&, Sampler&, Vector3f&)> f);
+		void render(const Scene& scene, int sampleNum, std::function<void(const Vector2f&, Sampler&, Vector3f&)> f);
 
 		void toneMap(ci::Surface* surface, int sampleNum) {
 #pragma omp parallel for schedule(dynamic, 1)
@@ -104,7 +104,7 @@ namespace Xitils {
 
 
 
-	void RenderTarget::render(const std::shared_ptr<Scene>& scene, int sampleNum, std::function<void(const Vector2f&, Sampler&, Vector3f&)> f) {
+	void RenderTarget::render(const Scene& scene, int sampleNum, std::function<void(const Vector2f&, Sampler&, Vector3f&)> f) {
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int i = 0; i < tiles->size(); ++i) {
 			auto& tile = (*tiles)[i];

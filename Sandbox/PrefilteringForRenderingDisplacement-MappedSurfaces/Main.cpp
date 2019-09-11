@@ -807,7 +807,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	//teapotMesh->setGeometry(teapotMeshData);
-	teapotMesh->setGeometryWithShellMapping(teapotMeshData, dispmap, 0.01f, ShellMappingLayerNum);
+	teapotMesh->setGeometryWithShellMapping(*teapotMeshData, dispmap, 0.01f, ShellMappingLayerNum);
 	//auto material = std::make_shared<SpecularFresnel>();
 	//material->index = 1.2f;
 
@@ -881,10 +881,10 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	frameData.sampleNum += sample;
 
-	renderTarget->render(scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
+	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-		color += pathTracer->eval(scene, sampler, ray);
+		color += pathTracer->eval(*scene, sampler, ray);
 
 		//SurfaceInteraction isect;
 		//

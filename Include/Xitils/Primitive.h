@@ -228,9 +228,9 @@ namespace Xitils {
 	public:
 		float height; // [0,1] ‚Ì”ÍˆÍ
 		float displacementScale;
-		std::shared_ptr<const Texture> displacementMapTexture;
+		const Texture* displacementMapTexture;
 
-		TriangleIndexedWithShellMapping(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, const int* indices, int index, std::shared_ptr<const Texture>& displacementMapTexture, float displacementScale, float height) :
+		TriangleIndexedWithShellMapping(const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, const int* indices, int index, const Texture* displacementMapTexture, float displacementScale, float height) :
 			TriangleIndexed(positions, texCoords, normals, tangents, bitangents, indices, index),
 			displacementMapTexture(displacementMapTexture),
 			displacementScale(displacementScale),
