@@ -134,6 +134,21 @@ namespace Xitils {
 			simdpp::store_u(this, simdpp::mul(val1, val2));
 			return *this;
 		}
+		_V operator/(const _V& val) const {
+			ASSERT(x != 0.0f && y != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::div(val1, val2));
+			return std::move(res);
+		}
+		_V& operator /=(const _V& val) {
+			ASSERT(x != 0.0f && y != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::div(val1, val2));
+			return *this;
+		}
 		_V operator/(T val) const {
 			ASSERT(val != 0);
 			float inv = (float)1 / val;
@@ -285,6 +300,21 @@ namespace Xitils {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_splat<T_SIMD>(&val);
 			simdpp::store_u(this, simdpp::mul(val1, val2));
+			return *this;
+		}
+		_V operator/(const _V& val) const {
+			ASSERT(x != 0.0f && y != 0.0f && z != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::div(val1, val2));
+			return std::move(res);
+		}
+		_V& operator /=(const _V& val) {
+			ASSERT(x != 0.0f && y != 0.0f && z != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::div(val1, val2));
 			return *this;
 		}
 		_V operator/(T val) const {
@@ -447,6 +477,21 @@ namespace Xitils {
 			auto val1 = simdpp::load_u<T_SIMD>(this);
 			auto val2 = simdpp::load_splat<T_SIMD>(&val);
 			simdpp::store_u(this, simdpp::mul(val1, val2));
+			return *this;
+		}
+		_V operator/(const _V& val) const {
+			ASSERT(x != 0.0f && y != 0.0f && z != 0.0f && w != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			_V res;
+			simdpp::store_u(&res, simdpp::div(val1, val2));
+			return std::move(res);
+		}
+		_V& operator /=(const _V& val) {
+			ASSERT(x != 0.0f && y != 0.0f && z != 0.0f && w != 0.0f);
+			auto val1 = simdpp::load_u<T_SIMD>(this);
+			auto val2 = simdpp::load_u<T_SIMD>(&val);
+			simdpp::store_u(this, simdpp::div(val1, val2));
 			return *this;
 		}
 		_V operator/(T val) const {

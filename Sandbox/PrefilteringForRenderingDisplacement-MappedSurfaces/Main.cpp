@@ -21,85 +21,429 @@ const int DownSamplingRate = 16;
 const int VMFLobeNum = 6;
 const int ShellMappingLayerNum = 16;
 
-class MultiLobeSVBRDF : public Material {
+
+
+// TODO
+// - テクスチャ解像度に合わせたポリゴン分割をしている plane の作成
+//     - その plane はテクスチャをループさせる
+// - テクスチャの指定した uv 領域での 実効BRDF 測定 (低解像度と高解像度)
+// - 評価したデータの保存、読み込み
+// - 処理の並列化
+
+// plane をシーン化して、TextureDownsampled に渡す
+// シーンはスレッドセーフなので、DownsampledTexel 間で共有できる
+
+// the concentric mapping
+
+// angular resolution 15^2
+// spatial resolution 4^2
+
+
+class AngularParam {
 public:
-	std::shared_ptr<Material> baseMaterial;
-	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
-	std::shared_ptr<Texture> dispTexLow;
-	float displacementScale;
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
-		return baseMaterial->bsdfCos(perturbInteraction(isect, sampler), sampler, wi);
+	AngularParam(int resolutionTheta, int resolutionPhai):
+		resolutionTheta(resolutionTheta),
+		resolutionPhai(resolutionPhai)
+	{}
+
+	int vectorToIndex(const Vector3f& v) const {
+		return angleToIndex(vectorToAngle(v));
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
-		return baseMaterial->evalAndSample(perturbInteraction(isect, sampler), sampler, wi, pdf);
+	void vectorToIndexWeighted(const Vector3f& v, int* indices, float* weights) const {
+		NOT_IMPLEMENTED;
 	}
 
-	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
-		
-		// TODO
-		
-		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
+	Vector3f indexToVector(int index) const {
+		return angleToVector(indexToAngle(index));
+	}
+	
+	int size() const { return resolutionTheta * resolutionPhai; }
+
+private:
+	Vector2f vectorToAngle(const Vector3f& v) const {
+		NOT_IMPLEMENTED;
+		return Vector2f();
+	}
+
+	Vector3f angleToVector(const Vector2f& a) const {
+		NOT_IMPLEMENTED;
+		return Vector3f();
+	}
+
+	Vector2f indexToAngle(int index) const {
+		NOT_IMPLEMENTED;
+		return Vector2f();
+	}
+
+	int angleToIndex(const Vector2f& a) const {
+		NOT_IMPLEMENTED;
+		return 0;
+	}
+
+	int resolutionTheta;
+	int resolutionPhai;
+};
+
+class SpatialParam {
+public:
+
+	SpatialParam(int resolutionX, int resolutionY):
+		resolutionX(resolutionX),
+		resolutionY(resolutionY)
+	{}
+
+	int positionToIndex(const Vector2f& p) const {
+		NOT_IMPLEMENTED;
+		return 0;
+	}
+
+	void positionToIndexWeighted(const Vector2f& p, int* indices, float* weights) const {
+		NOT_IMPLEMENTED;
+	}
+
+	Vector2f indexToPosition(int index) const {
+		NOT_IMPLEMENTED;
+		return Vector2f();
+	}
+
+	int size() const { return resolutionX * resolutionY; }
+
+private:
+	int resolutionX;
+	int resolutionY;
+};
+
+class AngularTable {
+public:
+
+	AngularTable(int resolutionTheta, int resolutionPhai):
+		paramWi(resolutionTheta, resolutionPhai),
+		paramWo(resolutionTheta, resolutionPhai)
+	{}
+
+	Vector3f& operator[](int i) { return data[i]; }
+
+	// テーブルの bin の参照を得る
+	// 書き込み用
+	Vector3f& at(const Vector3f& wi, const Vector3f& wo) {
+		return data[vectorToIndex(wi, wo)];
+	}
+
+	// テーブル上の値から補間をして新しく値を得る
+	// (実装上では、確率的に bin を読んでいるだけ)
+	// 読み出し用
+	Vector3f eval(const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
+		std::vector<int> indicesWi(4);
+		std::vector<float> weightsWi(4);
+		paramWi.vectorToIndexWeighted(wi, indicesWi.data(), weightsWi.data());
+		int indexWi = sampler.selectAlongWeights(indicesWi, weightsWi);
+
+		std::vector<int> indicesWo(4);
+		std::vector<float> weightsWo(4);
+		paramWi.vectorToIndexWeighted(wi, indicesWo.data(), weightsWo.data());
+		int indexWo = sampler.selectAlongWeights(indicesWo, weightsWo);
+
+		return data[indexWi * paramWo.size() + indexWo];
+	}
+
+	int vectorToIndex(const Vector3f& wi, const Vector3f& wo) const {
+		return paramWi.vectorToIndex(wi) * paramWo.size() + paramWo.vectorToIndex(wo);
+	}
+
+	void indexToVector(int index, Vector3f* wi, Vector3f* wo) const {
+		int indexWi = index / paramWo.size();
+		int indexWo = index % paramWo.size();
+		*wi = paramWi.indexToVector(indexWi);
+		*wo = paramWo.indexToVector(indexWo);
+	}
+
+	 int size() const {
+		 return paramWi.size() * paramWo.size();
+	 }
+
+private:
+	std::vector<Vector3f> data;
+	AngularParam paramWi, paramWo;
+};
+
+class SpatialTable {
+public:
+
+	SpatialTable(int resolutionX, int resolutionY):
+		paramPos(resolutionX, resolutionY)
+	{}
+
+	Vector3f& operator[](int i) { return data[i]; }
+
+	// テーブルの bin の参照を得る
+	// 書き込み用
+	Vector3f& at(const Vector2f& p) {
+		return data[positionToIndex(p)];
+	}
+
+	// テーブル上の値から補間をした値を得る
+	// (実装上では、確率的に bin を読んでいるだけ)
+	// 読み出し用
+	Vector3f eval(const Vector2f& p, Sampler &sampler) const {
+		std::vector<int> indices(4);
+		std::vector<float> weights(4);
+		paramPos.positionToIndexWeighted(p, indices.data(), weights.data());
+		return data[sampler.selectAlongWeights(indices, weights)];
+	}
+
+	int positionToIndex(const Vector2f& p) const{
+		return paramPos.positionToIndex(p);
+	}
+
+	Vector2f indexToPosition(int index) const {
+		return paramPos.indexToPosition(index);
+	}
+
+	int size() const {
+		return paramPos.size();
 	}
 
 private:
-
-	SurfaceInteraction perturbInteraction(const SurfaceInteraction& isect, Sampler& sampler) const {
-
-		SurfaceInteraction isectPerturbed = isect;
-
-		//int x, y;
-		//if (dispTexLow->filter) {
-		//	int x0 = isect.texCoord.u * dispTexLow->getWidth() + 0.5f;
-		//	int y0 = (1 - isect.texCoord.v) * dispTexLow->getHeight() + 0.5f;
-		//	int x1 = x0 + 1;
-		//	int y1 = y0 + 1;
-		//	float wx1 = (isect.texCoord.u * dispTexLow->getWidth() + 0.5f) - x0;
-		//	float wy1 = ((1 - isect.texCoord.v) * dispTexLow->getHeight() + 0.5f) - y0;
-
-		//	dispTexLow->warp(x0, y0);
-		//	dispTexLow->warp(x1, y1);
-
-		//	x = (sampler.randf() <= wx1) ? x1 : x0;
-		//	y = (sampler.randf() <= wy1) ? y1 : y0;
-		//} else {
-		//	x = isect.texCoord.u * dispTexLow->getWidth();
-		//	y = (1 - isect.texCoord.v) * dispTexLow->getHeight();
-		//	dispTexLow->warp(x, y);
-		//}
-
-		//Vector3f n = vmfs[y * dispTexLow->getWidth() + x].sample(sampler);
-
-		//isectPerturbed.shading.n =
-		//	(n.z * isect.n
-		//		+ n.x * isect.tangent
-		//		- n.y * isect.bitangent
-		//		).normalize();
-
-		//isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
-
-		return isectPerturbed;
-	}
-
+	std::vector<Vector3f> data;
+	SpatialParam paramPos;
 };
 
-std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::vector<VonMisesFisherDistribution<VMFLobeNum>>* vmfs) {
+class ScalingFunction {
+public:
+
+	ScalingFunction(Bounds2f texCoordsBound, int N = 15, int M = 4):
+		texCoordsBound(texCoordsBound),
+		N(N),
+		M(M),
+		S(N, N),
+		T(M, M)
+	{
+	}
+
+	void precalc(const Vector3f& C, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
+		estimateT(C, sceneLow, sceneOrig, sampler);
+		estimateS(sceneLow, sceneOrig, sampler);
+	}
+
+	Vector3f evalRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
+		return T.eval(texCoord, sampler)* S.eval(wi, wo, sampler);
+	}
+
+	Vector3f estimateRir(const Vector2f& p, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+		Vector3f f_eff_low = estimateEffectiveBRDFLow(p, wi, wo, sceneLow, sampler);
+		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sceneOrig, sampler);
+		return Vector3f(
+			f_eff_low.x > 1e-6 ? f_eff_ir_orig.x / f_eff_low.x : 0.0f,
+			f_eff_low.y > 1e-6 ? f_eff_ir_orig.y / f_eff_low.y : 0.0f,
+			f_eff_low.z > 1e-6 ? f_eff_ir_orig.z / f_eff_low.z : 0.0f
+		);
+	}
+
+private:
+	Bounds2f texCoordsBound;
+	int N;
+	int M;
+	SpatialTable T;
+	AngularTable S;
+
+	void estimateT(const Vector3f& C, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
+		int SampleNum = 5000;
+		Vector3f n = Vector3f(0, 1, 0);
+		for (int i = 0; i < T.size(); ++i) {
+			T[i] = Vector3f(0.0f);
+			for (int sample = 0; sample < SampleNum; ++sample) {
+				Vector2f p = T.indexToPosition(i);
+
+				Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
+				Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
+				float prob_wi = clampPositive(dot(wi, n)) / M_PI;
+				float prob_wo = clampPositive(dot(wo, n)) / M_PI;
+
+				T[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / (prob_wi * prob_wo);
+			}
+			T[i] /= SampleNum;
+			T[i] /= C;
+		}
+	}
+
+	void estimateS(const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
+		int SampleNum = 2500;
+
+		for (int i = 0; i < S.size(); ++i) {
+			S[i] = Vector3f(0.0f);
+			for (int sample = 0; sample < SampleNum; ++sample){
+				Vector3f wi, wo;
+				S.indexToVector(i, &wi, &wo);
+				
+				Vector2f p = texCoordsBound.lerp(
+					Vector2f(((i / M) + sampler.randf()) / M, ((i % M) + sampler.randf()) / M)
+				);
+				float prob_p = 1.0f / texCoordsBound.area();
+
+				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / prob_p;
+			}
+			S[i] /= SampleNum;
+		}
+	}
+
+	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
+		// IR は考慮しない
+
+		// p を含むパッチ
+		Bounds2f patch;
+		patch.min.u = floorf((texelPos.u - texCoordsBound.min.u) * M) / M + texCoordsBound.min.u;
+		patch.min.v = floorf((texelPos.v - texCoordsBound.min.v) * M) / M + texCoordsBound.min.v;
+		patch.max = patch.min + texCoordsBound.size();
+
+		Vector3f res;
+
+		const int Sample = 100; // 何回評価する？
+		const float RayOffset = 1e-6;
+		for (int s = 0; s < Sample; ++s) {
+
+			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
+			float prob_p = 1.0f * powf(M, 2);
+
+			Xitils::Ray ray;
+			ray.o = Vector3f(p.u, 99, p.v);
+			ray.d = Vector3f(0, -1, 0);
+			SurfaceInteraction isect;
+			bool hit = sceneLow.intersect(ray, &isect);
+			ASSERT(hit);
+
+			Xitils::Ray rayWo;
+			rayWo.d = wo;
+			rayWo.o = isect.p + rayWo.d * RayOffset;
+			if (sceneLow.intersectAny(rayWo)) { continue; }
+
+			Xitils::Ray rayWi;
+			rayWi.d = wi;
+			rayWi.o = isect.p + rayWi.d * RayOffset;
+			if (sceneLow.intersectAny(rayWi)) { continue; }
+
+			res += isect.object->material->bsdfCos(isect, sampler, wi) / prob_p;
+		}
+		res /= Sample;
+
+		return res;
+	}
+
+	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+		// IR を考慮する
+
+		// x を含むパッチ内で始点となる位置をサンプル
+
+		// p を含むパッチ
+		Bounds2f patch;
+		patch.min.u = floorf((texelPos.u - texCoordsBound.min.u) * M) / M + texCoordsBound.min.u;
+		patch.min.v = floorf((texelPos.v - texCoordsBound.min.v) * M) / M + texCoordsBound.min.v;
+		patch.max = patch.min + texCoordsBound.size();
+
+		Vector3f res;
+
+		const int Sample = 2500; // 2500 path
+		const float RayOffset = 1e-6;
+		for (int s = 0; s < Sample; ++s) {
+
+			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
+			float prob_p = 1.0f * powf(M, 2);
+
+			Xitils::Ray ray;
+			ray.o = Vector3f(p.u, 99, p.v);
+			ray.d = Vector3f(0, -1, 0);
+			SurfaceInteraction isect;
+			bool hit = sceneOrig.intersect(ray, &isect);
+			ASSERT(hit);
+
+			Xitils::Ray rayWo;
+			rayWo.d = wo;
+			rayWo.o = isect.p + rayWo.d * RayOffset;
+			if (sceneOrig.intersectAny(rayWo)) { continue; }
+
+
+			SurfaceInteraction isectLow;
+			bool hitLow = sceneLow.intersect(ray, &isectLow);
+			ASSERT(hitLow);
+
+			const Vector3f& wg = isect.n;
+			const Vector3f& wn = isect.shading.n;
+			float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
+
+			Vector3f weight(1.0f);			
+			int pathLength = 1;
+
+			while (true) {
+				Xitils::Ray rayWi;
+				rayWi.d = wi;
+				rayWi.o = isect.p + rayWi.d * RayOffset;
+				if (!sceneOrig.intersectAny(rayWi)) {
+					const Vector3f& wm = isect.shading.n;
+					float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
+					res += weight * isect.object->material->bsdfCos(isect, sampler, wi) * A_G_p_wo / A_G_wo;
+				}
+
+				Xitils::Ray rayNext;
+				float pdf;
+				weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
+				rayNext.o = isect.p + rayNext.d * RayOffset;
+				if (!sceneOrig.intersect(rayNext, &isect)) { continue; }
+
+				++pathLength;
+				if (pathLength > 100 || weight.isZero()) { break; }
+			}
+		}
+
+		return res;
+	}
+};
+
+class SVNDF {
+public:
+	int resolutionU, resolutionV;
+	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
 	
+	Vector3f sampleNormal(const Vector2f& texCoord, Sampler& sampler) const {
+		int x0 = texCoord.u * resolutionU + 0.5f;
+		int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
+		int x1 = x0 + 1;
+		int y1 = y0 + 1;
+		float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
+		float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
+
+		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
+		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
+		y0 = Xitils::clamp(y0, 0, resolutionV - 1);
+		y1 = Xitils::clamp(y1, 0, resolutionV - 1);
+
+		int x = (sampler.randf() <= wx1) ? x1 : x0;
+		int y = (sampler.randf() <= wy1) ? y1 : y0;
+
+		return vmfs[y * resolutionU + x].sample(sampler);
+	}
+};
+
+std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::shared_ptr<SVNDF> svndf) {
+
 	Sampler sampler(0);
 
-	auto tex = std::make_shared<Texture>( 
-		(texOrig->getWidth()  + DownSamplingRate - 1) / DownSamplingRate, 
+	auto texLow = std::make_shared<Texture>(
+		(texOrig->getWidth() + DownSamplingRate - 1) / DownSamplingRate,
 		(texOrig->getHeight() + DownSamplingRate - 1) / DownSamplingRate);
 
-	vmfs->clear();
-	vmfs->resize(tex->getWidth() * tex->getHeight());
+	svndf->resolutionU = texLow->getWidth();
+	svndf->resolutionV = texLow->getHeight();
+	svndf->vmfs.clear();
+	svndf->vmfs.resize(texLow->getWidth() * texLow->getHeight());
 
-	// tex の初期値は普通に texOrig をダウンサンプリングした値
+	// texLow の初期値は普通に texOrig をダウンサンプリングした値
 
-	std::vector<Vector2f> ave_slope_orig ( tex->getWidth() * tex->getHeight() );
-	for (int py = 0; py < tex->getHeight(); ++py) {
-		for (int px = 0; px < tex->getWidth(); ++px) {
+	std::vector<Vector2f> ave_slope_orig(texLow->getWidth() * texLow->getHeight());
+	for (int py = 0; py < texLow->getHeight(); ++py) {
+		for (int px = 0; px < texLow->getWidth(); ++px) {
 
 			int count = 0;
 			std::vector<Vector3f> normals;
@@ -111,48 +455,216 @@ std::shared_ptr<Texture> downsampleTexture(std::shared_ptr<Texture> texOrig, flo
 				for (int lx = 0; lx < DownSamplingRate; ++lx) {
 					int x = px * DownSamplingRate + lx;
 					if (x >= texOrig->getWidth()) { continue; }
-					
+
 					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
 					Vector3f n = Vector3f(-slope.u * displacementScale, -slope.v * displacementScale, 1).normalize();
 
-					ave_slope_orig[py * tex->getWidth() + px] += slope;
-					tex->r(px, py) += texOrig->r(x, y);
+					ave_slope_orig[py * texLow->getWidth() + px] += slope;
+					texLow->r(px, py) += texOrig->r(x, y);
 
 					normals.push_back(n);
 
 					++count;
 				}
 			}
-			ave_slope_orig[py * tex->getWidth() + px] /= count;
-			tex->r(px, py) /= count;
+			ave_slope_orig[py * texLow->getWidth() + px] /= count;
+			texLow->r(px, py) /= count;
 
-			(*vmfs)[py * tex->getWidth() + px] = VonMisesFisherDistribution<VMFLobeNum>::approximateBySEM(normals, sampler);
+			svndf->vmfs[py * texLow->getWidth() + px] = VonMisesFisherDistribution<VMFLobeNum>::approximateBySEM(normals, sampler);
 		}
 	}
 
 	auto L = [&](int px, int py, float dh) {
 		const float w = 0.01f;
-		
+
 		int x0 = px * DownSamplingRate;
 		int y0 = py * DownSamplingRate;
-		int x1 = Xitils::min(px + DownSamplingRate - 1, texOrig->getWidth()  - 1);
+		int x1 = Xitils::min(px + DownSamplingRate - 1, texOrig->getWidth() - 1);
 		int y1 = Xitils::min(py + DownSamplingRate - 1, texOrig->getHeight() - 1);
 
-		float dhdu2 =  (tex->rgbDifferentialU(px + 1, py).r - tex->rgbDifferentialU(px - 1, py).r) / 2.0f;
-		float dhdv2 = -(tex->rgbDifferentialV(px, py + 1).r - tex->rgbDifferentialU(px, py - 1).r) / 2.0f; // y 方向と v 方向は逆なので符号反転
+		float dhdu2 = (texLow->rgbDifferentialU(px + 1, py).r - texLow->rgbDifferentialU(px - 1, py).r) / 2.0f;
+		float dhdv2 = -(texLow->rgbDifferentialV(px, py + 1).r - texLow->rgbDifferentialU(px, py - 1).r) / 2.0f; // y 方向と v 方向は逆なので符号反転
 
 		Vector2f ave_slope(
-			(tex->r(x1, y1) + tex->r(x1, y0) - tex->r(x0, y1) - tex->r(x0, y0)) / 2.0f,
-			-(tex->r(x1, y1) + tex->r(x0, y1) - tex->r(x1, y0) - tex->r(x0, y0)) / 2.0f // y 方向と v 方向は逆なので符号反転
+			(texLow->r(x1, y1) + texLow->r(x1, y0) - texLow->r(x0, y1) - texLow->r(x0, y0)) / 2.0f,
+			-(texLow->r(x1, y1) + texLow->r(x0, y1) - texLow->r(x1, y0) - texLow->r(x0, y0)) / 2.0f // y 方向と v 方向は逆なので符号反転
 		);
 
-		return (ave_slope - ave_slope_orig[py * tex->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
+		return (ave_slope - ave_slope_orig[py * texLow->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
 	};
 
 	// TODO: ダウンサンプリングの正規化項入れる
 
-	return tex;
+	return texLow;
 }
+
+class MultiLobeSVBRDF : public Material {
+public:
+	std::shared_ptr<Material> baseMaterial;
+	std::shared_ptr<Texture> displacementTexLow;
+	std::shared_ptr<SVNDF> svndf;
+	float displacementScale;
+
+	MultiLobeSVBRDF(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexLow, float displacementScale):
+		baseMaterial(baseMaterial),
+		displacementTexLow(displacementTexLow),
+		displacementScale(displacementScale)
+	{}
+
+	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		return baseMaterial->bsdfCos(perturbInteraction(isect, sampler), sampler, wi);
+	}
+
+	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		return baseMaterial->evalAndSample(perturbInteraction(isect, sampler), sampler, wi, pdf);
+	}
+
+	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+
+		// TODO
+
+		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
+	}
+
+private:
+
+	SurfaceInteraction perturbInteraction(const SurfaceInteraction& isect, Sampler& sampler) const {
+
+		SurfaceInteraction isectPerturbed = isect;
+		Vector3f n = svndf->sampleNormal(isect.texCoord, sampler);
+
+		isectPerturbed.shading.n =
+			(n.z * isect.n
+				+ n.x * isect.tangent
+				- n.y * isect.bitangent
+				).normalize();
+
+		isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
+
+		return isectPerturbed;
+	}
+
+};
+
+class PrefilteredDisplaceMapping : public Material {
+public:
+
+	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale):
+		baseMaterial(baseMaterial),
+		displacementTexOrig(displacementTexOrig),
+		displacementScale(displacementScale),
+		svndf(std::make_shared<SVNDF>())
+	{
+		std::shared_ptr<Sampler> sampler = std::make_shared<Sampler>(0);
+
+		displacementTexLow = downsampleDisplacementTexture(displacementTexOrig, displacementScale, svndf);
+		multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, displacementTexLow, displacementScale);
+
+		// シーンを作成
+		// 高解像度
+		// 低解像度
+		NOT_IMPLEMENTED;
+
+		auto sceneLow = std::shared_ptr<Scene>();
+		auto sceneOrig = std::shared_ptr<Scene>();
+
+		Vector3f C = estimateC(*sceneLow, *sceneOrig, *sampler);
+
+		int resU = displacementTexLow->getWidth();
+		int resV = displacementTexLow->getWidth();
+		scalingFunctions.resize(resU * resV);
+		for (int y = 0; y < resV; ++y) {
+			for (int x = 0; x < resU; ++x) {
+				int index = y * displacementTexLow->getWidth() + x;
+				Bounds2f b;
+				b.min = Vector2f((float)x / resU, (float)(resV - y - 1) / resV);
+				b.max = Vector2f((float)(x + 1) / resU, (float)(resV - y) / resV);
+				scalingFunctions[index] = std::make_shared<ScalingFunction>(b);
+				
+				scalingFunctions[index]->precalc(C, *sceneOrig, *sceneLow, *sampler);
+			}
+		}
+
+	}
+
+	Vector3f estimateC(const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
+		Vector3f C(0.0f);
+		int SampleNum = 2500;
+		for (int i = 0; i < SampleNum; ++i) {
+			Vector2f p( sampler.randf(), sampler.randf() );
+			float prob_p = 1.0f;
+
+			Vector3f n(0, 1, 0);
+			Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
+			Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
+			float prob_wi = clampPositive(dot(wi, n)) / M_PI;
+			float prob_wo = clampPositive(dot(wo, n)) / M_PI;
+
+			C += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / (prob_p * prob_wi * prob_wo);
+		}
+		C /= SampleNum;
+		return C;
+	}
+
+	Vector3f estimateRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+		int resolutionU = displacementTexLow->getWidth();
+		int resolutionV = displacementTexLow->getHeight();
+
+		int x0 = texCoord.u * resolutionU + 0.5f;
+		int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
+		int x1 = x0 + 1;
+		int y1 = y0 + 1;
+		float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
+		float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
+
+		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
+		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
+		y0 = Xitils::clamp(y0, 0, resolutionV - 1);
+		y1 = Xitils::clamp(y1, 0, resolutionV - 1);
+
+		int x = (sampler.randf() <= wx1) ? x1 : x0;
+		int y = (sampler.randf() <= wy1) ? y1 : y0;
+
+		return scalingFunctions[y * resolutionU + x]->estimateRir(texCoord, wi, wo, sceneLow, sceneOrig, sampler);
+	}
+
+
+	Vector3f evalRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
+		int resolutionU = displacementTexLow->getWidth();
+		int resolutionV = displacementTexLow->getHeight();
+
+		int x0 = texCoord.u * resolutionU + 0.5f;
+		int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
+		int x1 = x0 + 1;
+		int y1 = y0 + 1;
+		float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
+		float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
+
+		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
+		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
+		y0 = Xitils::clamp(y0, 0, resolutionV - 1);
+		y1 = Xitils::clamp(y1, 0, resolutionV - 1);
+
+		int x = (sampler.randf() <= wx1) ? x1 : x0;
+		int y = (sampler.randf() <= wy1) ? y1 : y0;
+
+		return scalingFunctions[y * resolutionU + x]->evalRir(texCoord, wi, wo, sampler);
+	}
+
+private:
+
+	std::shared_ptr<Material> baseMaterial;
+	std::shared_ptr<Texture> displacementTexOrig;
+	std::shared_ptr<Texture> displacementTexLow;
+	std::shared_ptr<MultiLobeSVBRDF> multiLobeSVBRDF;
+	float displacementScale;
+	std::shared_ptr<SVNDF> svndf;
+	Vector3f estimatedC;
+
+	std::vector<std::shared_ptr<ScalingFunction>> scalingFunctions; // ダウンサンプリング後の各テクセルに対応するスケーリング関数
+
+};
+
 
 struct MyFrameData {
 	float initElapsed;
