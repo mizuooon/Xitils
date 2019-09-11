@@ -147,19 +147,30 @@ namespace Xitils {
 			calcSurfaceArea();
 		}
 
-		void setGeometry(const Vector3f* positionData, int positionNum, int* indexData, int indexNum) {
-			setPositions(positionData, positionNum);
+		void setGeometry(int vertexNum, const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, int indexNum, int* indexData) {
+			if (positions != nullptr) { setPositions(positions, vertexNum); }
+			if (texCoords != nullptr) { setTexCoords(texCoords, vertexNum); }
+			if (normals != nullptr) { setNormals(normals, vertexNum); }
+			if (tangents != nullptr) { setTangents(tangents, vertexNum); }
+			if (bitangents != nullptr) { setBitangents(bitangents, vertexNum); }
 			setIndices(indexData, indexNum);
 			buildTriangles();
 			buildBVH();
 			calcSurfaceArea();
 		}
 
-		void setGeometry(const Vector3f* positionData, int positionNum, const Vector3f* normalData, int normalNum, int* indexData, int indexNum) {
-			setPositions(positionData, positionNum);
-			setNormals(normalData, normalNum);
+		void setGeometryWithShellMapping(int vertexNum, const Vector3f* positions, const Vector2f* texCoords, const Vector3f* normals, const Vector3f* tangents, const Vector3f* bitangents, int indexNum, int* indexData, std::shared_ptr<const Texture> displacement, float displacemntScale, int layerNum) {
+			if (positions != nullptr) { setPositions(positions, vertexNum); }
+			if (texCoords != nullptr) { setTexCoords(texCoords, vertexNum); }
+			if (normals != nullptr) { setNormals(normals, vertexNum); }
+			if (tangents != nullptr) { setTangents(tangents, vertexNum); }
+			if (bitangents != nullptr) { setBitangents(bitangents, vertexNum); }
 			setIndices(indexData, indexNum);
-			buildTriangles();
+
+			this->displacementMap = displacement;
+			this->displacementScale = displacementScale;
+
+			buildTrianglesWithShellMapping(displacement.get(), displacemntScale, layerNum);
 			buildBVH();
 			calcSurfaceArea();
 		}
@@ -322,16 +333,28 @@ namespace Xitils {
 			memcpy(positions.data(), data, sizeof(Vector3f) * num);
 		}
 
-		void setNormals(const Vector3f* data, int num) {
+		void setTexCoords(const Vector2f* data, int num) {
 			texCoords.clear();
 			texCoords.resize(num);
 			memcpy(texCoords.data(), data, sizeof(Vector2f) * num);
 		}
 
-		void setTexCoordinates(const Vector2f* data, int num) {
-			indices.clear();
-			indices.resize(num);
-			memcpy(indices.data(), data, sizeof(int) * num);
+		void setNormals(const Vector3f* data, int num) {
+			normals.clear();
+			normals.resize(num);
+			memcpy(normals.data(), data, sizeof(Vector3f) * num);
+		}
+
+		void setTangents(const Vector3f* data, int num) {
+			tangents.clear();
+			tangents.resize(num);
+			memcpy(tangents.data(), data, sizeof(Vector3f) * num);
+		}
+
+		void setBitangents(const Vector3f* data, int num) {
+			bitangents.clear();
+			bitangents.resize(num);
+			memcpy(bitangents.data(), data, sizeof(Vector3f) * num);
 		}
 
 		void setIndices(int* data, int num) {
@@ -361,8 +384,13 @@ namespace Xitils {
 				4,6,5, 6,7,5
 			};
 
-			setGeometry(positions.data(), positions.size(), indices.data(), indices.size());
-
+			setGeometry(positions.size(),
+						positions.data(),
+						nullptr,
+						nullptr,
+						nullptr,
+						nullptr,
+						indices.size(), indices.data());
 		}
 
 	};
@@ -381,7 +409,13 @@ namespace Xitils {
 				0,2,1, 1,2,3
 			};
 
-			setGeometry(positions.data(), positions.size(), indices.data(), indices.size());
+			setGeometry(positions.size(),
+				positions.data(),
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				indices.size(), indices.data());
 
 		}
 

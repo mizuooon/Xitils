@@ -38,6 +38,52 @@ const int ShellMappingLayerNum = 16;
 // angular resolution 15^2
 // spatial resolution 4^2
 
+class PlaneDisplaceMapped : public TriangleMesh {
+public:
+
+	PlaneDisplaceMapped(std::shared_ptr<Texture> displacement, float displacementScale) {
+
+		// xy ‚Æ uv ‚ÌÀ•W‚ªˆê’v‚µ‚ÄA‚©‚Â z •ûŒü‚ğŒü‚­‚æ‚¤‚É•½–Ê‚ğ¶¬
+
+		std::array<Vector3f, 4> positions;
+		for (int i = 0; i < 4; ++i) {
+			positions[i] = Vector3f(i & 1 ? 0.0f : 1.0f,
+				i & 2 ? 0.0f : 1.0f,
+				0);
+		}
+		std::array<Vector2f, 4> texCoords;
+		for (int i = 0; i < 4; ++i) {
+			texCoords[i] = Vector2f(i & 1 ? 0.0f : 1.0f,
+				i & 2 ? 0.0f : 1.0f);
+		}
+		std::array<Vector3f, 4> normals;
+		for (int i = 0; i < 4; ++i) {
+			normals[i] = Vector3f(0, 0, 1);
+		}
+		std::array<Vector3f, 4> tangents;
+		for (int i = 0; i < 4; ++i) {
+			tangents[i] = Vector3f(1, 0, 0);
+		}
+		std::array<Vector3f, 4> bitangents;
+		for (int i = 0; i < 4; ++i) {
+			bitangents[i] = Vector3f(0, 1, 0);
+		}
+		std::array<int, 3 * 2> indices{
+			0,1,2, 1,3,2
+		};
+
+		setGeometryWithShellMapping(positions.size(),
+			positions.data(),
+			texCoords.data(),
+			normals.data(),
+			tangents.data(),
+			bitangents.data(),
+			indices.size(), indices.data(),
+			displacement, displacementScale, ShellMappingLayerNum);
+	}
+
+};
+
 
 class AngularParam {
 public:
@@ -316,7 +362,7 @@ private:
 
 	void estimateT(const Vector3f& C, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
 		int SampleNum = 5000;
-		Vector3f n = Vector3f(0, 1, 0);
+		Vector3f n = Vector3f(0, 0, 1);
 		for (int i = 0; i < T.size(); ++i) {
 			T[i] = Vector3f(0.0f);
 			for (int sample = 0; sample < SampleNum; ++sample) {
@@ -374,8 +420,8 @@ private:
 			float prob_p = 1.0f * powf(M, 2);
 
 			Xitils::Ray ray;
-			ray.o = Vector3f(p.u, 99, p.v);
-			ray.d = Vector3f(0, -1, 0);
+			ray.o = Vector3f(p.u, p.v, 99);
+			ray.d = Vector3f(0, 0, -1);
 			SurfaceInteraction isect;
 			bool hit = sceneLow.intersect(ray, &isect);
 			ASSERT(hit);
@@ -419,8 +465,8 @@ private:
 			float prob_p = 1.0f * powf(M, 2);
 
 			Xitils::Ray ray;
-			ray.o = Vector3f(p.u, 99, p.v);
-			ray.d = Vector3f(0, -1, 0);
+			ray.o = Vector3f(p.u, p.v, 99);
+			ray.d = Vector3f(0, 0, -1);
 			SurfaceInteraction isect;
 			bool hit = sceneOrig.intersect(ray, &isect);
 			ASSERT(hit);
@@ -835,6 +881,12 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	);
 	scene->addObject(
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
+	);
+
+
+	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispmap, 0.02f);
+	scene->addObject(
+		std::make_shared<Object>(planeDisp, diffuse_white, transformTRS(Vector3f(0, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
 	);
 
 	//scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
