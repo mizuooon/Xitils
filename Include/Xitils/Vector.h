@@ -10,9 +10,11 @@ namespace Xitils {
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector4;
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector2<float, T_SIMD, T_SIMDMASK>& v) {
-		auto val = simdpp::load_u<T_SIMD>(&v);
-		auto mask = simdpp::isnan(val);
-		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+		return std::isnan(v.x) || std::isnan(v.y);
+
+		//auto val = simdpp::load_u<T_SIMD>(&v);
+		//auto mask = simdpp::isnan(val);
+		//return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 	}
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector2<int, T_SIMD, T_SIMDMASK>& v) {
@@ -20,9 +22,11 @@ namespace Xitils {
 	}
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector3<float, T_SIMD, T_SIMDMASK>& v) {
-		auto val = simdpp::load_u<T_SIMD>(&v);
-		auto mask = simdpp::isnan(val);
-		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+		return std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z);
+
+		//auto val = simdpp::load_u<T_SIMD>(&v);
+		//auto mask = simdpp::isnan(val);
+		//return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 	}
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector3<int, T_SIMD, T_SIMDMASK>& v) {
@@ -30,9 +34,11 @@ namespace Xitils {
 	}
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector4<float, T_SIMD, T_SIMDMASK>& v) {
-		auto val = simdpp::load_u<T_SIMD>(&v);
-		auto mask = simdpp::isnan(val);
-		return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
+		return std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z) || std::isnan(v.w);
+
+		//auto val = simdpp::load_u<T_SIMD>(&v);
+		//auto mask = simdpp::isnan(val);
+		//return simdpp::reduce_or(simdpp::bit_cast<simdpp::uint32x4, T_SIMDMASK>(mask)) != 0;
 	}
 
 	template<typename T_SIMD, typename T_SIMDMASK> bool _hasNan(const Vector4<int, T_SIMD, T_SIMDMASK>& v) {

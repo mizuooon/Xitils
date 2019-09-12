@@ -46,8 +46,7 @@ namespace Xitils {
 			for (auto& w : normalizedWeights) {
 				w /= weightSum;
 			}
-
-			return randiAlongNormalizedWeights(weights);
+			return randiAlongNormalizedWeights(normalizedWeights);
 		}
 
 		const int randiAlongNormalizedWeights(const std::vector<float>& weights, bool omitLast = false) {

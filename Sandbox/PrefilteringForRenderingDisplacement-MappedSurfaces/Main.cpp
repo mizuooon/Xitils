@@ -102,19 +102,27 @@ public:
 		angleToIndexWeighted(vectorToAngle(v), indices, weights);
 	}
 
-	Vector3f indexToVector(int index) const {
-		return angleToVector(indexToAngle(index));
+	Vector3f indexToVector(int index, Sampler& sampler) const {
+		return angleToVector(indexToAngle(index, sampler));
 	}
 	
 	int size() const { return resolutionTheta * resolutionPhai; }
 
 private:
+	int resolutionTheta;
+	int resolutionPhai;
+
 	Vector2f vectorToAngle(const Vector3f& v) const {
+
 		Vector3f n = normalize(v);
 		if (n.z < 0) { n.z *= -1; }
+
+		if (n.x < 1e-6 && n.y < 1e-6) { return Vector2f(M_PI/2, 0.0f); }
+
 		float theta = asinf(n.z); // [0, PI/2]
 		float phai = atan2(n.y, n.x); // [-PI, PI];
-		if (phai < 0.0f) { phai += M_PI; } // [0, 2PI]
+		if (phai < 0.0f) { phai += M_PI; } // [0, 2PI] -- x 軸方向が phai=0
+
 		return Vector2f(theta, phai);
 	}
 
@@ -124,19 +132,21 @@ private:
 		return Vector3f( cosf(theta) * cosf(phai), cosf(theta) * sinf(phai), sinf(theta));
 	}
 
-	Vector2f indexToAngle(int index) const {
+	Vector2f indexToAngle(int index, Sampler& sampler) const {
 		int thetaIndex = index / resolutionPhai;
 		int phaiIndex = index % resolutionPhai;
-		float theta = (thetaIndex + 0.5f) / resolutionTheta;
-		float phai = (phaiIndex + 0.5f) / resolutionPhai;
+		float theta = (thetaIndex + sampler.randf()) / resolutionTheta * (M_PI / 2);
+		float phai = (phaiIndex + sampler.randf()) / resolutionPhai * (2 * M_PI);
 		return Vector2f(theta, phai);
 	}
 
 	int angleToIndex(const Vector2f& a) const {
 		float theta = a.x;
 		float phai = a.y;
-		int thetaIndex = (int)(theta * resolutionTheta);
-		int phaiIndex = (int)(phai * resolutionPhai);
+		float thetaNormalized = (float)theta / (M_PI / 2);
+		float phaiNormalized = (float)phai / (2 * M_PI);
+		int thetaIndex = (int)(thetaNormalized * resolutionTheta);
+		int phaiIndex = (int)(phaiNormalized * resolutionPhai);
 		thetaIndex = Xitils::clamp(thetaIndex, 0, resolutionTheta - 1);
 		phaiIndex = Xitils::clamp(phaiIndex, 0, resolutionPhai - 1);
 		return thetaIndex * resolutionPhai + phaiIndex;
@@ -145,14 +155,16 @@ private:
 	void angleToIndexWeighted(const Vector2f& a, int* indices, float* weights) const {
 		float theta = a.x;
 		float phai = a.y;
+		float thetaNormalized = (float)theta / (M_PI / 2);
+		float phaiNormalized = (float)phai / (2 * M_PI);
 
-		int thetaIndex0 = (int)(theta * resolutionTheta - 0.5f);
-		int phaiIndex0 = (int)(phai * resolutionPhai - 0.5f);
+		int thetaIndex0 = (int)(thetaNormalized * resolutionTheta - 0.5f);
+		int phaiIndex0 = (int)(phaiNormalized * resolutionPhai - 0.5f);
 		int thetaIndex1 = thetaIndex0 + 1;
 		int phaiIndex1 = phaiIndex0 + 1;
 
-		float wTheta1 = (theta * resolutionTheta - 0.5f) - thetaIndex0;
-		float wPhai1 = (phai * resolutionPhai - 0.5f) - phaiIndex0;
+		float wTheta1 = (thetaNormalized * resolutionTheta - 0.5f) - thetaIndex0;
+		float wPhai1 = (phaiNormalized * resolutionPhai - 0.5f) - phaiIndex0;
 		float wTheta0 = 1.0f - wTheta0;
 		float wPhai0 = 1.0f - wPhai0;
 
@@ -170,9 +182,6 @@ private:
 		indices[3] = thetaIndex1 * resolutionPhai + phaiIndex1;
 		weights[3] = wTheta1 * wPhai1;
 	}
-
-	int resolutionTheta;
-	int resolutionPhai;
 };
 
 class SpatialParam {
@@ -215,10 +224,10 @@ public:
 		weights[3] = wu1 * wv1;
 	}
 
-	Vector2f indexToPosition(int index) const {
+	Vector2f indexToPosition(int index, Sampler& sampler) const {
 		int uIndex = index / resolutionV;
 		int vIndex = index % resolutionV;
-		return Vector2f( (uIndex + 0.5f) / resolutionU, (vIndex + 0.5f) / resolutionV );
+		return Vector2f( (uIndex + sampler.randf()) / resolutionU, (vIndex + sampler.randf()) / resolutionV );
 	}
 
 	int size() const { return resolutionU * resolutionV; }
@@ -257,7 +266,7 @@ public:
 
 		std::vector<int> indicesWo(4);
 		std::vector<float> weightsWo(4);
-		paramWi.vectorToIndexWeighted(wi, indicesWo.data(), weightsWo.data());
+		paramWo.vectorToIndexWeighted(wo, indicesWo.data(), weightsWo.data());
 		int indexWo = sampler.selectAlongWeights(indicesWo, weightsWo);
 
 		return data[indexWi * paramWo.size() + indexWo];
@@ -267,11 +276,11 @@ public:
 		return paramWi.vectorToIndex(wi) * paramWo.size() + paramWo.vectorToIndex(wo);
 	}
 
-	void indexToVector(int index, Vector3f* wi, Vector3f* wo) const {
+	void indexToVector(int index, Vector3f* wi, Vector3f* wo, Sampler& sampler) const {
 		int indexWi = index / paramWo.size();
 		int indexWo = index % paramWo.size();
-		*wi = paramWi.indexToVector(indexWi);
-		*wo = paramWo.indexToVector(indexWo);
+		*wi = paramWi.indexToVector(indexWi, sampler);
+		*wo = paramWo.indexToVector(indexWo, sampler);
 	}
 
 	 int size() const {
@@ -314,8 +323,8 @@ public:
 		return paramPos.positionToIndex(p);
 	}
 
-	Vector2f indexToPosition(int index) const {
-		return paramPos.indexToPosition(index);
+	Vector2f indexToPosition(int index, Sampler& sampler) const {
+		return paramPos.indexToPosition(index, sampler);
 	}
 
 	int size() const {
@@ -330,7 +339,7 @@ private:
 class ScalingFunction {
 public:
 
-	ScalingFunction(Bounds2f texCoordsBound, int N = 4, int M = 1):
+	ScalingFunction(Bounds2f texCoordsBound, int N = 2, int M = 1):
 		texCoordsBound(texCoordsBound),
 		N(N),
 		M(M),
@@ -370,11 +379,11 @@ private:
 
 		//int SampleNum = 5000;
 		int SampleNum = 50;
-		Vector3f n = Vector3f(0, 0, 1);
+		Vector3f n(0, 0, 1);
 		for (int i = 0; i < T.size(); ++i) {
 			T[i] = Vector3f(0.0f);
 			for (int sample = 0; sample < SampleNum; ++sample) {
-				Vector2f p = T.indexToPosition(i);
+				Vector2f p = T.indexToPosition(i, sampler);
 
 				Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 				Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
@@ -385,6 +394,8 @@ private:
 			}
 			T[i] /= SampleNum;
 			T[i] /= C;
+
+			//printf("T[%d] = (%f, %f, %f)\n",i, T[i].r, T[i].g, T[i].b);
 		}
 	}
 
@@ -398,19 +409,22 @@ private:
 			S[i] = Vector3f(0.0f);
 			for (int sample = 0; sample < SampleNum; ++sample){
 				Vector3f wi, wo;
-				S.indexToVector(i, &wi, &wo);
+				S.indexToVector(i, &wi, &wo, sampler);
 				
 				Vector2f t = Vector2f(((i / M) % M + sampler.randf()) / M, ((i % M) + sampler.randf()) / M);
 				Vector2f p = texCoordsBound.lerp(t);
 				float prob_p = 1.0f / texCoordsBound.area();
+				float kernel_p = 1.0f / texCoordsBound.area();
 
 				if (!(inRange(p.u, texCoordsBound.min.u, texCoordsBound.max.u) && inRange(p.v, texCoordsBound.min.v, texCoordsBound.max.v))) {
 					printf("%d | %f %f | %f %f - %f %f | %f %f\n", i, t.u, t.v, texCoordsBound.min.u, texCoordsBound.min.v, texCoordsBound.max.u, texCoordsBound.max.v, p.u, p.v);
 				}
 
-				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / prob_p;
+				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) * kernel_p / prob_p;
 			}
 			S[i] /= SampleNum;
+
+			//printf("S[%d] = (%f, %f, %f)\n",i, S[i].r, S[i].g, S[i].b);
 		}
 	}
 
@@ -419,14 +433,21 @@ private:
 
 		// p を含むパッチ
 		Bounds2f patch;
-		Vector2f patchSize = texCoordsBound.size() / M;
-		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) * M);
-		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) * M);
+		Vector2f boundSize = texCoordsBound.size();
+		Vector2f patchSize = boundSize / M;
+		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) / boundSize.u * M);
+		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) / boundSize.v * M);
 		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
 		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = ((float)patchIndexU / M) * patchSize.u + texCoordsBound.min.u;
-		patch.min.v = ((float)patchIndexV / M) * patchSize.v + texCoordsBound.min.v;
+		patch.min.u = ((float)patchIndexU / M) * boundSize.u + texCoordsBound.min.u;
+		patch.min.v = ((float)patchIndexV / M) * boundSize.v + texCoordsBound.min.v;
 		patch.max = patch.min + patchSize;
+
+		ASSERT(inRange(texelPos.u, patch.min.u, patch.max.u) && inRange(texelPos.v, patch.min.v, patch.max.v));
+		//printf("------------\n");
+		//printf("%f %f\n", texelPos.u, texelPos.v);
+		//printf("%f %f - %f %f\n", texCoordsBound.min.u, texCoordsBound.min.v, texCoordsBound.max.u, texCoordsBound.max.v);
+		//printf("%f %f - %f %f\n", patch.min.u, patch.min.v, patch.max.u, patch.max.v);
 
 		Vector3f res;
 
@@ -438,6 +459,7 @@ private:
 			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
+			float kernel_p = 1.0f / patch.area();
 
 			Xitils::Ray ray;
 			ray.o = Vector3f(p.u, p.v, 99);
@@ -457,9 +479,12 @@ private:
 			rayWi.o = isect.p + rayWi.d * RayOffset;
 			if (sceneLow.intersectAny(rayWi)) { continue; }
 
-			res += isect.object->material->bsdfCos(isect, sampler, wi) / prob_p;
+			res += isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
+
 		}
 		res /= Sample;
+
+		//printf("estimateEffectiveBRDFLow: %f %f %f\n",res.r,res.g,res.b);
 
 		return res;
 	}
@@ -471,14 +496,17 @@ private:
 
 		// p を含むパッチ
 		Bounds2f patch;
-		Vector2f patchSize = texCoordsBound.size() / M;
-		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) * M);
-		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) * M);
+		Vector2f boundSize = texCoordsBound.size();
+		Vector2f patchSize = boundSize / M;
+		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) / boundSize.u * M);
+		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) / boundSize.v * M);
 		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
 		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = ((float)patchIndexU / M) * patchSize.u + texCoordsBound.min.u;
-		patch.min.v = ((float)patchIndexV / M) * patchSize.v + texCoordsBound.min.v;
+		patch.min.u = ((float)patchIndexU / M) * boundSize.u + texCoordsBound.min.u;
+		patch.min.v = ((float)patchIndexV / M) * boundSize.v + texCoordsBound.min.v;
 		patch.max = patch.min + patchSize;
+
+		ASSERT(inRange(texelPos.u, patch.min.u, patch.max.u) && inRange(texelPos.v, patch.min.v, patch.max.v));
 
 		//printf("------------\n");
 		//printf("%f %f\n", texelPos.u, texelPos.v);
@@ -495,6 +523,7 @@ private:
 			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
+			float kernel_p = 1.0f / patch.area();
 
 			Xitils::Ray ray;
 			ray.o = Vector3f(p.u, p.v, 99);
@@ -514,11 +543,17 @@ private:
 			ASSERT(hitLow);
 
 			const Vector3f& wg = isect.n;
-			const Vector3f& wn = isect.shading.n;
+			const Vector3f& wn = isectLow.shading.n;
 			float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
+
+			const Vector3f& wm = isect.shading.n;
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
+
 			if (A_G_wo > 1e-6) {
 				Vector3f weight(1.0f);
 				int pathLength = 1;
+
+				weight *= A_G_p_wo / A_G_wo * kernel_p / prob_p;
 
 				while (true) {
 					//printf("%d\n",pathLength);
@@ -527,9 +562,7 @@ private:
 					rayWi.d = wi;
 					rayWi.o = isect.p + rayWi.d * RayOffset;
 					if (!sceneOrig.intersectAny(rayWi)) {
-						const Vector3f& wm = isect.shading.n;
-						float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
-						res += weight * isect.object->material->bsdfCos(isect, sampler, wi) * A_G_p_wo / A_G_wo;
+						res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
 					}
 
 					Xitils::Ray rayNext;
@@ -544,6 +577,9 @@ private:
 			}
 
 		}
+		res /= Sample;
+
+		//printf("%f %f %f\n",res.r,res.g,res.b);
 
 		return res;
 	}
@@ -555,12 +591,12 @@ public:
 	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
 	
 	Vector3f sampleNormal(const Vector2f& texCoord, Sampler& sampler) const {
-		int x0 = texCoord.u * resolutionU + 0.5f;
-		int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
+		int x0 = texCoord.u * resolutionU - 0.5f;
+		int y0 = (1 - texCoord.v) * resolutionV - 0.5f;
 		int x1 = x0 + 1;
 		int y1 = y0 + 1;
-		float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
-		float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
+		float wx1 = (texCoord.u * resolutionU - 0.5f) - x0;
+		float wy1 = ((1 - texCoord.v) * resolutionV - 0.5f) - y0;
 
 		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
 		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
@@ -604,7 +640,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 					int x = px * DownSamplingRate + lx;
 					if (x >= texOrig->getWidth()) { continue; }
 
-					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
+					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, -texOrig->rgbDifferentialV(x, y).x);
 					Vector3f n = Vector3f(-slope.u * displacementScale, -slope.v * displacementScale, 1).normalize();
 
 					ave_slope_orig[py * texLow->getWidth() + px] += slope;
@@ -688,7 +724,7 @@ private:
 				- n.y * isect.bitangent
 				).normalize();
 
-		isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
+		//isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
 
 		return isectPerturbed;
 	}
@@ -735,25 +771,40 @@ public:
 
 		Vector3f C = estimateC(*sceneLow, *sceneOrig, *sampler);
 
+		printf("C = (%f, %f %f)\n", C.r, C.g, C.b);
+
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int y = 0; y < resV; ++y) {
+			printf("%d / %d\n", y + 1, resV);
 #pragma omp parallel for schedule(dynamic, 1)
 			for (int x = 0; x < resU; ++x) {
-				printf("%d %d / %d\n", y + 1, x+1, resV);
 				int index = y * displacementTexLow->getWidth() + x;
-				scalingFunctions[index]->precalc(C, *sceneOrig, *sceneLow, *sampler);
+				scalingFunctions[index]->precalc(C, *sceneLow, *sceneOrig, *sampler);
 			}
 		}
 
 	}
 
-
 	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
-		return multiLobeSVBRDF->bsdfCos(isect, sampler, wi) * evalRir(isect.texCoord, wi, isect.wo, sampler);
+
+		// TODO::::::::::::::::::::::::: wo, wi の座標変換
+		// tangent, bitangent, normal ?
+		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi)).normalize();
+		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo)).normalize();
+
+		return multiLobeSVBRDF->bsdfCos(isect, sampler, wi) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
 	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
-		return multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf) * evalRir(isect.texCoord, *wi, isect.wo, sampler);
+
+		auto eval = multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf);
+
+		// TODO::::::::::::::::::::::::: wo, wi の座標変換
+		// tangent, bitangent, normal ?
+		Vector3f wiLocal = Vector3f(dot(isect.tangent, *wi), dot(isect.bitangent, *wi), dot(isect.n, *wi)).normalize();
+		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo)).normalize();
+
+		return eval * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
@@ -768,11 +819,12 @@ public:
 		int SampleNum = 2500;
 		//int SampleNum = 25;
 
-		for (int i = 0; i < SampleNum; ++i) {
+		Vector3f n(0, 0, 1);
+
+		for (int sample = 0; sample < SampleNum; ++sample) {
 			Vector2f p( sampler.randf(), sampler.randf() );
 			float prob_p = 1.0f;
 
-			Vector3f n(0, 1, 0);
 			Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
 			float prob_wi = clampPositive(dot(wi, n)) / M_PI;
@@ -785,6 +837,7 @@ public:
 	}
 
 	std::shared_ptr<const Texture> getDisplacementTextureLow() { return displacementTexLow; }
+	std::shared_ptr<MultiLobeSVBRDF> getMutliLobeSVBRDF() { return multiLobeSVBRDF; }
 
 private:
 	std::shared_ptr<Material> baseMaterial;
@@ -930,7 +983,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
 	//auto& dispmap = teapot_material->dispTexLow;
 
-	auto teapot_material = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto teapot_basematerial = std::make_shared<Diffuse>(Vector3f(0.8f));
 
 	float dispScale = 0.01f;
 	float dispScaleForPreCalc = 0.02f;
@@ -938,7 +991,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	dispTexOrig->warpClamp = false;
 
 
-	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_material, dispTexOrig, dispScale, dispScaleForPreCalc);
+	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	//teapotMesh->setGeometry(teapotMeshData);
@@ -984,6 +1037,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->addObject(
 	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	//);
+
+	auto teapot_material = prefilteredDispMaterial;
 
 	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
