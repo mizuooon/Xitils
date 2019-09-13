@@ -57,7 +57,7 @@ namespace Xitils {
 	}
 
 	template <typename T> T sum(const std::vector<T>& src) {
-		return std::accumulate(src.begin(), src.end(), 0, [](T a, T b) { return a + b; });
+		return std::accumulate(src.begin(), src.end(), T(0), [](T a, T b) { return a + b; });
 	}
 
 	template <typename A, typename T> void filter(const A& src, A* dest, const std::function<bool(T)>& f) {

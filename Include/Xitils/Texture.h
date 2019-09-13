@@ -65,17 +65,14 @@ namespace Xitils {
 
 		Vector3f rgb(const Vector2f& uv) const {
 			if (filter) {
-				int x0 = uv.u * width + 0.5f;
-				int y0 = (1 - uv.v) * height + 0.5f;
+				int x0 = floorf(uv.u * width - 0.5f);
+				int y0 = floorf((1 - uv.v) * height - 0.5f);
 				int x1 = x0 + 1;
 				int y1 = y0 + 1;
-				float wx1 = (uv.u * width + 0.5f) - x0;
-				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
+				float wx1 = (uv.u * width - 0.5f) - x0;
+				float wy1 = ((1 - uv.v) * height - 0.5f) - y0;
 				float wx0 = 1.0f - wx1;
 				float wy0 = 1.0f - wy1;
-
-				warp(x0, y0);
-				warp(x1, y1);
 
 				return wx0 * wy0 * rgb(x0, y0)
 					+ wx0 * wy1 * rgb(x0, y1)
@@ -84,7 +81,6 @@ namespace Xitils {
 			} else {
 				int x = uv.u * width;
 				int y = (1 - uv.v) * height;
-				warp(x, y);
 				return rgb(x, y);
 			}
 		}
@@ -99,17 +95,14 @@ namespace Xitils {
 
 		Vector3f rgbDifferentialU(const Vector2f& uv) const {
 			if (filter) {
-				int x0 = uv.u * width + 0.5f;
-				int y0 = (1 - uv.v) * height + 0.5f;
+				int x0 = floorf(uv.u * width - 0.5f);
+				int y0 = floorf((1 - uv.v) * height - 0.5f);
 				int x1 = x0 + 1;
 				int y1 = y0 + 1;
-				float wx1 = (uv.u * width + 0.5f) - x0;
-				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
+				float wx1 = (uv.u * width - 0.5f) - x0;
+				float wy1 = ((1 - uv.v) * height - 0.5f) - y0;
 				float wx0 = 1.0f - wx1;
 				float wy0 = 1.0f - wy1;
-
-				warp(x0, y0);
-				warp(x1, y1);
 
 				return wx0 * wy0 * rgbDifferentialU(x0, y0)
 					+ wx0 * wy1 * rgbDifferentialU(x0, y1)
@@ -118,24 +111,20 @@ namespace Xitils {
 			} else {
 				int x = uv.u * width;
 				int y = (1 - uv.v) * height;
-				warp(x, y);
 				return rgbDifferentialU(x, y);
 			}
 		}
 
 		Vector3f rgbDifferentialV(const Vector2f& uv) const {
 			if (filter) {
-				int x0 = uv.u * width + 0.5f;
-				int y0 = (1 - uv.v) * height + 0.5f;
+				int x0 = floorf(uv.u * width - 0.5f);
+				int y0 = floorf((1 - uv.v) * height - 0.5f);
 				int x1 = x0 + 1;
 				int y1 = y0 + 1;
-				float wx1 = (uv.u * width + 0.5f) - x0;
-				float wy1 = ((1 - uv.v) * height + 0.5f) - y0;
+				float wx1 = (uv.u * width - 0.5f) - x0;
+				float wy1 = ((1 - uv.v) * height - 0.5f) - y0;
 				float wx0 = 1.0f - wx1;
 				float wy0 = 1.0f - wy1;
-
-				warp(x0, y0);
-				warp(x1, y1);
 
 				return wx0 * wy0 * rgbDifferentialV(x0, y0)
 					+ wx0 * wy1 * rgbDifferentialV(x0, y1)
@@ -144,7 +133,6 @@ namespace Xitils {
 			} else {
 				int x = uv.u * width;
 				int y = (1 - uv.v) * height;
-				warp(x, y);
 				return rgbDifferentialV(x, y);
 			}
 		}
@@ -156,7 +144,7 @@ namespace Xitils {
 		void warp(int& x, int& y) const {
 			if (warpClamp) {
 				x = clamp(x, 0, width - 1);
-				y = clamp(y, 0, width - 1);
+				y = clamp(y, 0, height - 1);
 			} else {
 				x %= width;
 				y %= height;

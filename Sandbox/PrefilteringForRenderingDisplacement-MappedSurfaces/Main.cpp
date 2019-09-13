@@ -11,6 +11,7 @@
 #include <Xitils/VonMisesFisherDistribution.h>
 #include <CinderImGui.h>
 
+#include <omp.h>
 
 using namespace Xitils;
 using namespace ci;
@@ -41,7 +42,7 @@ const int ShellMappingLayerNum = 16;
 class PlaneDisplaceMapped : public TriangleMesh {
 public:
 
-	PlaneDisplaceMapped(std::shared_ptr<Texture> displacement, float displacementScale) {
+	PlaneDisplaceMapped(std::shared_ptr<const Texture> displacement, float displacementScale) {
 
 		// xy と uv の座標が一致して、かつ z 方向を向くように平面を生成
 		// (0,0) - (1,1) の領域を中心として、uv 方向それぞれ 3 ループずつさせている
@@ -117,7 +118,7 @@ private:
 		Vector3f n = normalize(v);
 		if (n.z < 0) { n.z *= -1; }
 
-		if (n.x < 1e-6 && n.y < 1e-6) { return Vector2f(M_PI/2, 0.0f); }
+		if (n.x == 0.0f && n.y == 0.0f) { return Vector2f(M_PI/2, 0.0f); }
 
 		float theta = asinf(n.z); // [0, PI/2]
 		float phai = atan2(n.y, n.x); // [-PI, PI];
@@ -155,21 +156,28 @@ private:
 	void angleToIndexWeighted(const Vector2f& a, int* indices, float* weights) const {
 		float theta = a.x;
 		float phai = a.y;
+
+		ASSERT(inRange(theta, 0, M_PI / 2));
+		ASSERT(inRange(phai, 0, 2 * M_PI));
+
 		float thetaNormalized = (float)theta / (M_PI / 2);
 		float phaiNormalized = (float)phai / (2 * M_PI);
 
-		int thetaIndex0 = (int)(thetaNormalized * resolutionTheta - 0.5f);
-		int phaiIndex0 = (int)(phaiNormalized * resolutionPhai - 0.5f);
+		int thetaIndex0 = (int)floorf(thetaNormalized * resolutionTheta - 0.5f);
+		int phaiIndex0 = (int)floorf(phaiNormalized * resolutionPhai - 0.5f);
 		int thetaIndex1 = thetaIndex0 + 1;
 		int phaiIndex1 = phaiIndex0 + 1;
 
 		float wTheta1 = (thetaNormalized * resolutionTheta - 0.5f) - thetaIndex0;
 		float wPhai1 = (phaiNormalized * resolutionPhai - 0.5f) - phaiIndex0;
-		float wTheta0 = 1.0f - wTheta0;
-		float wPhai0 = 1.0f - wPhai0;
+		float wTheta0 = 1.0f - wTheta1;
+		float wPhai0 = 1.0f - wPhai1;
+
+		ASSERT(inRange01(wTheta1));
+		ASSERT(inRange01(wPhai1));
 
 		if (thetaIndex0 < 0) { thetaIndex0 = resolutionTheta - 1; }
-		if (thetaIndex1 >= resolutionTheta) { thetaIndex0 = 0; }
+		if (thetaIndex1 >= resolutionTheta) { thetaIndex1 = 0; }
 		phaiIndex0 = Xitils::clamp(phaiIndex0, 0, resolutionPhai - 1);
 		phaiIndex1 = Xitils::clamp(phaiIndex1, 0, resolutionPhai - 1);
 
@@ -199,8 +207,8 @@ public:
 	}
 
 	void positionToIndexWeighted(const Vector2f& p, int* indices, float* weights) const {
-		int uIndex0 = (int)(p.u * resolutionU - 0.5f);
-		int vIndex0 = (int)(p.v * resolutionV - 0.5f);
+		int uIndex0 = (int)floorf(p.u * resolutionU - 0.5f);
+		int vIndex0 = (int)floorf(p.v * resolutionV - 0.5f);
 		int uIndex1 = uIndex0 + 1;
 		int vIndex1 = vIndex0 + 1;
 
@@ -336,267 +344,22 @@ private:
 	SpatialParam paramPos;
 };
 
-class ScalingFunction {
-public:
-
-	ScalingFunction(Bounds2f texCoordsBound, int N = 2, int M = 1):
-		texCoordsBound(texCoordsBound),
-		N(N),
-		M(M),
-		S(N/2, N),
-		T(M, M)
-	{
-	}
-
-	void precalc(const Vector3f& C, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
-		estimateT(C, sceneLow, sceneOrig, sampler);
-		estimateS(sceneLow, sceneOrig, sampler);
-	}
-
-	Vector3f evalRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
-		return T.eval(texCoord, sampler)* S.eval(wi, wo, sampler);
-	}
-
-	Vector3f estimateRir(const Vector2f& p, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
-		Vector3f f_eff_low = estimateEffectiveBRDFLow(p, wi, wo, sceneLow, sampler);
-		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sceneOrig, sampler);
-		return Vector3f(
-			f_eff_low.x > 1e-6 ? f_eff_ir_orig.x / f_eff_low.x : 0.0f,
-			f_eff_low.y > 1e-6 ? f_eff_ir_orig.y / f_eff_low.y : 0.0f,
-			f_eff_low.z > 1e-6 ? f_eff_ir_orig.z / f_eff_low.z : 0.0f
-		);
-	}
-
-private:
-	Bounds2f texCoordsBound;
-	int N;
-	int M;
-	SpatialTable T;
-	AngularTable S;
-
-	void estimateT(const Vector3f& C, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
-		//printf("estimate T\n");
-
-		//int SampleNum = 5000;
-		int SampleNum = 50;
-		Vector3f n(0, 0, 1);
-		for (int i = 0; i < T.size(); ++i) {
-			T[i] = Vector3f(0.0f);
-			for (int sample = 0; sample < SampleNum; ++sample) {
-				Vector2f p = T.indexToPosition(i, sampler);
-
-				Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
-				Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
-				float prob_wi = clampPositive(dot(wi, n)) / M_PI;
-				float prob_wo = clampPositive(dot(wo, n)) / M_PI;
-
-				T[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / (prob_wi * prob_wo);
-			}
-			T[i] /= SampleNum;
-			T[i] /= C;
-
-			//printf("T[%d] = (%f, %f, %f)\n",i, T[i].r, T[i].g, T[i].b);
-		}
-	}
-
-	void estimateS(const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
-		//printf("estimate S\n");
-
-		//int SampleNum = 2500;
-		int SampleNum = 25;
-
-		for (int i = 0; i < S.size(); ++i) {
-			S[i] = Vector3f(0.0f);
-			for (int sample = 0; sample < SampleNum; ++sample){
-				Vector3f wi, wo;
-				S.indexToVector(i, &wi, &wo, sampler);
-				
-				Vector2f t = Vector2f(((i / M) % M + sampler.randf()) / M, ((i % M) + sampler.randf()) / M);
-				Vector2f p = texCoordsBound.lerp(t);
-				float prob_p = 1.0f / texCoordsBound.area();
-				float kernel_p = 1.0f / texCoordsBound.area();
-
-				if (!(inRange(p.u, texCoordsBound.min.u, texCoordsBound.max.u) && inRange(p.v, texCoordsBound.min.v, texCoordsBound.max.v))) {
-					printf("%d | %f %f | %f %f - %f %f | %f %f\n", i, t.u, t.v, texCoordsBound.min.u, texCoordsBound.min.v, texCoordsBound.max.u, texCoordsBound.max.v, p.u, p.v);
-				}
-
-				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) * kernel_p / prob_p;
-			}
-			S[i] /= SampleNum;
-
-			//printf("S[%d] = (%f, %f, %f)\n",i, S[i].r, S[i].g, S[i].b);
-		}
-	}
-
-	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
-		// IR は考慮しない
-
-		// p を含むパッチ
-		Bounds2f patch;
-		Vector2f boundSize = texCoordsBound.size();
-		Vector2f patchSize = boundSize / M;
-		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) / boundSize.u * M);
-		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) / boundSize.v * M);
-		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
-		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = ((float)patchIndexU / M) * boundSize.u + texCoordsBound.min.u;
-		patch.min.v = ((float)patchIndexV / M) * boundSize.v + texCoordsBound.min.v;
-		patch.max = patch.min + patchSize;
-
-		ASSERT(inRange(texelPos.u, patch.min.u, patch.max.u) && inRange(texelPos.v, patch.min.v, patch.max.v));
-		//printf("------------\n");
-		//printf("%f %f\n", texelPos.u, texelPos.v);
-		//printf("%f %f - %f %f\n", texCoordsBound.min.u, texCoordsBound.min.v, texCoordsBound.max.u, texCoordsBound.max.v);
-		//printf("%f %f - %f %f\n", patch.min.u, patch.min.v, patch.max.u, patch.max.v);
-
-		Vector3f res;
-
-		//const int Sample = 100; // 何回評価する？
-		const int Sample = 10;
-		const float RayOffset = 1e-6;
-		for (int s = 0; s < Sample; ++s) {
-
-			// texelPos を含むパッチ内で始点となる位置をサンプル
-			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
-			float prob_p = 1.0f / patch.area();
-			float kernel_p = 1.0f / patch.area();
-
-			Xitils::Ray ray;
-			ray.o = Vector3f(p.u, p.v, 99);
-			ray.d = Vector3f(0, 0, -1);
-			SurfaceInteraction isect;
-			bool hit = sceneLow.intersect(ray, &isect);
-			if (!hit) { printf("%f %f - %f %f | %f %f\n", patch.min.u, patch.max.u, patch.min.v, patch.max.v, p.u,  p.v); }
-			ASSERT(hit);
-
-			Xitils::Ray rayWo;
-			rayWo.d = wo;
-			rayWo.o = isect.p + rayWo.d * RayOffset;
-			if (sceneLow.intersectAny(rayWo)) { continue; }
-
-			Xitils::Ray rayWi;
-			rayWi.d = wi;
-			rayWi.o = isect.p + rayWi.d * RayOffset;
-			if (sceneLow.intersectAny(rayWi)) { continue; }
-
-			res += isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
-
-		}
-		res /= Sample;
-
-		//printf("estimateEffectiveBRDFLow: %f %f %f\n",res.r,res.g,res.b);
-
-		return res;
-	}
-
-	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
-		// IR を考慮する
-
-		// x を含むパッチ内で始点となる位置をサンプル
-
-		// p を含むパッチ
-		Bounds2f patch;
-		Vector2f boundSize = texCoordsBound.size();
-		Vector2f patchSize = boundSize / M;
-		int patchIndexU = (int)((texelPos.u - texCoordsBound.min.u) / boundSize.u * M);
-		int patchIndexV = (int)((texelPos.v - texCoordsBound.min.v) / boundSize.v * M);
-		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
-		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = ((float)patchIndexU / M) * boundSize.u + texCoordsBound.min.u;
-		patch.min.v = ((float)patchIndexV / M) * boundSize.v + texCoordsBound.min.v;
-		patch.max = patch.min + patchSize;
-
-		ASSERT(inRange(texelPos.u, patch.min.u, patch.max.u) && inRange(texelPos.v, patch.min.v, patch.max.v));
-
-		//printf("------------\n");
-		//printf("%f %f\n", texelPos.u, texelPos.v);
-		//printf("%f %f - %f %f\n", texCoordsBound.min.u, texCoordsBound.min.v, texCoordsBound.max.u, texCoordsBound.max.v);
-		//printf("%f %f - %f %f\n", patch.min.u, patch.min.v, patch.max.u, patch.max.v);
-
-		Vector3f res;
-
-		//const int Sample = 2500;
-		const int Sample = 1;
-		const float RayOffset = 1e-6;
-		for (int s = 0; s < Sample; ++s) {
-
-			// texelPos を含むパッチ内で始点となる位置をサンプル
-			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
-			float prob_p = 1.0f / patch.area();
-			float kernel_p = 1.0f / patch.area();
-
-			Xitils::Ray ray;
-			ray.o = Vector3f(p.u, p.v, 99);
-			ray.d = Vector3f(0, 0, -1);
-			SurfaceInteraction isect;
-			bool hit = sceneOrig.intersect(ray, &isect);
-			ASSERT(hit);
-
-			Xitils::Ray rayWo;
-			rayWo.d = wo;
-			rayWo.o = isect.p + rayWo.d * RayOffset;
-			if (sceneOrig.intersectAny(rayWo)) { continue; }
-
-			ray.tMax = Infinity;
-			SurfaceInteraction isectLow;
-			bool hitLow = sceneLow.intersect(ray, &isectLow);
-			ASSERT(hitLow);
-
-			const Vector3f& wg = isect.n;
-			const Vector3f& wn = isectLow.shading.n;
-			float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
-
-			const Vector3f& wm = isect.shading.n;
-			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
-
-			if (A_G_wo > 1e-6) {
-				Vector3f weight(1.0f);
-				int pathLength = 1;
-
-				weight *= A_G_p_wo / A_G_wo * kernel_p / prob_p;
-
-				while (true) {
-					//printf("%d\n",pathLength);
-
-					Xitils::Ray rayWi;
-					rayWi.d = wi;
-					rayWi.o = isect.p + rayWi.d * RayOffset;
-					if (!sceneOrig.intersectAny(rayWi)) {
-						res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
-					}
-
-					Xitils::Ray rayNext;
-					float pdf;
-					weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
-					rayNext.o = isect.p + rayNext.d * RayOffset;
-					if (!sceneOrig.intersect(rayNext, &isect)) { break; }
-
-					++pathLength;
-					if (pathLength > 10 || weight.isZero()) { break; }
-				}
-			}
-
-		}
-		res /= Sample;
-
-		//printf("%f %f %f\n",res.r,res.g,res.b);
-
-		return res;
-	}
-};
-
 class SVNDF {
 public:
 	int resolutionU, resolutionV;
 	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
 	
 	Vector3f sampleNormal(const Vector2f& texCoord, Sampler& sampler) const {
-		int x0 = texCoord.u * resolutionU - 0.5f;
-		int y0 = (1 - texCoord.v) * resolutionV - 0.5f;
+		Vector2f normalizedUV = texCoord;
+		normalizedUV.u = normalizedUV.u - floorf(normalizedUV.u);
+		normalizedUV.v = normalizedUV.v - floorf(normalizedUV.v);
+
+		int x0 = normalizedUV.u * resolutionU - 0.5f;
+		int y0 = (1 - normalizedUV.v) * resolutionV - 0.5f;
 		int x1 = x0 + 1;
 		int y1 = y0 + 1;
-		float wx1 = (texCoord.u * resolutionU - 0.5f) - x0;
-		float wy1 = ((1 - texCoord.v) * resolutionV - 0.5f) - y0;
+		float wx1 = (normalizedUV.u * resolutionU - 0.5f) - x0;
+		float wy1 = ((1 - normalizedUV.v) * resolutionV - 0.5f) - y0;
 
 		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
 		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
@@ -617,6 +380,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 	auto texLow = std::make_shared<Texture>(
 		(texOrig->getWidth() + DownSamplingRate - 1) / DownSamplingRate,
 		(texOrig->getHeight() + DownSamplingRate - 1) / DownSamplingRate);
+	texLow->warpClamp = texOrig->warpClamp;
 
 	svndf->resolutionU = texLow->getWidth();
 	svndf->resolutionV = texLow->getHeight();
@@ -734,13 +498,17 @@ private:
 class PrefilteredDisplaceMapping : public Material {
 public:
 
+	const int M = 1;
+	const int N = 8;
+
 	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale, float displacementScaleForPrecalc):
+		T(M, M),
+		S(N/2, N),
 		baseMaterial(baseMaterial),
 		displacementTexOrig(displacementTexOrig),
 		displacementScale(displacementScale),
 		svndf(std::make_shared<SVNDF>())
 	{
-		std::shared_ptr<Sampler> sampler = std::make_shared<Sampler>(0);
 
 		displacementTexLow = downsampleDisplacementTexture(displacementTexOrig, displacementScale, svndf);
 		multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, displacementTexLow, displacementScale, svndf);
@@ -755,33 +523,8 @@ public:
 		sceneOrig->addObject(std::make_shared<Object>(planeOrig, baseMaterial, Xitils::Transform()));
 		sceneOrig->buildAccelerationStructure();
 
-		int resU = displacementTexLow->getWidth();
-		int resV = displacementTexLow->getHeight();
-		scalingFunctions.resize(resU * resV);
-		for (int y = 0; y < resV; ++y) {
-			printf("%d / %d\n", y+1, resV);
-			for (int x = 0; x < resU; ++x) {
-				int index = y * displacementTexLow->getWidth() + x;
-				Bounds2f b;
-				b.min = Vector2f((float)x / resU, (float)(resV - y - 1) / resV);
-				b.max = Vector2f((float)(x + 1) / resU, (float)(resV - y) / resV);
-				scalingFunctions[index] = std::make_shared<ScalingFunction>(b);
-			}
-		}
-
-		Vector3f C = estimateC(*sceneLow, *sceneOrig, *sampler);
-
-		printf("C = (%f, %f %f)\n", C.r, C.g, C.b);
-
-#pragma omp parallel for schedule(dynamic, 1)
-		for (int y = 0; y < resV; ++y) {
-			printf("%d / %d\n", y + 1, resV);
-#pragma omp parallel for schedule(dynamic, 1)
-			for (int x = 0; x < resU; ++x) {
-				int index = y * displacementTexLow->getWidth() + x;
-				scalingFunctions[index]->precalc(C, *sceneLow, *sceneOrig, *sampler);
-			}
-		}
+		estimateT(*sceneLow, *sceneOrig);
+		estimateS(*sceneLow, *sceneOrig);
 
 	}
 
@@ -808,108 +551,303 @@ public:
 	}
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
-
-		// TODO
-
-		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
-	}
-
-	Vector3f estimateC(const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) {
-		Vector3f C(0.0f);
-		int SampleNum = 2500;
-		//int SampleNum = 25;
-
-		Vector3f n(0, 0, 1);
-
-		for (int sample = 0; sample < SampleNum; ++sample) {
-			Vector2f p( sampler.randf(), sampler.randf() );
-			float prob_p = 1.0f;
-
-			Vector3f wi = sampleVectorFromCosinedHemiSphere(n, sampler);
-			Vector3f wo = sampleVectorFromCosinedHemiSphere(n, sampler);
-			float prob_wi = clampPositive(dot(wi, n)) / M_PI;
-			float prob_wo = clampPositive(dot(wo, n)) / M_PI;
-
-			C += estimateRir(p, wi, wo, sceneLow, sceneOrig, sampler) / (prob_p * prob_wi * prob_wo);
-		}
-		C /= SampleNum;
-		return C;
+		return multiLobeSVBRDF->pdf(isect, wi);
 	}
 
 	std::shared_ptr<const Texture> getDisplacementTextureLow() { return displacementTexLow; }
 	std::shared_ptr<MultiLobeSVBRDF> getMutliLobeSVBRDF() { return multiLobeSVBRDF; }
 
 private:
+	SpatialTable T;
+	AngularTable S;
+
 	std::shared_ptr<Material> baseMaterial;
 	std::shared_ptr<Texture> displacementTexOrig;
 	std::shared_ptr<Texture> displacementTexLow;
 	std::shared_ptr<MultiLobeSVBRDF> multiLobeSVBRDF;
 	float displacementScale;
 	std::shared_ptr<SVNDF> svndf;
-	Vector3f estimatedC;
-	std::vector<std::shared_ptr<ScalingFunction>> scalingFunctions; // ダウンサンプリング後の各テクセルに対応するスケーリング関数
 
-	Vector3f estimateRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
-		//int resolutionU = displacementTexLow->getWidth();
-		//int resolutionV = displacementTexLow->getHeight();
-
-		//int x0 = texCoord.u * resolutionU + 0.5f;
-		//int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
-		//int x1 = x0 + 1;
-		//int y1 = y0 + 1;
-		//float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
-		//float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
-
-		//x0 = Xitils::clamp(x0, 0, resolutionU - 1);
-		//x1 = Xitils::clamp(x1, 0, resolutionU - 1);
-		//y0 = Xitils::clamp(y0, 0, resolutionV - 1);
-		//y1 = Xitils::clamp(y1, 0, resolutionV - 1);
-
-		//int x = (sampler.randf() <= wx1) ? x1 : x0;
-		//int y = (sampler.randf() <= wy1) ? y1 : y0;
-
-		//return scalingFunctions[y * resolutionU + x]->estimateRir(texCoord, wi, wo, sceneLow, sceneOrig, sampler);
-
-		int resolutionU = displacementTexLow->getWidth();
-		int resolutionV = displacementTexLow->getHeight();
-		int x = texCoord.u * resolutionU;
-		int y = (1 - texCoord.v) * resolutionV;
-		x = Xitils::clamp(x, 0, resolutionU - 1);
-		y = Xitils::clamp(y, 0, resolutionV - 1);
-		return scalingFunctions[y * resolutionU + x]->estimateRir(texCoord, wi, wo, sceneLow, sceneOrig, sampler);
+	Vector3f evalRir(Vector2f texCoord, const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
+		normalizeUV(texCoord);
+		return T.eval(texCoord, sampler) * S.eval(wi, wo, sampler);
 	}
 
-
-	Vector3f evalRir(const Vector2f& texCoord, const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
-		//int resolutionU = displacementTexLow->getWidth();
-		//int resolutionV = displacementTexLow->getHeight();
-
-		//int x0 = texCoord.u * resolutionU + 0.5f;
-		//int y0 = (1 - texCoord.v) * resolutionV + 0.5f;
-		//int x1 = x0 + 1;
-		//int y1 = y0 + 1;
-		//float wx1 = (texCoord.u * resolutionU + 0.5f) - x0;
-		//float wy1 = ((1 - texCoord.v) * resolutionV + 0.5f) - y0;
-
-		//x0 = Xitils::clamp(x0, 0, resolutionU - 1);
-		//x1 = Xitils::clamp(x1, 0, resolutionU - 1);
-		//y0 = Xitils::clamp(y0, 0, resolutionV - 1);
-		//y1 = Xitils::clamp(y1, 0, resolutionV - 1);
-
-		//int x = (sampler.randf() <= wx1) ? x1 : x0;
-		//int y = (sampler.randf() <= wy1) ? y1 : y0;
-
-		//return scalingFunctions[y * resolutionU + x]->evalRir(texCoord, wi, wo, sampler);
-
-		int resolutionU = displacementTexLow->getWidth();
-		int resolutionV = displacementTexLow->getHeight();
-		int x = texCoord.u * resolutionU;
-		int y = (1 - texCoord.v) * resolutionV;
-		x = Xitils::clamp(x, 0, resolutionU - 1);
-		y = Xitils::clamp(y, 0, resolutionV - 1);
-		return scalingFunctions[y * resolutionU + x]->evalRir(texCoord, wi, wo, sampler);
+	Vector3f estimateRir(Vector2f p, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+		normalizeUV(p);
+		Vector3f f_eff_low = estimateEffectiveBRDFLow(p, wi, wo, sceneLow, sampler);
+		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sceneOrig, sampler);
+		return Vector3f(
+			f_eff_low.x > 1e-6 ? f_eff_ir_orig.x / f_eff_low.x : 0.0f,
+			f_eff_low.y > 1e-6 ? f_eff_ir_orig.y / f_eff_low.y : 0.0f,
+			f_eff_low.z > 1e-6 ? f_eff_ir_orig.z / f_eff_low.z : 0.0f
+		);
 	}
 
+	void normalizeUV(Vector2f& uv) const {
+		uv.u = uv.u - floorf(uv.u);
+		uv.v = uv.v - floorf(uv.v);
+	}
+
+	void estimateT(const Scene& sceneLow, const Scene& sceneOrig) {
+
+		Vector3f C = estimateC(sceneLow, sceneOrig);
+		printf("C = (%f, %f %f)\n", C.r, C.g, C.b);
+
+		//printf("estimate T\n");
+
+		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
+		for (int i = 0; i < samplers.size(); ++i) {
+			samplers[i] = std::make_shared<Sampler>(i);
+		}
+
+		//int SampleNum = 5000;
+		int SampleNum = 2500;
+		Vector3f n(0, 0, 1);
+#pragma omp parallel for schedule(dynamic, 1)
+		for (int i = 0; i < T.size(); ++i) {
+			T[i] = Vector3f(0.0f);
+			for (int sample = 0; sample < SampleNum; ++sample) {
+				Vector2f p = T.indexToPosition(i, *samplers[omp_get_thread_num()]);
+
+				Vector3f wi = sampleVectorFromCosinedHemiSphere(n, *samplers[omp_get_thread_num()]);
+				Vector3f wo = sampleVectorFromCosinedHemiSphere(n, *samplers[omp_get_thread_num()]);
+				float prob_wi = clampPositive(dot(wi, n)) / M_PI;
+				float prob_wo = clampPositive(dot(wo, n)) / M_PI;
+
+				T[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *samplers[omp_get_thread_num()]) / (prob_wi * prob_wo);
+			}
+			T[i] /= SampleNum;
+			T[i] /= C;
+
+			if (M == 1) { T[i] = Vector3f(1.0f); } ////////////////////////////**********************************************************
+
+			printf("T[%d] = (%f, %f, %f)\n",i, T[i].r, T[i].g, T[i].b);
+		}
+	}
+
+	void estimateS(const Scene& sceneLow, const Scene& sceneOrig) {
+		//printf("estimate S\n");
+
+		//int SampleNum = 2500;
+		int SampleNum = 25;
+
+		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
+		for (int i = 0; i < samplers.size(); ++i) {
+			samplers[i] = std::make_shared<Sampler>(i);
+		}
+
+#pragma omp parallel for schedule(dynamic, 1)
+		for (int i = 0; i < S.size(); ++i) {
+			S[i] = Vector3f(0.0f);
+			for (int sample = 0; sample < SampleNum; ++sample) {
+				Vector3f wi, wo;
+				S.indexToVector(i, &wi, &wo, *samplers[omp_get_thread_num()]);
+
+				auto& sampler = samplers[omp_get_thread_num()];
+				Vector2f t = Vector2f(((i / M) % M + sampler->randf()) / M, ((i % M) + sampler->randf()) / M);
+				Vector2f p = Vector2f(sampler->randf(), sampler->randf() );
+				float prob_p = 1.0f;
+				float kernel_p = 1.0f;
+
+				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *sampler) * kernel_p / prob_p;
+
+			}
+			S[i] /= SampleNum;
+
+			printf("S[%d] = (%f, %f, %f)\n",i, S[i].r, S[i].g, S[i].b);
+		}
+	}
+
+	Vector3f estimateC(const Scene& sceneLow, const Scene& sceneOrig) {
+		Vector3f C(0.0f);
+		int SampleNum = 2500;
+		//int SampleNum = 25;
+
+		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
+		for (int i = 0; i < samplers.size(); ++i) {
+			samplers[i] = std::make_shared<Sampler>(i);
+		}
+		std::vector<Vector3f> CPerThread(omp_get_max_threads());
+
+		Vector3f n(0, 0, 1);
+
+#pragma omp parallel for schedule(dynamic, 1)
+		for (int sample = 0; sample < SampleNum; ++sample) {
+			auto& sampler = samplers[omp_get_thread_num()];
+			Vector2f p(sampler->randf(), sampler->randf());
+			float prob_p = 1.0f;
+
+			Vector3f wi = sampleVectorFromCosinedHemiSphere(n, *sampler);
+			Vector3f wo = sampleVectorFromCosinedHemiSphere(n, *sampler);
+			float prob_wi = clampPositive(dot(wi, n)) / M_PI;
+			float prob_wo = clampPositive(dot(wo, n)) / M_PI;
+
+			CPerThread[omp_get_thread_num()] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *sampler) / (prob_p * prob_wi * prob_wo);
+		}
+
+		C = sum(CPerThread);
+
+		C /= SampleNum;
+		return C;
+	}
+
+	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
+		// IR は考慮しない
+
+		// p を含むパッチ
+		Bounds2f patch;
+		Vector2f patchSize = Vector2f( 1.0f ) / M;
+		int patchIndexU = (int)(texelPos.u / patchSize.u * M);
+		int patchIndexV = (int)(texelPos.v / patchSize.v * M);
+		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
+		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
+		patch.min.u = (float)patchIndexU / M;
+		patch.min.v = (float)patchIndexV / M;
+		patch.max = patch.min + patchSize;
+
+		Vector3f res;
+
+		//const int Sample = 100; // 何回評価する？
+		const int Sample = 100;
+		const float RayOffset = 1e-6;
+		for (int s = 0; s < Sample; ++s) {
+
+			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
+			float prob_p = 1.0f / patch.area();
+			float kernel_p = 1.0f / patch.area();
+
+			Xitils::Ray ray;
+			ray.o = Vector3f(p.u, p.v, 99);
+			ray.d = Vector3f(0, 0, -1);
+			SurfaceInteraction isect;
+			//bool hit = sceneLow.intersect(ray, &isect);
+			//if (!hit) { printf("%f %f - %f %f | %f %f\n", patch.min.u, patch.max.u, patch.min.v, patch.max.v, p.u, p.v); }
+			//ASSERT(hit);
+			bool hit = false;
+			ray.d = -wo;
+			BasisVectors basis(ray.d);
+			while (!hit) {
+				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
+				hit = sceneLow.intersect(ray, &isect);
+			}
+
+
+			//Xitils::Ray rayWo;
+			//rayWo.d = wo;
+			//rayWo.o = isect.p + rayWo.d * RayOffset;
+			//if (sceneLow.intersectAny(rayWo)) { continue; }
+
+			Xitils::Ray rayWi;
+			rayWi.d = wi;
+			rayWi.o = isect.p + rayWi.d * RayOffset;
+			if (sceneLow.intersectAny(rayWi)) { continue; }
+
+			res += isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
+
+		}
+		res /= Sample;
+
+		//printf("estimateEffectiveBRDFLow: %f %f %f\n",res.r,res.g,res.b);
+
+		return res;
+	}
+
+	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+		// IR を考慮する
+
+		// x を含むパッチ内で始点となる位置をサンプル
+
+		// p を含むパッチ
+		Bounds2f patch;
+		Vector2f patchSize = Vector2f(1.0f) / M;
+		int patchIndexU = (int)(texelPos.u / patchSize.u * M);
+		int patchIndexV = (int)(texelPos.v / patchSize.v * M);
+		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
+		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
+		patch.min.u = (float)patchIndexU / M;
+		patch.min.v = (float)patchIndexV / M;
+		patch.max = patch.min + patchSize;
+
+		Vector3f res;
+
+		//const int Sample = 2500;
+		const int Sample = 100;
+		const float RayOffset = 1e-6;
+		for (int s = 0; s < Sample; ++s) {
+
+			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
+			float prob_p = 1.0f / patch.area();
+			float kernel_p = 1.0f / patch.area();
+
+			Xitils::Ray ray;
+			ray.o = Vector3f(p.u, p.v, 99);
+			ray.d = Vector3f(0, 0, -1);
+			SurfaceInteraction isect;
+			//bool hit = sceneOrig.intersect(ray, &isect);
+			//ASSERT(hit);
+			bool hit = false;
+			ray.d = -wo;
+			BasisVectors basis(ray.d);
+			while (!hit) {
+				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
+				hit = sceneLow.intersect(ray, &isect);
+			}
+
+			//Xitils::Ray rayWo;
+			//rayWo.d = wo;
+			//rayWo.o = isect.p + rayWo.d * RayOffset;
+			//if (sceneOrig.intersectAny(rayWo)) { continue; }
+
+			ray.tMax = Infinity;
+			SurfaceInteraction isectLow;
+			bool hitLow = sceneLow.intersect(ray, &isectLow);
+			ASSERT(hitLow);
+
+			//const Vector3f& wg = isect.n;
+			//const Vector3f& wn = isectLow.shading.n;
+			//float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
+
+			//const Vector3f& wm = isect.shading.n;
+			//float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
+
+			//if (A_G_wo > 1e-6) {
+				Vector3f weight(1.0f);
+				int pathLength = 1;
+
+				//weight *= A_G_p_wo / A_G_wo;
+				weight *= kernel_p / prob_p;
+
+				while (true) {
+					//printf("%d\n",pathLength);
+
+					Xitils::Ray rayWi;
+					rayWi.d = wi;
+					rayWi.o = isect.p + rayWi.d * RayOffset;
+					if (!sceneOrig.intersectAny(rayWi)) {
+						res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
+					}
+
+					Xitils::Ray rayNext;
+					float pdf;
+					weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
+					rayNext.o = isect.p + rayNext.d * RayOffset;
+					if (!sceneOrig.intersect(rayNext, &isect)) { break; }
+
+					++pathLength;
+					if (pathLength > 20 || weight.isZero()) { break; }
+				}
+			//}
+
+		}
+		res /= Sample;
+
+		//printf("%f %f %f\n",res.r,res.g,res.b);
+
+		return res;
+	}
 };
 
 
@@ -985,7 +923,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto teapot_basematerial = std::make_shared<Diffuse>(Vector3f(0.8f));
 
-	float dispScale = 0.01f;
+	//float dispScale = 0.01f;
+	//float dispScaleForPreCalc = 0.02f;
+	float dispScale = 0.02f;
 	float dispScaleForPreCalc = 0.02f;
 	auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
 	dispTexOrig->warpClamp = false;
@@ -995,7 +935,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	//teapotMesh->setGeometry(teapotMeshData);
-	teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
+	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
 	//auto material = std::make_shared<SpecularFresnel>();
 	//material->index = 1.2f;
 
@@ -1026,10 +966,6 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	);
 
 
-	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispmap, 0.02f);
-	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, diffuse_white, transformTRS(Vector3f(0, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
-	//);
 
 	//scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
 	//	transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
@@ -1037,12 +973,24 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->addObject(
 	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
 	//);
+	
+	//auto svndf = std::make_shared<SVNDF>();
+	//auto displacementTexLow = downsampleDisplacementTexture(dispTexOrig, dispScale, svndf);
+	//auto svbrdf = std::shared_ptr<MultiLobeSVBRDF>(new MultiLobeSVBRDF(teapot_basematerial, displacementTexLow,  dispScale, svndf ));
+	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(svbrdf->displacementTexLow, dispScale);
+	//scene->addObject(
+	//	std::make_shared<Object>(planeDisp, svbrdf, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
+	//);
 
-	auto teapot_material = prefilteredDispMaterial;
+	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
+	scene->addObject(
+		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
+	);
 
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
-		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
-		));
+	//auto teapot_material = prefilteredDispMaterial;
+	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
+	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
 
 	scene->buildAccelerationStructure();
 
