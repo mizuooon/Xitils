@@ -784,4 +784,9 @@ namespace Xitils {
 		return basis.toGlobal(safeSqrt(1.0f - u), r * cosf(theta), r * sinf(theta));
 	}
 
+	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	float rgbToLuminance(const Vector3f& v) {
+		return 0.298912f * v.r + 0.586611f * v.g + 0.114478f * v.b;
+	}
 }

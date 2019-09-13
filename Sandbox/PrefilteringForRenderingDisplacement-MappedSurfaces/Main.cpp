@@ -25,19 +25,8 @@ const int ShellMappingLayerNum = 16;
 
 
 // TODO
-// - テクスチャ解像度に合わせたポリゴン分割をしている plane の作成
-//     - その plane はテクスチャをループさせる
-// - テクスチャの指定した uv 領域での 実効BRDF 測定 (低解像度と高解像度)
 // - 評価したデータの保存、読み込み
-// - 処理の並列化
 
-// plane をシーン化して、TextureDownsampled に渡す
-// シーンはスレッドセーフなので、DownsampledTexel 間で共有できる
-
-// the concentric mapping
-
-// angular resolution 15^2
-// spatial resolution 4^2
 
 class PlaneDisplaceMapped : public TriangleMesh {
 public:
@@ -508,7 +497,7 @@ class PrefilteredDisplaceMapping : public Material {
 public:
 
 	const int M = 1;
-	const int N = 8;
+	const int N = 16;
 
 	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale, float displacementScaleForPrecalc):
 		T(M, M),
@@ -541,8 +530,8 @@ public:
 
 		// TODO::::::::::::::::::::::::: wo, wi の座標変換
 		// tangent, bitangent, normal ?
-		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi)).normalize();
-		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo)).normalize();
+		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi));
+		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
 		return multiLobeSVBRDF->bsdfCos(isect, sampler, wi) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
@@ -553,8 +542,8 @@ public:
 
 		// TODO::::::::::::::::::::::::: wo, wi の座標変換
 		// tangent, bitangent, normal ?
-		Vector3f wiLocal = Vector3f(dot(isect.tangent, *wi), dot(isect.bitangent, *wi), dot(isect.n, *wi)).normalize();
-		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo)).normalize();
+		Vector3f wiLocal = Vector3f(dot(isect.tangent, *wi), dot(isect.bitangent, *wi), dot(isect.n, *wi));
+		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
 		return eval * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
@@ -942,17 +931,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//	std::make_shared<Object>(planeDisp, svbrdf, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
 	//);
 
-	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
-	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
-	//);
+	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
+	scene->addObject(
+		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+	);
 
-	auto teapotMesh = std::make_shared<TriangleMesh>();
-	teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
-	auto teapot_material = prefilteredDispMaterial;
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
-		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
-		));
+	//auto teapotMesh = std::make_shared<TriangleMesh>();
+	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
+	//auto teapot_material = prefilteredDispMaterial;
+	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
+	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
 
 	scene->buildAccelerationStructure();
 

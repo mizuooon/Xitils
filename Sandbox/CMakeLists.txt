@@ -85,3 +85,5 @@ add_subdirectory(Microfacet-basedNormalMapping)
 add_subdirectory(VonMisesFisherDistribution)
 
 add_subdirectory(PrefilteringForRenderingDisplacement-MappedSurfaces)
+
+add_subdirectory(VisualizeError)
