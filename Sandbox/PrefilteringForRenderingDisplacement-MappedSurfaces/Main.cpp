@@ -118,7 +118,8 @@ private:
 		Vector3f n = normalize(v);
 		if (n.z < 0) { n.z *= -1; }
 
-		if (n.x == 0.0f && n.y == 0.0f) { return Vector2f(M_PI/2, 0.0f); }
+		if (n.x == 0.0f && n.y == 0.0f) { return Vector2f(M_PI / 2, 0.0f); }
+		//if (n.x < 1e-6 && n.y < 1e-6) { return Vector2f(M_PI / 2, 0.0f); }
 
 		float theta = asinf(n.z); // [0, PI/2]
 		float phai = atan2(n.y, n.x); // [-PI, PI];
@@ -176,8 +177,8 @@ private:
 		ASSERT(inRange01(wTheta1));
 		ASSERT(inRange01(wPhai1));
 
-		if (thetaIndex0 < 0) { thetaIndex0 = resolutionTheta - 1; }
-		if (thetaIndex1 >= resolutionTheta) { thetaIndex1 = 0; }
+		if (thetaIndex0 < 0) { thetaIndex0 = 0; }
+		if (thetaIndex1 >= resolutionTheta) { thetaIndex1 = resolutionTheta - 1; }
 		phaiIndex0 = Xitils::clamp(phaiIndex0, 0, resolutionPhai - 1);
 		phaiIndex1 = Xitils::clamp(phaiIndex1, 0, resolutionPhai - 1);
 
@@ -267,6 +268,7 @@ public:
 	// (実装上では、確率的に bin を読んでいるだけ)
 	// 読み出し用
 	Vector3f eval(const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
+
 		std::vector<int> indicesWi(4);
 		std::vector<float> weightsWi(4);
 		paramWi.vectorToIndexWeighted(wi, indicesWi.data(), weightsWi.data());
@@ -375,7 +377,10 @@ public:
 
 std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::shared_ptr<SVNDF> svndf) {
 
-	Sampler sampler(0);
+	std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
+	for (int i = 0; i < samplers.size(); ++i) {
+		samplers[i] = std::make_shared<Sampler>(i);
+	}
 
 	auto texLow = std::make_shared<Texture>(
 		(texOrig->getWidth() + DownSamplingRate - 1) / DownSamplingRate,
@@ -390,8 +395,12 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 	// texLow の初期値は普通に texOrig をダウンサンプリングした値
 
 	std::vector<Vector2f> ave_slope_orig(texLow->getWidth() * texLow->getHeight());
+#pragma omp parallel for schedule(dynamic, 1)
 	for (int py = 0; py < texLow->getHeight(); ++py) {
+#pragma omp parallel for schedule(dynamic, 1)
 		for (int px = 0; px < texLow->getWidth(); ++px) {
+
+			auto& sampler = samplers[omp_get_thread_num()];
 
 			int count = 0;
 			std::vector<Vector3f> normals;
@@ -418,7 +427,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 			ave_slope_orig[py * texLow->getWidth() + px] /= count;
 			texLow->r(px, py) /= count;
 
-			svndf->vmfs[py * texLow->getWidth() + px] = VonMisesFisherDistribution<VMFLobeNum>::approximateBySEM(normals, sampler);
+			svndf->vmfs[py * texLow->getWidth() + px] = VonMisesFisherDistribution<VMFLobeNum>::approximateBySEM(normals, *sampler);
 		}
 	}
 
@@ -591,11 +600,6 @@ private:
 
 	void estimateT(const Scene& sceneLow, const Scene& sceneOrig) {
 
-		Vector3f C = estimateC(sceneLow, sceneOrig);
-		printf("C = (%f, %f %f)\n", C.r, C.g, C.b);
-
-		//printf("estimate T\n");
-
 		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
 		for (int i = 0; i < samplers.size(); ++i) {
 			samplers[i] = std::make_shared<Sampler>(i);
@@ -618,12 +622,18 @@ private:
 				T[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *samplers[omp_get_thread_num()]) / (prob_wi * prob_wo);
 			}
 			T[i] /= SampleNum;
-			T[i] /= C;
-
-			if (M == 1) { T[i] = Vector3f(1.0f); } ////////////////////////////**********************************************************
-
-			printf("T[%d] = (%f, %f, %f)\n",i, T[i].r, T[i].g, T[i].b);
 		}
+
+		Vector3f C(0.0f);
+		for (int i = 0; i < T.size(); ++i) {
+			C += T[i];
+		}
+		C /= T.size();
+		for (int i = 0; i < T.size(); ++i) {
+			T[i] /= C;
+			printf("T[%d] = (%f, %f, %f)\n", i, T[i].r, T[i].g, T[i].b);
+		}
+
 	}
 
 	void estimateS(const Scene& sceneLow, const Scene& sceneOrig) {
@@ -651,45 +661,11 @@ private:
 				float kernel_p = 1.0f;
 
 				S[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *sampler) * kernel_p / prob_p;
-
 			}
 			S[i] /= SampleNum;
 
 			printf("S[%d] = (%f, %f, %f)\n",i, S[i].r, S[i].g, S[i].b);
 		}
-	}
-
-	Vector3f estimateC(const Scene& sceneLow, const Scene& sceneOrig) {
-		Vector3f C(0.0f);
-		int SampleNum = 2500;
-		//int SampleNum = 25;
-
-		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
-		for (int i = 0; i < samplers.size(); ++i) {
-			samplers[i] = std::make_shared<Sampler>(i);
-		}
-		std::vector<Vector3f> CPerThread(omp_get_max_threads());
-
-		Vector3f n(0, 0, 1);
-
-#pragma omp parallel for schedule(dynamic, 1)
-		for (int sample = 0; sample < SampleNum; ++sample) {
-			auto& sampler = samplers[omp_get_thread_num()];
-			Vector2f p(sampler->randf(), sampler->randf());
-			float prob_p = 1.0f;
-
-			Vector3f wi = sampleVectorFromCosinedHemiSphere(n, *sampler);
-			Vector3f wo = sampleVectorFromCosinedHemiSphere(n, *sampler);
-			float prob_wi = clampPositive(dot(wi, n)) / M_PI;
-			float prob_wo = clampPositive(dot(wo, n)) / M_PI;
-
-			CPerThread[omp_get_thread_num()] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *sampler) / (prob_p * prob_wi * prob_wo);
-		}
-
-		C = sum(CPerThread);
-
-		C /= SampleNum;
-		return C;
 	}
 
 	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
@@ -733,16 +709,15 @@ private:
 				hit = sceneLow.intersect(ray, &isect);
 			}
 
-
-			//Xitils::Ray rayWo;
-			//rayWo.d = wo;
-			//rayWo.o = isect.p + rayWo.d * RayOffset;
-			//if (sceneLow.intersectAny(rayWo)) { continue; }
+			Xitils::Ray rayWo;
+			rayWo.d = wo;
+			rayWo.o = isect.p + rayWo.d * RayOffset;
+			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
 
 			Xitils::Ray rayWi;
 			rayWi.d = wi;
 			rayWi.o = isect.p + rayWi.d * RayOffset;
-			if (sceneLow.intersectAny(rayWi)) { continue; }
+			if (dot(wi, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWi)) { continue; }
 
 			res += isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
 
@@ -793,18 +768,18 @@ private:
 			BasisVectors basis(ray.d);
 			while (!hit) {
 				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
-				hit = sceneLow.intersect(ray, &isect);
+				hit = sceneOrig.intersect(ray, &isect);
 			}
 
 			//Xitils::Ray rayWo;
 			//rayWo.d = wo;
 			//rayWo.o = isect.p + rayWo.d * RayOffset;
-			//if (sceneOrig.intersectAny(rayWo)) { continue; }
+			//if (dot(wo, isect.shading.n) <= 0.0f || sceneOrig.intersectAny(rayWo)) { continue; }
 
-			ray.tMax = Infinity;
-			SurfaceInteraction isectLow;
-			bool hitLow = sceneLow.intersect(ray, &isectLow);
-			ASSERT(hitLow);
+			//ray.tMax = Infinity;
+			//SurfaceInteraction isectLow;
+			//bool hitLow = sceneLow.intersect(ray, &isectLow);
+			//ASSERT(hitLow);
 
 			//const Vector3f& wg = isect.n;
 			//const Vector3f& wn = isectLow.shading.n;
@@ -826,7 +801,7 @@ private:
 					Xitils::Ray rayWi;
 					rayWi.d = wi;
 					rayWi.o = isect.p + rayWi.d * RayOffset;
-					if (!sceneOrig.intersectAny(rayWi)) {
+					if (dot(wi, isect.shading.n) > 0.0f && !sceneOrig.intersectAny(rayWi)) {
 						res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
 					}
 
@@ -923,21 +898,15 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	auto teapot_basematerial = std::make_shared<Diffuse>(Vector3f(0.8f));
 
-	//float dispScale = 0.01f;
+	float dispScale = 0.01f;
+	float dispScaleForPreCalc = 0.01f;
+	//float dispScale = 0.02f;
 	//float dispScaleForPreCalc = 0.02f;
-	float dispScale = 0.02f;
-	float dispScaleForPreCalc = 0.02f;
 	auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
 	dispTexOrig->warpClamp = false;
 
 
 	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
-
-	auto teapotMesh = std::make_shared<TriangleMesh>();
-	//teapotMesh->setGeometry(teapotMeshData);
-	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
-	//auto material = std::make_shared<SpecularFresnel>();
-	//material->index = 1.2f;
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
 	
@@ -965,15 +934,6 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-
-
-	//scene->addObject(std::make_shared<Object>(teapotMesh, diffuse_white,
-	//	transformTRS(Vector3f(0.8f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1, 1, 1)
-	//	)));
-	//scene->addObject(
-	//	std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(-0.8f, 0.5f, 0.5f), Vector3f(0,30,0), Vector3f(1,1,1)))
-	//);
-	
 	//auto svndf = std::make_shared<SVNDF>();
 	//auto displacementTexLow = downsampleDisplacementTexture(dispTexOrig, dispScale, svndf);
 	//auto svbrdf = std::shared_ptr<MultiLobeSVBRDF>(new MultiLobeSVBRDF(teapot_basematerial, displacementTexLow,  dispScale, svndf ));
@@ -982,15 +942,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//	std::make_shared<Object>(planeDisp, svbrdf, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
 	//);
 
-	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
-	scene->addObject(
-		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
-	);
+	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
+	//scene->addObject(
+	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
+	//);
 
-	//auto teapot_material = prefilteredDispMaterial;
-	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
-	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
-	//	));
+	auto teapotMesh = std::make_shared<TriangleMesh>();
+	teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
+	auto teapot_material = prefilteredDispMaterial;
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
+		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
 
 	scene->buildAccelerationStructure();
 
@@ -1000,7 +962,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	pathTracer = std::make_shared<StandardPathTracer>();
 	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
-	//	return (isect.shading.n) *0.5f + Vector3f(0.5f);
+	//	Sampler sampler(0);
+	//	return isect.object->material->bsdfCos(isect, sampler, Vector3f(0,1,0));
+	//	//return (isect.shading.n) *0.5f + Vector3f(0.5f);
 	//	} );
 
 	auto time_end = std::chrono::system_clock::now();
