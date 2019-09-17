@@ -112,7 +112,7 @@ private:
 
 		float theta = asinf(n.z); // [0, PI/2]
 		float phai = atan2(n.y, n.x); // [-PI, PI];
-		if (phai < 0.0f) { phai += M_PI; } // [0, 2PI] -- x Ž²•ûŒü‚ª phai=0
+		if (phai < 0.0f) { phai += 2 * M_PI; } // [0, 2PI] -- x Ž²•ûŒü‚ª phai=0
 
 		return Vector2f(theta, phai);
 	}
@@ -126,8 +126,10 @@ private:
 	Vector2f indexToAngle(int index, Sampler& sampler) const {
 		int thetaIndex = index / resolutionPhai;
 		int phaiIndex = index % resolutionPhai;
-		float theta = (thetaIndex + sampler.randf()) / resolutionTheta * (M_PI / 2);
-		float phai = (phaiIndex + sampler.randf()) / resolutionPhai * (2 * M_PI);
+		float thetaNormalized = (float)(thetaIndex + sampler.randf()) / resolutionTheta;
+		float phaiNormalized = (float)(phaiIndex + sampler.randf()) / resolutionPhai;
+		float theta = thetaNormalized * (M_PI / 2);
+		float phai = phaiNormalized * (2 * M_PI);
 		return Vector2f(theta, phai);
 	}
 
@@ -165,11 +167,11 @@ private:
 
 		ASSERT(inRange01(wTheta1));
 		ASSERT(inRange01(wPhai1));
-
-		if (thetaIndex0 < 0) { thetaIndex0 = 0; }
-		if (thetaIndex1 >= resolutionTheta) { thetaIndex1 = resolutionTheta - 1; }
-		phaiIndex0 = Xitils::clamp(phaiIndex0, 0, resolutionPhai - 1);
-		phaiIndex1 = Xitils::clamp(phaiIndex1, 0, resolutionPhai - 1);
+		
+		thetaIndex0 = Xitils::clamp(thetaIndex0, 0, resolutionTheta - 1);
+		thetaIndex1 = Xitils::clamp(thetaIndex1, 0, resolutionTheta - 1);
+		if (phaiIndex0 < 0) { phaiIndex0 = resolutionPhai - 1; }
+		if (phaiIndex1 >= resolutionPhai) { phaiIndex1 = 0; }
 
 		indices[0] = thetaIndex0 * resolutionPhai + phaiIndex0;
 		weights[0] = wTheta0 * wPhai0;
@@ -481,10 +483,10 @@ private:
 		Vector3f n = svndf->sampleNormal(isect.texCoord, sampler);
 
 		isectPerturbed.shading.n =
-			(n.z * isect.n
-				+ n.x * isect.tangent
-				- n.y * isect.bitangent
-				).normalize();
+			( n.z * isect.n
+			+ n.x * isect.tangent
+			- n.y * isect.bitangent
+			).normalize();
 
 		//isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
 
@@ -497,7 +499,7 @@ class PrefilteredDisplaceMapping : public Material {
 public:
 
 	const int M = 1;
-	const int N = 16;
+	const int N = 8;
 
 	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale, float displacementScaleForPrecalc):
 		T(M, M),
@@ -510,6 +512,7 @@ public:
 
 		displacementTexLow = downsampleDisplacementTexture(displacementTexOrig, displacementScale, svndf);
 		multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, displacementTexLow, displacementScale, svndf);
+		//multiLobeSVBRDF = baseMaterial;//*********************************************************************************
 
 		auto planeLow = std::make_shared<PlaneDisplaceMapped>(displacementTexLow, displacementScaleForPrecalc);
 		auto sceneLow = std::make_shared<Scene>();
@@ -527,7 +530,6 @@ public:
 	}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
-
 		// TODO::::::::::::::::::::::::: wo, wi ‚ÌÀ•W•ÏŠ·
 		// tangent, bitangent, normal ?
 		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi));
@@ -537,7 +539,6 @@ public:
 	}
 
 	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
-
 		auto eval = multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf);
 
 		// TODO::::::::::::::::::::::::: wo, wi ‚ÌÀ•W•ÏŠ·
@@ -549,11 +550,11 @@ public:
 	}
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
-		return multiLobeSVBRDF->pdf(isect, wi);
+		return 0.9f * multiLobeSVBRDF->pdf(isect, wi) + 0.1f * clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
 	std::shared_ptr<const Texture> getDisplacementTextureLow() { return displacementTexLow; }
-	std::shared_ptr<MultiLobeSVBRDF> getMutliLobeSVBRDF() { return multiLobeSVBRDF; }
+	std::shared_ptr<Material> getMutliLobeSVBRDF() { return multiLobeSVBRDF; }
 
 private:
 	SpatialTable T;
@@ -562,7 +563,7 @@ private:
 	std::shared_ptr<Material> baseMaterial;
 	std::shared_ptr<Texture> displacementTexOrig;
 	std::shared_ptr<Texture> displacementTexLow;
-	std::shared_ptr<MultiLobeSVBRDF> multiLobeSVBRDF;
+	std::shared_ptr<Material> multiLobeSVBRDF;
 	float displacementScale;
 	std::shared_ptr<SVNDF> svndf;
 
@@ -698,10 +699,10 @@ private:
 				hit = sceneLow.intersect(ray, &isect);
 			}
 
-			Xitils::Ray rayWo;
-			rayWo.d = wo;
-			rayWo.o = isect.p + rayWo.d * RayOffset;
-			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
+			//Xitils::Ray rayWo;
+			//rayWo.d = wo;
+			//rayWo.o = isect.p + rayWo.d * RayOffset;
+			//if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
 
 			Xitils::Ray rayWi;
 			rayWi.d = wi;
@@ -802,6 +803,7 @@ private:
 
 					++pathLength;
 					if (pathLength > 20 || weight.isZero()) { break; }
+
 				}
 			//}
 
@@ -894,10 +896,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
 	dispTexOrig->warpClamp = false;
 
-
-	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
-
-	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.6f));
 	
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
@@ -923,21 +922,25 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-	//auto svndf = std::make_shared<SVNDF>();
-	//auto displacementTexLow = downsampleDisplacementTexture(dispTexOrig, dispScale, svndf);
-	//auto svbrdf = std::shared_ptr<MultiLobeSVBRDF>(new MultiLobeSVBRDF(teapot_basematerial, displacementTexLow,  dispScale, svndf ));
-	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(svbrdf->displacementTexLow, dispScale);
+	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispTexOrig, dispScale);
 	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, svbrdf, transformTRS(Vector3f(0.5f, 1, -1), Vector3f(-45, 180, 0), Vector3f(1.0f)))
+	//	std::make_shared<Object>(planeDisp, teapot_basematerial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
 	//);
 
+	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
 	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
 	scene->addObject(
-		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+		std::make_shared<Object>(planeDisp, prefilteredDispMaterial->getMutliLobeSVBRDF(), transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
 	);
 
+	//auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
+	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
+	//scene->addObject(
+	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+	//);
+
 	//auto teapotMesh = std::make_shared<TriangleMesh>();
-	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
+	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), 0.0f, ShellMappingLayerNum);
 	//auto teapot_material = prefilteredDispMaterial;
 	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
 	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))

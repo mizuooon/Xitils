@@ -234,4 +234,60 @@ namespace Xitils {
 		float shadowRayMargin = 0.0001f;
 	};
 
+	// シングルスキャッタリングのみ表示
+	class DebugRayTracerSingleScattering : public PathTracer {
+	public:
+
+		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
+
+			Vector3f radiance;
+			Vector3f weight(1.0f);
+
+			Ray currentRay = ray;
+			SurfaceInteraction isect;
+
+			int pathLength = 1;
+
+			Vector3f wi;
+			while (true) {
+				if (pathLength > 2) { break; }
+
+				if (pathLength > russianRouletteLengthMin) {
+					if (sampler.randf() >= russianRouletteProb) {
+						break;
+					} else {
+						weight /= russianRouletteProb;
+					}
+				}
+
+				if (scene.intersect(currentRay, &isect)) {
+					if (isect.object->material->emissive) {
+						radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
+					}
+
+					float pdf;
+					weight *= isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
+
+					if (weight.isZero()) { break; }
+
+					currentRay.d = wi;
+					currentRay.o = isect.p + rayOriginOffset * currentRay.d;
+					currentRay.tMax = Infinity;
+
+				} else if (scene.skySphere) {
+					radiance += clampPositive(weight * scene.skySphere->getRadiance(currentRay.d));
+					break;
+				}
+
+				++pathLength;
+			}
+
+			return radiance;
+		}
+
+	private:
+		float rayOriginOffset = 0.00001f;
+		int russianRouletteLengthMin = 5;
+		float russianRouletteProb = 0.9f;
+	};
 }
