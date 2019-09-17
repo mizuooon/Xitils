@@ -885,7 +885,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
 	//auto& dispmap = teapot_material->dispTexLow;
 
-	auto teapot_basematerial = std::make_shared<Diffuse>(Vector3f(0.8f));
+	auto teapot_basematerial = std::make_shared<Glossy>(Vector3f(0.6f), 3);
 
 	float dispScale = 0.01f;
 	float dispScaleForPreCalc = 0.01f;
@@ -901,7 +901,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
+	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 5);
 	auto cube = std::make_shared<Xitils::Cube>();
 	auto plane = std::make_shared<Xitils::Plane>();
 	scene->addObject(

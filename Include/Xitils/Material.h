@@ -75,6 +75,49 @@ namespace Xitils {
 		}
 	};
 
+	struct Glossy : public Material {
+	public:
+
+		Vector3f albedo;
+		float sharpness;
+
+		Glossy(const Vector3f& albedo, float sharpness) : 
+			albedo(albedo),
+			sharpness(sharpness)
+		{}
+
+		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+			const auto& n = isect.shading.n;
+			float N = 2 * M_PI / (sharpness + 2);
+			return albedo * powf(dot((isect.wo + wi).normalize(), n), sharpness) / N;
+		}
+
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+			float r1 = sampler.randf();
+			float r2 = sampler.randf();
+
+			const Vector3f& n = isect.shading.n;
+
+			BasisVectors basis(n);
+			float sqrt = safeSqrt(1 - powf(r2, 2 / (sharpness + 1.0f)));
+			Vector3f h = basis.toGlobal(powf(r2, 1 / (sharpness + 1.0f)), cosf(2 * M_PI * r1) * sqrt, sinf(2 * M_PI * r1) * sqrt).normalize();
+			*wi = -(isect.wo - 2.0f * dot(isect.wo, h) * h).normalize();
+
+			*pdf = this->pdf(isect, *wi);
+
+			if (*pdf == 0.0f) { return Vector3f(0.0f); }
+
+			return bsdfCos(isect, sampler, *wi) / *pdf;
+		}
+
+
+		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+			const auto& n = isect.shading.n;
+			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
+		}
+
+	};
+
 	class SpecularReflection : public Material {
 	public:
 
