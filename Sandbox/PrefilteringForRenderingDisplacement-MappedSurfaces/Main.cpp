@@ -13,6 +13,10 @@
 
 #include <omp.h>
 
+
+#define ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+
+
 using namespace Xitils;
 using namespace ci;
 using namespace ci::app;
@@ -57,7 +61,7 @@ public:
 		}
 		std::array<Vector3f, 4> bitangents;
 		for (int i = 0; i < 4; ++i) {
-			bitangents[i] = Vector3f(0, 1, 0);
+			bitangents[i] = Vector3f(0, -1, 0);
 		}
 		std::array<int, 3 * 2> indices{
 			0,1,2, 1,3,2
@@ -404,8 +408,8 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 					int x = px * DownSamplingRate + lx;
 					if (x >= texOrig->getWidth()) { continue; }
 
-					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, -texOrig->rgbDifferentialV(x, y).x);
-					Vector3f n = Vector3f(-slope.u * displacementScale, -slope.v * displacementScale, 1).normalize();
+					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
+					Vector3f n = Vector3f(-slope.u * displacementScale, slope.v * displacementScale, 1).normalize();
 
 					ave_slope_orig[py * texLow->getWidth() + px] += slope;
 					texLow->r(px, py) += texOrig->r(x, y);
@@ -475,8 +479,6 @@ public:
 		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
-private:
-
 	SurfaceInteraction perturbInteraction(const SurfaceInteraction& isect, Sampler& sampler) const {
 
 		SurfaceInteraction isectPerturbed = isect;
@@ -485,7 +487,7 @@ private:
 		isectPerturbed.shading.n =
 			( n.z * isect.n
 			+ n.x * isect.tangent
-			- n.y * isect.bitangent
+			+ n.y * isect.bitangent
 			).normalize();
 
 		//isectPerturbed.shading.n = faceForward(isectPerturbed.shading.n, isectPerturbed.wo);
@@ -501,7 +503,7 @@ public:
 	const int M = 1;
 	const int N = 8;
 
-	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale, float displacementScaleForPrecalc):
+	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale):
 		T(M, M),
 		S(N/2, N),
 		baseMaterial(baseMaterial),
@@ -514,12 +516,12 @@ public:
 		multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, displacementTexLow, displacementScale, svndf);
 		//multiLobeSVBRDF = baseMaterial;//*********************************************************************************
 
-		auto planeLow = std::make_shared<PlaneDisplaceMapped>(displacementTexLow, displacementScaleForPrecalc);
+		auto planeLow = std::make_shared<PlaneDisplaceMapped>(displacementTexLow, displacementScale);
 		auto sceneLow = std::make_shared<Scene>();
 		sceneLow->addObject(std::make_shared<Object>(planeLow, multiLobeSVBRDF, Xitils::Transform()));
 		sceneLow->buildAccelerationStructure();
 
-		auto planeOrig = std::make_shared<PlaneDisplaceMapped>(displacementTexOrig, displacementScaleForPrecalc);
+		auto planeOrig = std::make_shared<PlaneDisplaceMapped>(displacementTexOrig, displacementScale);
 		auto sceneOrig = std::make_shared<Scene>();
 		sceneOrig->addObject(std::make_shared<Object>(planeOrig, baseMaterial, Xitils::Transform()));
 		sceneOrig->buildAccelerationStructure();
@@ -575,7 +577,7 @@ private:
 	Vector3f estimateRir(Vector2f p, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
 		normalizeUV(p);
 		Vector3f f_eff_low = estimateEffectiveBRDFLow(p, wi, wo, sceneLow, sampler);
-		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sceneOrig, sampler);
+		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sampler);
 		return Vector3f(
 			f_eff_low.x > 1e-6 ? f_eff_ir_orig.x / f_eff_low.x : 0.0f,
 			f_eff_low.y > 1e-6 ? f_eff_ir_orig.y / f_eff_low.y : 0.0f,
@@ -674,23 +676,32 @@ private:
 
 		Vector3f res;
 
+		const Vector3f wg(0, 0, 1);
+
 		//const int Sample = 100; // 何回評価する？
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
-
 			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
 			float kernel_p = 1.0f / patch.area();
 
 			Xitils::Ray ray;
+			SurfaceInteraction isect;
+
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 			ray.o = Vector3f(p.u, p.v, 99);
 			ray.d = Vector3f(0, 0, -1);
-			SurfaceInteraction isect;
-			//bool hit = sceneLow.intersect(ray, &isect);
-			//if (!hit) { printf("%f %f - %f %f | %f %f\n", patch.min.u, patch.max.u, patch.min.v, patch.max.v, p.u, p.v); }
-			//ASSERT(hit);
+			bool hit = sceneLow.intersect(ray, &isect);
+			if (!hit) { printf("%f %f - %f %f | %f %f\n", patch.min.u, patch.max.u, patch.min.v, patch.max.v, p.u, p.v); }
+			ASSERT(hit);
+
+			Xitils::Ray rayWo;
+			rayWo.d = wo;
+			rayWo.o = isect.p + rayWo.d * RayOffset;
+			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
+#else
 			bool hit = false;
 			ray.d = -wo;
 			BasisVectors basis(ray.d);
@@ -698,28 +709,72 @@ private:
 				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
 				hit = sceneLow.intersect(ray, &isect);
 			}
-
-			//Xitils::Ray rayWo;
-			//rayWo.d = wo;
-			//rayWo.o = isect.p + rayWo.d * RayOffset;
-			//if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
+#endif
 
 			Xitils::Ray rayWi;
 			rayWi.d = wi;
 			rayWi.o = isect.p + rayWi.d * RayOffset;
 			if (dot(wi, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWi)) { continue; }
 
-			res += isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
+			Vector3f contrib = isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
+
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+			Vector3f wm = getNormalLow(p);
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
+			contrib *= A_G_p_wo;
+#endif
+			res += contrib;
 
 		}
 		res /= Sample;
+
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+		Vector3f wn = getMesoScaleNormal();
+		float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
+		res /= A_G_wo;
+#endif
 
 		//printf("estimateEffectiveBRDFLow: %f %f %f\n",res.r,res.g,res.b);
 
 		return res;
 	}
 
-	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
+	Vector3f getNormalLow(const Vector2f& texelPos) const {
+		Vector3f a;
+		a.x = -displacementTexLow->rgbDifferentialU(texelPos).x * displacementScale;
+		a.y = -displacementTexLow->rgbDifferentialV(texelPos).x * displacementScale;
+		a.z = 1;
+		a.normalize();
+
+		return a;
+	}
+
+	mutable Vector3f mesoScaleNormal;
+	Vector3f getMesoScaleNormal() const {
+		//************************************************************************************************
+		//************************************************************************************************
+		//************************************************************************************************
+
+		if (mesoScaleNormal.isZero()) {
+			int w = displacementTexLow->getWidth();
+			int h = displacementTexLow->getHeight();
+			for (int y = 0; y < h; ++y) {
+				for (int x = 0; x < w; ++x) {
+					Vector2f uv;
+					uv.u = (x + 0.5f) / w;
+					uv.v = (1.0f - (y + 0.5f)) / h;
+					mesoScaleNormal += getNormalLow(uv);
+				}
+			}
+			mesoScaleNormal.normalize();
+
+			printf("%f %f %f\n", mesoScaleNormal.x, mesoScaleNormal.y, mesoScaleNormal.z);
+		}
+
+		return mesoScaleNormal;
+	}
+
+	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneOrig, Sampler& sampler) const {
 		// IR を考慮する
 
 		// x を含むパッチ内で始点となる位置をサンプル
@@ -737,6 +792,8 @@ private:
 
 		Vector3f res;
 
+		const Vector3f wg(0, 0, 1);
+
 		//const int Sample = 2500;
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
@@ -748,11 +805,27 @@ private:
 			float kernel_p = 1.0f / patch.area();
 
 			Xitils::Ray ray;
+			SurfaceInteraction isect;
+
+			Vector3f weight(1.0f);
+			int pathLength = 1;
+
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 			ray.o = Vector3f(p.u, p.v, 99);
 			ray.d = Vector3f(0, 0, -1);
-			SurfaceInteraction isect;
-			//bool hit = sceneOrig.intersect(ray, &isect);
-			//ASSERT(hit);
+			bool hit = sceneOrig.intersect(ray, &isect);
+			ASSERT(hit);
+
+			Xitils::Ray rayWo;
+			rayWo.d = wo;
+			rayWo.o = isect.p + rayWo.d * RayOffset;
+			if (dot(wo, isect.shading.n) <= 0.0f || sceneOrig.intersectAny(rayWo)) { continue; }
+
+			const Vector3f& wm = isect.shading.n;
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
+
+			weight *= A_G_p_wo;
+#else
 			bool hit = false;
 			ray.d = -wo;
 			BasisVectors basis(ray.d);
@@ -760,57 +833,36 @@ private:
 				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
 				hit = sceneOrig.intersect(ray, &isect);
 			}
+#endif
+			weight *= kernel_p / prob_p;
 
-			//Xitils::Ray rayWo;
-			//rayWo.d = wo;
-			//rayWo.o = isect.p + rayWo.d * RayOffset;
-			//if (dot(wo, isect.shading.n) <= 0.0f || sceneOrig.intersectAny(rayWo)) { continue; }
-
-			//ray.tMax = Infinity;
-			//SurfaceInteraction isectLow;
-			//bool hitLow = sceneLow.intersect(ray, &isectLow);
-			//ASSERT(hitLow);
-
-			//const Vector3f& wg = isect.n;
-			//const Vector3f& wn = isectLow.shading.n;
-			//float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
-
-			//const Vector3f& wm = isect.shading.n;
-			//float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // V 項は除いた値
-
-			//if (A_G_wo > 1e-6) {
-				Vector3f weight(1.0f);
-				int pathLength = 1;
-
-				//weight *= A_G_p_wo / A_G_wo;
-				weight *= kernel_p / prob_p;
-
-				while (true) {
-					//printf("%d\n",pathLength);
-
-					Xitils::Ray rayWi;
-					rayWi.d = wi;
-					rayWi.o = isect.p + rayWi.d * RayOffset;
-					if (dot(wi, isect.shading.n) > 0.0f && !sceneOrig.intersectAny(rayWi)) {
-						res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
-					}
-
-					Xitils::Ray rayNext;
-					float pdf;
-					weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
-					rayNext.o = isect.p + rayNext.d * RayOffset;
-					if (!sceneOrig.intersect(rayNext, &isect)) { break; }
-
-					++pathLength;
-					if (pathLength > 20 || weight.isZero()) { break; }
-
+			while (true) {
+				Xitils::Ray rayWi;
+				rayWi.d = wi;
+				rayWi.o = isect.p + rayWi.d * RayOffset;
+				if (dot(wi, isect.shading.n) > 0.0f && !sceneOrig.intersectAny(rayWi)) {
+					res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
 				}
-			//}
+
+				Xitils::Ray rayNext;
+				float pdf;
+				weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
+				rayNext.o = isect.p + rayNext.d * RayOffset;
+				if (!sceneOrig.intersect(rayNext, &isect)) { break; }
+
+				++pathLength;
+				if (pathLength > 20 || weight.isZero()) { break; }
+
+			}
 
 		}
 		res /= Sample;
-
-		//printf("%f %f %f\n",res.r,res.g,res.b);
+		
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+		Vector3f wn = getMesoScaleNormal();
+		float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
+		res /= A_G_wo;
+#endif
 
 		return res;
 	}
@@ -890,10 +942,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapot_basematerial = std::make_shared<Glossy>(Vector3f(0.6f), 3);
 
 	float dispScale = 0.01f;
-	float dispScaleForPreCalc = 0.01f;
 	//float dispScale = 0.02f;
-	//float dispScaleForPreCalc = 0.02f;
 	auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
+	//auto dispTexOrig = std::make_shared<Texture>("displacement.png");
 	dispTexOrig->warpClamp = false;
 
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.6f));
@@ -927,20 +978,26 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//	std::make_shared<Object>(planeDisp, teapot_basematerial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
 	//);
 
-	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
-	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
-	scene->addObject(
-		std::make_shared<Object>(planeDisp, prefilteredDispMaterial->getMutliLobeSVBRDF(), transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
-	);
-
-	//auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale, dispScaleForPreCalc);
+	//auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale);
 	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
 	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial->getMutliLobeSVBRDF(), transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
 	//);
 
+	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale);
+	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
+	scene->addObject(
+		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+	);
+
 	//auto teapotMesh = std::make_shared<TriangleMesh>();
-	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), 0.0f, ShellMappingLayerNum);
+	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, dispTexOrig, dispScale*3, ShellMappingLayerNum);
+	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_basematerial,
+	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
+
+	//auto teapotMesh = std::make_shared<TriangleMesh>();
+	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
 	//auto teapot_material = prefilteredDispMaterial;
 	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
 	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
@@ -953,10 +1010,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
-	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
-	//	Sampler sampler(0);
-	//	return isect.object->material->bsdfCos(isect, sampler, Vector3f(0,1,0));
-	//	//return (isect.shading.n) *0.5f + Vector3f(0.5f);
+	//pathTracer = std::make_shared<DebugRayCaster>([&](const SurfaceInteraction& isect, Sampler& sampler) {
+
+	//	auto p = std::dynamic_pointer_cast<MultiLobeSVBRDF>(isect.object->material);
+	//	
+	//	if (p) {
+	//		auto perturbed = p->perturbInteraction(isect, sampler);
+	//		return (perturbed.shading.n) * 0.5f + Vector3f(0.5f);
+	//	} else {
+	//		return Vector3f(0);
+	//	}
+
 	//	} );
 
 	auto time_end = std::chrono::system_clock::now();

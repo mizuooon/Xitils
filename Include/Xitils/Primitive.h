@@ -246,12 +246,12 @@ namespace Xitils {
 		virtual void perturbIntersection(SurfaceInteraction& isect) const override {
 
 			Vector3f a;
-			a.x = displacementMapTexture->rgbDifferentialU(isect.texCoord).x * displacementScale;
+			a.x = -displacementMapTexture->rgbDifferentialU(isect.texCoord).x * displacementScale;
 			a.y = displacementMapTexture->rgbDifferentialV(isect.texCoord).x * displacementScale;
 			a.z = 1;
 			a.normalize();
 
-			isect.shading.n = (-a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.n).normalize();
+			isect.shading.n = (a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.n).normalize();
 
 			// TODO: tangent ‚Æ bitangent
 			isect.shading.tangent = Vector3f();

@@ -16,7 +16,7 @@ namespace Xitils {
 	class DebugRayCaster : public PathTracer {
 	public:
 
-		DebugRayCaster(std::function<Vector3f(const SurfaceInteraction&)> f) :
+		DebugRayCaster(std::function<Vector3f(const SurfaceInteraction&, Sampler&)> f) :
 			f(f)
 		{}
 
@@ -27,14 +27,14 @@ namespace Xitils {
 
 			Ray tmpRay(ray);
 			if (scene.intersect(tmpRay, &isect)) {
-				color = f(isect);
+				color = f(isect, sampler);
 			}
 
 			return color;
 		}
 
 	private:
-		std::function<Vector3f(const SurfaceInteraction&)> f;
+		std::function<Vector3f(const SurfaceInteraction&, Sampler&)> f;
 	};
 
 	class NaivePathTracer : public PathTracer {
