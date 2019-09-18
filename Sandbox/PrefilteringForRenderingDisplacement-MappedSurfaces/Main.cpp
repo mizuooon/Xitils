@@ -14,7 +14,7 @@
 #include <omp.h>
 
 
-#define ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+//#define ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 
 
 using namespace Xitils;
@@ -61,7 +61,7 @@ public:
 		}
 		std::array<Vector3f, 4> bitangents;
 		for (int i = 0; i < 4; ++i) {
-			bitangents[i] = Vector3f(0, -1, 0);
+			bitangents[i] = Vector3f(0, 1, 0);
 		}
 		std::array<int, 3 * 2> indices{
 			0,1,2, 1,3,2
@@ -352,11 +352,11 @@ public:
 		normalizedUV.v = normalizedUV.v - floorf(normalizedUV.v);
 
 		int x0 = normalizedUV.u * resolutionU - 0.5f;
-		int y0 = (1 - normalizedUV.v) * resolutionV - 0.5f;
+		int y0 = normalizedUV.v * resolutionV - 0.5f;
 		int x1 = x0 + 1;
 		int y1 = y0 + 1;
 		float wx1 = (normalizedUV.u * resolutionU - 0.5f) - x0;
-		float wy1 = ((1 - normalizedUV.v) * resolutionV - 0.5f) - y0;
+		float wy1 = (normalizedUV.v * resolutionV - 0.5f) - y0;
 
 		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
 		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
@@ -409,7 +409,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 					if (x >= texOrig->getWidth()) { continue; }
 
 					Vector2f slope = Vector2f(texOrig->rgbDifferentialU(x, y).x, texOrig->rgbDifferentialV(x, y).x);
-					Vector3f n = Vector3f(-slope.u * displacementScale, slope.v * displacementScale, 1).normalize();
+					Vector3f n = Vector3f(-slope.u * displacementScale, -slope.v * displacementScale, 1).normalize();
 
 					ave_slope_orig[py * texLow->getWidth() + px] += slope;
 					texLow->r(px, py) += texOrig->r(x, y);
@@ -435,11 +435,11 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 		int y1 = Xitils::min(py + DownSamplingRate - 1, texOrig->getHeight() - 1);
 
 		float dhdu2 = (texLow->rgbDifferentialU(px + 1, py).r - texLow->rgbDifferentialU(px - 1, py).r) / 2.0f;
-		float dhdv2 = -(texLow->rgbDifferentialV(px, py + 1).r - texLow->rgbDifferentialU(px, py - 1).r) / 2.0f; // y 方向と v 方向は逆なので符号反転
+		float dhdv2 = (texLow->rgbDifferentialV(px, py + 1).r - texLow->rgbDifferentialU(px, py - 1).r) / 2.0f;
 
 		Vector2f ave_slope(
 			(texLow->r(x1, y1) + texLow->r(x1, y0) - texLow->r(x0, y1) - texLow->r(x0, y0)) / 2.0f,
-			-(texLow->r(x1, y1) + texLow->r(x0, y1) - texLow->r(x1, y0) - texLow->r(x0, y0)) / 2.0f // y 方向と v 方向は逆なので符号反転
+			(texLow->r(x1, y1) + texLow->r(x0, y1) - texLow->r(x1, y0) - texLow->r(x0, y0)) / 2.0f
 		);
 
 		return (ave_slope - ave_slope_orig[py * texLow->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
@@ -577,7 +577,7 @@ private:
 	Vector3f estimateRir(Vector2f p, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, const Scene& sceneOrig, Sampler& sampler) const {
 		normalizeUV(p);
 		Vector3f f_eff_low = estimateEffectiveBRDFLow(p, wi, wo, sceneLow, sampler);
-		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneLow, sampler);
+		Vector3f f_eff_ir_orig = estimateEffectiveBRDFIROrig(p, wi, wo, sceneOrig, sampler);
 		return Vector3f(
 			f_eff_low.x > 1e-6 ? f_eff_ir_orig.x / f_eff_low.x : 0.0f,
 			f_eff_low.y > 1e-6 ? f_eff_ir_orig.y / f_eff_low.y : 0.0f,
@@ -682,15 +682,15 @@ private:
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
+			Xitils::Ray ray;
+			SurfaceInteraction isect;
+
+#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
 			float kernel_p = 1.0f / patch.area();
 
-			Xitils::Ray ray;
-			SurfaceInteraction isect;
-
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 			ray.o = Vector3f(p.u, p.v, 99);
 			ray.d = Vector3f(0, 0, -1);
 			bool hit = sceneLow.intersect(ray, &isect);
@@ -716,12 +716,12 @@ private:
 			rayWi.o = isect.p + rayWi.d * RayOffset;
 			if (dot(wi, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWi)) { continue; }
 
-			Vector3f contrib = isect.object->material->bsdfCos(isect, sampler, wi) * kernel_p / prob_p;
+			Vector3f contrib = isect.object->material->bsdfCos(isect, sampler, wi);
 
 #ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
 			Vector3f wm = getNormalLow(p);
 			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
-			contrib *= A_G_p_wo;
+			contrib *= kernel_p / prob_p * A_G_p_wo;
 #endif
 			res += contrib;
 
@@ -798,12 +798,6 @@ private:
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
-
-			// texelPos を含むパッチ内で始点となる位置をサンプル
-			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
-			float prob_p = 1.0f / patch.area();
-			float kernel_p = 1.0f / patch.area();
-
 			Xitils::Ray ray;
 			SurfaceInteraction isect;
 
@@ -811,6 +805,11 @@ private:
 			int pathLength = 1;
 
 #ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
+			float prob_p = 1.0f / patch.area();
+			float kernel_p = 1.0f / patch.area();
+
 			ray.o = Vector3f(p.u, p.v, 99);
 			ray.d = Vector3f(0, 0, -1);
 			bool hit = sceneOrig.intersect(ray, &isect);
@@ -824,7 +823,7 @@ private:
 			const Vector3f& wm = isect.shading.n;
 			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
 
-			weight *= A_G_p_wo;
+			weight *= A_G_p_wo * kernel_p / prob_p;
 #else
 			bool hit = false;
 			ray.d = -wo;
@@ -834,7 +833,6 @@ private:
 				hit = sceneOrig.intersect(ray, &isect);
 			}
 #endif
-			weight *= kernel_p / prob_p;
 
 			while (true) {
 				Xitils::Ray rayWi;
@@ -1010,6 +1008,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
+	//pathTracer = std::make_shared<DebugRayCaster>([&](const SurfaceInteraction& isect, Sampler& sampler) {
+	//	return (isect.shading.n) * 0.5f + Vector3f(0.5f);
+	//	} );
 	//pathTracer = std::make_shared<DebugRayCaster>([&](const SurfaceInteraction& isect, Sampler& sampler) {
 
 	//	auto p = std::dynamic_pointer_cast<MultiLobeSVBRDF>(isect.object->material);

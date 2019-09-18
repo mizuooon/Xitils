@@ -247,7 +247,7 @@ namespace Xitils {
 
 			Vector3f a;
 			a.x = -displacementMapTexture->rgbDifferentialU(isect.texCoord).x * displacementScale;
-			a.y = displacementMapTexture->rgbDifferentialV(isect.texCoord).x * displacementScale;
+			a.y = -displacementMapTexture->rgbDifferentialV(isect.texCoord).x * displacementScale;
 			a.z = 1;
 			a.normalize();
 

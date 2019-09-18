@@ -59,11 +59,11 @@ namespace Xitils {
 				if (material->normalmap != nullptr) {
 					// shading.n ‚Í•Ï‰»‚³‚¹‚é‚ªAtangnet ‚Æ bitangent ‚Í•Ï‰»‚³‚¹‚È‚¢‚Ì‚Å’ˆÓ
 
-					Vector3f t = material->normalmap->rgb(isect->texCoord) * 2 - Vector3f(1.0f);
+					Vector3f n = material->normalmap->rgb(isect->texCoord) * 2 - Vector3f(1.0f);
 					isect->shading.n =
-						(     t.b * isect->shading.n
-							+ t.r * isect->shading.tangent
-							- t.g * isect->shading.bitangent
+						(     n.b * isect->shading.n
+							+ n.r * isect->shading.tangent
+							+ n.g * isect->shading.bitangent
 						).normalize();
 				}
 

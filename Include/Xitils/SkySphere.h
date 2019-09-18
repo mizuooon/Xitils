@@ -25,7 +25,7 @@ namespace Xitils {
 			}
 			float r = (1.0f / M_PI) * acosf(d.z) / sq;
 			float u = (d.x * r + 1.0f) / 2.0f;
-			float v = 1.0f - (d.y * r + 1.0f) / 2.0f;
+			float v = (d.y * r + 1.0f) / 2.0f;
 
 			return tex.rgb(Vector2f(u, v));
 		}
