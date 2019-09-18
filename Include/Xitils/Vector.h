@@ -225,6 +225,12 @@ namespace Xitils {
 		explicit Vector3(T val) : x(val), y(val), z(val) {}
 		Vector3(T x, T y, T z) : x(x), y(y), z(z) { ASSERT(!hasNan()); }
 
+		Vector3(const Vector2<T, T_SIMD, T_SIMDMASK>& v2, T z):
+			x(v2.x),
+			y(v2.y),
+			z(z)
+		{}
+
 		explicit Vector3(const glm::tvec3<T> v) : x(v.x), y(v.y), z(v.z) { ASSERT(!hasNan()); }
 		glm::tvec3<T> glm() const { return glm::tvec3<T>(x, y, z); }
 
@@ -401,6 +407,13 @@ namespace Xitils {
 		Vector4() : x(0), y(0), z(0), w(0) {}
 		explicit Vector4(T val) : x(val), y(val), z(val), w(val) {}
 		Vector4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { ASSERT(!hasNan()); }
+
+		Vector4(const Vector3<T, T_SIMD, T_SIMDMASK>& v3, T w) :
+			x(v3.x),
+			y(v3.y),
+			z(v3.z),
+			w(w)
+		{}
 
 		explicit Vector4(const glm::tvec4<T> v) : x(v.x), y(v.y), z(v.z), w(v.w) { ASSERT(!hasNan()); }
 		glm::tvec4<T> glm() const { return glm::tvec4<T>(x, y, z, w); }

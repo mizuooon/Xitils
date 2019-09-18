@@ -14,7 +14,7 @@
 #include <omp.h>
 
 
-//#define ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+//#define SAMPLE_P_WITH_EXPLICIT_RAYCAST
 
 
 using namespace Xitils;
@@ -528,7 +528,6 @@ public:
 
 		estimateT(*sceneLow, *sceneOrig);
 		estimateS(*sceneLow, *sceneOrig);
-
 	}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
@@ -592,6 +591,11 @@ private:
 
 	void estimateT(const Scene& sceneLow, const Scene& sceneOrig) {
 
+		if (M == 1) {
+			T[0] = Vector3f(1.0f);
+			return;
+		}
+
 		std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
 		for (int i = 0; i < samplers.size(); ++i) {
 			samplers[i] = std::make_shared<Sampler>(i);
@@ -614,6 +618,7 @@ private:
 				T[i] += estimateRir(p, wi, wo, sceneLow, sceneOrig, *samplers[omp_get_thread_num()]) / (prob_wi * prob_wo);
 			}
 			T[i] /= SampleNum;
+			printf("unnormalized T[%d] = (%f, %f, %f)\n", i, T[i].r, T[i].g, T[i].b);
 		}
 
 		Vector3f C(0.0f);
@@ -660,23 +665,34 @@ private:
 		}
 	}
 
-	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
-		// IR は考慮しない
+	Vector3f getMesoscaleNormal(const Bounds2f& patch) const {
+		float h00 = displacementTexLow->rgb(patch.lerp(Vector2f(0, 0))).r;
+		float h01 = displacementTexLow->rgb(patch.lerp(Vector2f(0, 1))).r;
+		float h10 = displacementTexLow->rgb(patch.lerp(Vector2f(1, 0))).r;
+		float h11 = displacementTexLow->rgb(patch.lerp(Vector2f(1, 1))).r;
+		Vector2f s( (h11 + h10 - h01 - h00) / 2.0f, (h11 + h01 - h10 - h00) / 2.0f );
+		return Vector3f(-s.u, -s.v, 1).normalize();
+	}
 
-		// p を含むパッチ
+	Bounds2f getPatch(const Vector2f& p) const {
 		Bounds2f patch;
-		Vector2f patchSize = Vector2f( 1.0f ) / M;
-		int patchIndexU = (int)(texelPos.u / patchSize.u * M);
-		int patchIndexV = (int)(texelPos.v / patchSize.v * M);
+		Vector2f patchSize = Vector2f(1.0f) / M;
+		int patchIndexU = (int)(p.u / patchSize.u * M);
+		int patchIndexV = (int)(p.v / patchSize.v * M);
 		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
 		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
 		patch.min.u = (float)patchIndexU / M;
 		patch.min.v = (float)patchIndexV / M;
 		patch.max = patch.min + patchSize;
+		return patch;
+	}
+
+	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
+		// IR は考慮しない
 
 		Vector3f res;
-
 		const Vector3f wg(0, 0, 1);
+		Bounds2f patch = getPatch(texelPos);
 
 		//const int Sample = 100; // 何回評価する？
 		const int Sample = 100;
@@ -685,8 +701,10 @@ private:
 			Xitils::Ray ray;
 			SurfaceInteraction isect;
 
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
-			// texelPos を含むパッチ内で始点となる位置をサンプル
+			Vector3f contrib(1.0f);
+
+			// patch 内の位置をサンプル
+#ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
 			float kernel_p = 1.0f / patch.area();
@@ -701,41 +719,61 @@ private:
 			rayWo.d = wo;
 			rayWo.o = isect.p + rayWo.d * RayOffset;
 			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
+
+			Vector3f wm = getNormalLow(p);
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
+			contrib *= kernel_p / prob_p * A_G_p_wo;
 #else
-			bool hit = false;
 			ray.d = -wo;
+			Vector3f center(patch.center(), 0.0f);
 			BasisVectors basis(ray.d);
-			while (!hit) {
-				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
+
+			Vector3f e1 = ray.d;
+			Vector3f v2 = Vector3f(patch.lerp(Vector2f(1, 1)) - patch.lerp(Vector2f(0, 0)), 0);
+			Vector3f v3 = Vector3f(patch.lerp(Vector2f(1, 0)) - patch.lerp(Vector2f(0, 1)), 0);
+
+			Vector3f e3 = cross(e1, v2).normalize();
+			e3 *= dot(e3, v3) / 2.0f;
+
+			Vector3f e2 = cross(e3, e1).normalize();
+			e2 *= dot(e2, v2) / 2.0f;
+
+			bool hit = false;
+			do {
+				float r2, r3;
+				do {
+					r2 = sampler.randf(-1.0f, 1.0f);
+					r3 = sampler.randf(-1.0f, 1.0f);
+				} while (!inRange(r2 + r3, -1.0f, 1.0f));
+
+				ray.o = center + basis.e1 * -99 + basis.e2 * r2 + basis.e3 * r3;
+				ray.tMax = Infinity;
 				hit = sceneLow.intersect(ray, &isect);
-			}
+				//if (hit)printf("%f %f | %f %f - %f %f\n",isect.p.x, isect.p.y, patch.min.u, patch.min.v, patch.max.u, patch.max.v);
+			} while ( !hit || !inRange(isect.p.x, patch.min.u, patch.max.u) || !inRange(isect.p.y, patch.min.v, patch.max.v));
 #endif
 
 			Xitils::Ray rayWi;
 			rayWi.d = wi;
 			rayWi.o = isect.p + rayWi.d * RayOffset;
 			if (dot(wi, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWi)) { continue; }
+			
+			contrib *= isect.object->material->bsdfCos(isect, sampler, wi);
 
-			Vector3f contrib = isect.object->material->bsdfCos(isect, sampler, wi);
-
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
-			Vector3f wm = getNormalLow(p);
-			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // 係数 V は除いた値
-			contrib *= kernel_p / prob_p * A_G_p_wo;
-#endif
 			res += contrib;
 
 		}
 		res /= Sample;
 
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
-		Vector3f wn = getMesoScaleNormal();
+#ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
+		Vector3f wn = getMesoscaleNormal(patch);
 		float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
-		res /= A_G_wo;
+		if (A_G_wo > 1e-6) {
+			res /= A_G_wo;
+		} else {
+			res = Vector3f(0.0f);
+		}
 #endif
-
-		//printf("estimateEffectiveBRDFLow: %f %f %f\n",res.r,res.g,res.b);
-
 		return res;
 	}
 
@@ -749,53 +787,15 @@ private:
 		return a;
 	}
 
-	mutable Vector3f mesoScaleNormal;
-	Vector3f getMesoScaleNormal() const {
-		//************************************************************************************************
-		//************************************************************************************************
-		//************************************************************************************************
-
-		if (mesoScaleNormal.isZero()) {
-			int w = displacementTexLow->getWidth();
-			int h = displacementTexLow->getHeight();
-			for (int y = 0; y < h; ++y) {
-				for (int x = 0; x < w; ++x) {
-					Vector2f uv;
-					uv.u = (x + 0.5f) / w;
-					uv.v = (1.0f - (y + 0.5f)) / h;
-					mesoScaleNormal += getNormalLow(uv);
-				}
-			}
-			mesoScaleNormal.normalize();
-
-			printf("%f %f %f\n", mesoScaleNormal.x, mesoScaleNormal.y, mesoScaleNormal.z);
-		}
-
-		return mesoScaleNormal;
-	}
-
 	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneOrig, Sampler& sampler) const {
 		// IR を考慮する
 
-		// x を含むパッチ内で始点となる位置をサンプル
-
-		// p を含むパッチ
-		Bounds2f patch;
-		Vector2f patchSize = Vector2f(1.0f) / M;
-		int patchIndexU = (int)(texelPos.u / patchSize.u * M);
-		int patchIndexV = (int)(texelPos.v / patchSize.v * M);
-		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
-		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = (float)patchIndexU / M;
-		patch.min.v = (float)patchIndexV / M;
-		patch.max = patch.min + patchSize;
-
 		Vector3f res;
-
 		const Vector3f wg(0, 0, 1);
+		Bounds2f patch = getPatch(texelPos);
 
 		//const int Sample = 2500;
-		const int Sample = 100;
+		const int Sample = 500;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
 			Xitils::Ray ray;
@@ -804,7 +804,8 @@ private:
 			Vector3f weight(1.0f);
 			int pathLength = 1;
 
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
+			// patch 内の位置をサンプル
+#ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
 			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
@@ -825,13 +826,33 @@ private:
 
 			weight *= A_G_p_wo * kernel_p / prob_p;
 #else
-			bool hit = false;
 			ray.d = -wo;
+			Vector3f center(patch.center(), 0.0f);
 			BasisVectors basis(ray.d);
-			while (!hit) {
-				ray.o = basis.e1 * -99 + basis.e2 * sampler.randf(-0.2f, 0.2f) + basis.e3 * sampler.randf(-0.2f, 0.2f);
+
+			Vector3f e1 = ray.d;
+			Vector3f v2 = Vector3f(patch.lerp(Vector2f(1, 1)) - patch.lerp(Vector2f(0, 0)), 0);
+			Vector3f v3 = Vector3f(patch.lerp(Vector2f(1, 0)) - patch.lerp(Vector2f(0, 1)), 0);
+
+			Vector3f e3 = cross(e1, v2).normalize();
+			e3 *= dot(e3, v3) / 2.0f;
+
+			Vector3f e2 = cross(e3, e1).normalize();
+			e2 *= dot(e2, v2) / 2.0f;
+
+			bool hit = false;
+			do {
+				float r2, r3;
+				do {
+					r2 = sampler.randf(-1.0f, 1.0f);
+					r3 = sampler.randf(-1.0f, 1.0f);
+				} while (!inRange(r2 + r3, -1.0f, 1.0f));
+
+				ray.o = center + basis.e1 * -99 + basis.e2 * r2 + basis.e3 * r3;
+				ray.tMax = Infinity;
 				hit = sceneOrig.intersect(ray, &isect);
-			}
+				//if (hit)printf("%f %f | %f %f - %f %f\n",isect.p.x, isect.p.y, patch.min.u, patch.min.v, patch.max.u, patch.max.v);
+			} while (!hit || !inRange(isect.p.x, patch.min.u, patch.max.u) || !!inRange(isect.p.y, patch.min.v, patch.max.v));
 #endif
 
 			while (true) {
@@ -856,12 +877,15 @@ private:
 		}
 		res /= Sample;
 		
-#ifndef ESTIMATE_EFFECTIVE_BRDF_BY_EXPLICIT_RAYCAST
-		Vector3f wn = getMesoScaleNormal();
+#ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
+		Vector3f wn = getMesoscaleNormal(patch);
 		float A_G_wo = clampPositive(dot(wo, wn)) / clampPositive(dot(wg, wn));
-		res /= A_G_wo;
+		if (A_G_wo > 1e-6) {
+			res /= A_G_wo;
+		} else {
+			res = Vector3f(0.0f);
+		}
 #endif
-
 		return res;
 	}
 };
