@@ -10,62 +10,82 @@
 #include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
 
+enum _MethodMode{
+	MethodModeNaive,
+	MethodModeProposed
+};
+
+enum _TangentFacetMode {
+	SameMaterialExplicit,
+	SpecularExplicit
+};
+
+const _MethodMode MethodMode = MethodModeProposed;
+const _TangentFacetMode TangentFacetMode = SameMaterialExplicit;
+
 
 using namespace Xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-class DiffuseClamped : public Material {
+struct GlossyClamped : public Material {
 public:
-	Vector3f albedo;
 
-	DiffuseClamped(const Vector3f& albedo) :
-		albedo(albedo)
+	Vector3f albedo;
+	float sharpness;
+
+	GlossyClamped(const Vector3f& albedo, float sharpness) :
+		albedo(albedo),
+		sharpness(sharpness)
 	{}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, const Vector3f& wi) const override {
-		return dot(isect.wo, isect.shading.n) > 0.0f && dot(wi, isect.n) > 0.0f ? albedo / M_PI * clampPositive(dot(wi, isect.shading.n)) : Vector3f(0.0f);
+	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		const auto& n = isect.shading.n;
+		float N = 2 * M_PI / (sharpness + 2);
+
+		if (dot(isect.wo, n) > 0.0f && dot(wi, n) > 0.0f) {
+			return albedo * powf(dot((isect.wo + wi).normalize(), n), sharpness) / N;
+		} else {
+			return Vector3f(0.0f);
+		}
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
-		const auto& n = isect.shading.n;
-		*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
-		*pdf = dot(*wi, n) / M_PI;
-		return dot(isect.wo, isect.shading.n) > 0.0f && dot(*wi, isect.n) > 0.0f ? albedo : Vector3f(0.0f);
+	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		float r1 = sampler.randf();
+		float r2 = sampler.randf();
+
+		const Vector3f& n = isect.shading.n;
+
+		BasisVectors basis(n);
+		float sqrt = safeSqrt(1 - powf(r2, 2 / (sharpness + 1.0f)));
+		Vector3f h = basis.toGlobal(powf(r2, 1 / (sharpness + 1.0f)), cosf(2 * M_PI * r1) * sqrt, sinf(2 * M_PI * r1) * sqrt).normalize();
+		*wi = -(isect.wo - 2.0f * dot(isect.wo, h) * h).normalize();
+
+		*pdf = this->pdf(isect, *wi);
+
+		if (*pdf == 0.0f) { return Vector3f(0.0f); }
+
+		return bsdfCos(isect, sampler, *wi) / *pdf;
 	}
+
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
 		const auto& n = isect.shading.n;
-		return dot(isect.wo, isect.shading.n) > 0.0f && dot(wi, isect.n) > 0.0f ? clampPositive(dot(wi, n)) / M_PI : 0.0f;
-	}
-};
-
-class SpecularClamped : public Material {
-public:
-
-	Vector3f evalAndSample(const SurfaceInteraction& isect, const std::shared_ptr<Sampler>& sampler, Vector3f* wi, float* pdf) const override {
-		const auto& wo = isect.wo;
-
-		const auto& n = isect.shading.n;
-		*wi = -(wo - 2 * dot(n, wo) * n).normalize();
-		*pdf = -1.0f;
-		return dot(*wi, n) > 0.0f ? Vector3f(1.0f) : Vector3f(0.0f);
+		if (dot(isect.wo, n) > 0.0f && dot(wi, n) > 0.0f) {
+			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
+		} else {
+			return 0.0f;
+		}
 	}
 
 };
 
 class SpecularMicrofacetNormalMapping : public Material {
 public:
-	
-	enum TangentFacetMode {
-		SameMaterialExplicit,
-		SpecularExplicit
-	};
 
-	SpecularMicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp, TangentFacetMode tangentFacetMode):
-		material_wp(material_wp),
-		tangentFacetMode(tangentFacetMode)
+	SpecularMicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp):
+		material_wp(material_wp)
 	{}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
@@ -107,7 +127,7 @@ public:
 
 			if (d) {
 
-				if (tangentFacetMode == SpecularExplicit) {
+				if (TangentFacetMode == SpecularExplicit) {
 					Vector3f wi_dash = -(wi - 2 * dot(wt, wi) * wt).normalize();
 					wi_dash *= -1;
 					result += weight * (1.0f - G1(wi_dash, wp, wp, wt, wg)) * G1(wi, wt, wp, wt, wg) * material_wp->bsdfCos(isectfacet, sampler, wi_dash);
@@ -117,10 +137,10 @@ public:
 				weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &pdf);
 
 			} else {
-				if (tangentFacetMode == SameMaterialExplicit) {
+				if (TangentFacetMode == SameMaterialExplicit) {
 					result += weight * G1(wi, wm, wp, wt, wg) * material_wp->bsdfCos(isectfacet, sampler, wi);
 					weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &pdf);
-				} else if (tangentFacetMode == SpecularExplicit) {
+				} else if (TangentFacetMode == SpecularExplicit) {
 					wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
 				}
 			}
@@ -169,7 +189,7 @@ public:
 
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
-		bool d = sampler->randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
+		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
 		Vector3f wr = -wo;
 		SurfaceInteraction isectfacet;
 		isectfacet = isect;
@@ -188,10 +208,10 @@ public:
 				weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &tmppdf);
 				if (tmppdf >= 0.0f) { specular = false; }
 			} else {
-				if(tangentFacetMode == SameMaterialExplicit) {
+				if(TangentFacetMode == SameMaterialExplicit) {
 					weight *= material_wp->evalAndSample(isectfacet, sampler, &wr, &tmppdf);
 					if (tmppdf >= 0.0f) { specular = false; }
-				}else if (tangentFacetMode == SpecularExplicit) {
+				}else if (TangentFacetMode == SpecularExplicit) {
 					wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
 				}
 			}
@@ -268,10 +288,10 @@ public:
 			isectfacet.n = wt;
 			isectfacet.shading.n = wt;
 			float g_wi_wt = G1(wi, wt, wp, wt, wg);
-			if (tangentFacetMode == SameMaterialExplicit) {
+			if (TangentFacetMode == SameMaterialExplicit) {
 				pdf += probability_wp * g_wi_wt * material_wp->pdf(isectfacet, wi);
 				diff_pdf += probability_wp * g_wi_wt;
-			} else if (tangentFacetMode == SpecularExplicit) {
+			} else if (TangentFacetMode == SpecularExplicit) {
 				Vector3f wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
 				float g_wr_wt = G1(wr, wt, wp, wt, wg);
 				
@@ -284,17 +304,15 @@ public:
 			}
 		}
 		
-		if (tangentFacetMode == SameMaterialExplicit) {
+		if (TangentFacetMode == SameMaterialExplicit) {
 			return pdf + diff_pdf * clampPositive(dot(wi, wg)) / M_PI;
-		} else if (tangentFacetMode == SpecularExplicit) {
+		} else if (TangentFacetMode == SpecularExplicit) {
 			return pdf + diff_pdf * clampPositive(dot(wi, wg)) / M_PI * 0.5f;
 		}
 	}
 
 private:
 	std::shared_ptr<Material> material_wp;
-	TangentFacetMode tangentFacetMode;
-
 
 	float a_p (const Vector3f& w, const Vector3f& wp, const Vector3f& wg) const {
 		return clampPositive(dot(w, wp)) / fabsf(dot(wp, wg));
@@ -314,7 +332,6 @@ private:
 
 
 struct MyFrameData {
-	float initElapsed;
 	float frameElapsed;
 	Surface surface;
 	int triNum;
@@ -347,7 +364,6 @@ private:
 
 void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	time_start = std::chrono::system_clock::now();
-	auto init_time_start = std::chrono::system_clock::now();
 	
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->frameElapsed = 0.0f;
@@ -362,73 +378,45 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene = std::make_shared<Scene>();
 
-	//scene->camera = std::make_shared<PinholeCamera>(
-	//	translate(0, 1.0f, -5), 60 * ToRad, (float)ImageSize.y / ImageSize.x
-	//	);
 	scene->camera = std::make_shared<PinholeCamera>(
 		translate(0, 2.0f, -5), 60 * ToRad, (float)ImageSize.y / ImageSize.x
 		);
 
 	auto diffuse_white = std::make_shared <Diffuse>(Vector3f(0.8f));
-	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
-	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
 	auto cube = std::make_shared<Xitils::Cube>();
-	auto plane = std::make_shared<Xitils::Plane>();
 	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_red, transformTRS(Vector3f(-2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 2, 2), Vector3f(), Vector3f(4, 4, 0.01f)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(cube, diffuse_white, transformTRS(Vector3f(0, 4, 0), Vector3f(), Vector3f(4, 0.01f, 4)))
-	);
-	scene->addObject(
-		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
-	);
 
-	//auto sphere_material = std::make_shared<SpecularMicrofacetNormalMapping>(
-	//	std::make_shared<SpecularClamped>(),
-	//	SpecularMicrofacetNormalMapping::TangentFacetMode::SameMaterialExplicit
-	//	);
-	//auto sphere_material = std::make_shared<DiffuseClamped>(Vector3f(0.8f));
-	auto sphere_material = std::make_shared<SpecularMicrofacetNormalMapping>(
-		std::make_shared<DiffuseClamped>(Vector3f(0.8f)),
-		//std::make_shared<SpecularClamped>(),
-		SpecularMicrofacetNormalMapping::TangentFacetMode::SpecularExplicit
-		);
+	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
 
-	//sphere_material->normalmap = std::make_shared<TextureNormalHump>(16, 8, 0.3f);
-	sphere_material->normalmap = std::make_shared<TextureFromFile>("normals.png");
-	scene->addObject(std::make_shared<Object>(std::make_shared<Xitils::Sphere>(), sphere_material,
+	auto baseMaterial = std::make_shared<GlossyClamped>(Vector3f(0.8f), 30);
+
+	std::shared_ptr<Material> sphereMaterial;
+	
+	if (MethodMode == MethodModeNaive) {
+		sphereMaterial = baseMaterial;
+	} else if (MethodMode == MethodModeProposed) {
+		sphereMaterial = 
+			std::make_shared<SpecularMicrofacetNormalMapping>(
+			baseMaterial
+			);
+	}
+
+	sphereMaterial->normalmap = std::make_shared<Texture>("normalmap.jpg");
+
+	scene->addObject(std::make_shared<Object>(std::make_shared<Xitils::Sphere>(Vector2f(2, 1)), sphereMaterial,
 		transformTRS(Vector3f(0.0f, 1, 0.0f), Vector3f(0, -30, 30), Vector3f(1.0f))
 		));
 
 	scene->buildAccelerationStructure();
 
-	//scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
-
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
-	//pathTracer = std::make_shared<DebugRayCaster>([](const SurfaceInteraction& isect) { 
-	//	return (isect.shading.bitangent) *0.5f + Vector3f(0.5f);
-	//	} );
-
-	auto time_end = std::chrono::system_clock::now();
-
-	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - init_time_start).count();
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
-
 }
 
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
@@ -438,10 +426,10 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	frameData.sampleNum += sample;
 
-	renderTarget->render(scene, sample, [&](const Vector2f& pFilm, const std::shared_ptr<Sampler>& sampler, Vector3f& color) {
+	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-		color += pathTracer->eval(scene, sampler, ray);
+		color += pathTracer->eval(*scene, sampler, ray) * 0.5f;
 
 	});
 
@@ -462,7 +450,6 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed : " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - time_start).count()) + " s").c_str());
 	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());
 

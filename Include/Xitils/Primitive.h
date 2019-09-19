@@ -251,7 +251,7 @@ namespace Xitils {
 			a.z = 1;
 			a.normalize();
 
-			isect.shading.n = (a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.n).normalize();
+			isect.shading.n = (a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.shading.n).normalize();
 
 			// TODO: tangent ‚Æ bitangent
 			isect.shading.tangent = Vector3f();

@@ -3,7 +3,7 @@
 #include <Xitils/App.h>
 #include <Xitils/Texture.h>
 #include <CinderImGui.h>
-#include <tinycolormap.hpp>
+#include <tinycolormap/tinycolormap.hpp>
 
 using namespace Xitils;
 using namespace ci;

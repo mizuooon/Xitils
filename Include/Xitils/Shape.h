@@ -30,6 +30,12 @@ namespace Xitils {
 	class Sphere : public Shape {
 	public:
 
+		Vector2f uvScale;
+
+		Sphere(const Vector2f& uvScale = Vector2f(1.0f)):
+			uvScale(uvScale)
+		{}
+
 		Bounds3f bound() const override {
 			return Bounds3f(Vector3f(-1.0f), Vector3f(1.0f));
 		}
@@ -73,11 +79,15 @@ namespace Xitils {
 			isect->wo = normalize(-ray.d);
 
 			isect->texCoord.u = atan2f(isect->n.x, isect->n.z);
-			if (isect->texCoord.u < 0.0f) { isect->texCoord.u += M_PI; }
+			if (isect->texCoord.u < 0.0f) { isect->texCoord.u += 2 * M_PI; }
 			isect->texCoord.u = clamp01(isect->texCoord.u / (2 * M_PI));
-			isect->texCoord.v = clamp01((asinf(isect->n.y) + M_PI / 2) / M_PI);
+			isect->texCoord.v = clamp01((-asinf(isect->n.y) + M_PI / 2) / M_PI);
 
-			isect->tangent = cross(Vector3f(0, 1, 0) - isect->p, Vector3f(0, -1, 0) - isect->p).normalize();
+			isect->texCoord *= uvScale;
+			isect->texCoord.u = isect->texCoord.u - floorf(isect->texCoord.u);
+			isect->texCoord.v = isect->texCoord.v - floorf(isect->texCoord.v);
+
+			isect->tangent = cross(Vector3f(0, -1, 0) - isect->p, Vector3f(0, 1, 0) - isect->p).normalize();
 			isect->bitangent = cross(isect->n, isect->tangent).normalize();
 			isect->shading.tangent = isect->tangent;
 			isect->shading.bitangent = isect->bitangent;

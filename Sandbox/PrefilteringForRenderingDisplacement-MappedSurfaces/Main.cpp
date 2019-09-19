@@ -10,12 +10,20 @@
 #include <Xitils/RenderTarget.h>
 #include <Xitils/VonMisesFisherDistribution.h>
 #include <CinderImGui.h>
+#include <cinder/ObjLoader.h>
 
 #include <omp.h>
 
 
-//#define SAMPLE_P_WITH_EXPLICIT_RAYCAST
+#define SAMPLE_P_WITH_EXPLICIT_RAYCAST
 
+enum _MethodMode {
+	MethodModeReference,
+	MethodModeMultiLobeSVBRDF,
+	MethodModeProposed
+};
+
+const _MethodMode MethodMode = MethodModeMultiLobeSVBRDF;
 
 using namespace Xitils;
 using namespace ci;
@@ -25,11 +33,6 @@ using namespace ci::geom;
 const int DownSamplingRate = 16;
 const int VMFLobeNum = 6;
 const int ShellMappingLayerNum = 16;
-
-
-
-// TODO
-// - 評価したデータの保存、読み込み
 
 
 class PlaneDisplaceMapped : public TriangleMesh {
@@ -347,9 +350,9 @@ public:
 	std::vector<VonMisesFisherDistribution<VMFLobeNum>> vmfs;
 	
 	Vector3f sampleNormal(const Vector2f& texCoord, Sampler& sampler) const {
-		Vector2f normalizedUV = texCoord;
-		normalizedUV.u = normalizedUV.u - floorf(normalizedUV.u);
-		normalizedUV.v = normalizedUV.v - floorf(normalizedUV.v);
+		Vector2f normalizedUV;
+		normalizedUV.u = texCoord.u - floorf(texCoord.u);
+		normalizedUV.v = texCoord.v - floorf(texCoord.v);
 
 		int x0 = normalizedUV.u * resolutionU - 0.5f;
 		int y0 = normalizedUV.v * resolutionV - 0.5f;
@@ -358,10 +361,10 @@ public:
 		float wx1 = (normalizedUV.u * resolutionU - 0.5f) - x0;
 		float wy1 = (normalizedUV.v * resolutionV - 0.5f) - y0;
 
-		x0 = Xitils::clamp(x0, 0, resolutionU - 1);
-		x1 = Xitils::clamp(x1, 0, resolutionU - 1);
-		y0 = Xitils::clamp(y0, 0, resolutionV - 1);
-		y1 = Xitils::clamp(y1, 0, resolutionV - 1);
+		if (x0 < 0) { x0 = resolutionU - 1; }
+		if (y0 < 0) { y0 = resolutionV - 1; }
+		if (x1 >= resolutionU) { x1 = 0; }
+		if (y1 >= resolutionU) { y1 = 0; }
 
 		int x = (sampler.randf() <= wx1) ? x1 : x0;
 		int y = (sampler.randf() <= wy1) ? y1 : y0;
@@ -473,9 +476,6 @@ public:
 	}
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
-
-		// TODO
-
 		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
@@ -500,12 +500,13 @@ public:
 class PrefilteredDisplaceMapping : public Material {
 public:
 
-	const int M = 1;
-	const int N = 8;
+	const int SpatialResolution = 2;
+	const int PhaiResolution = 8;
+	const int ThetaResolution = PhaiResolution / 2;
 
 	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale):
-		T(M, M),
-		S(N/2, N),
+		T(SpatialResolution, SpatialResolution),
+		S(ThetaResolution, PhaiResolution),
 		baseMaterial(baseMaterial),
 		displacementTexOrig(displacementTexOrig),
 		displacementScale(displacementScale),
@@ -514,7 +515,6 @@ public:
 
 		displacementTexLow = downsampleDisplacementTexture(displacementTexOrig, displacementScale, svndf);
 		multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, displacementTexLow, displacementScale, svndf);
-		//multiLobeSVBRDF = baseMaterial;//*********************************************************************************
 
 		auto planeLow = std::make_shared<PlaneDisplaceMapped>(displacementTexLow, displacementScale);
 		auto sceneLow = std::make_shared<Scene>();
@@ -531,8 +531,6 @@ public:
 	}
 
 	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
-		// TODO::::::::::::::::::::::::: wo, wi の座標変換
-		// tangent, bitangent, normal ?
 		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi));
 		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
@@ -540,14 +538,10 @@ public:
 	}
 
 	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
-		auto eval = multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf);
-
-		// TODO::::::::::::::::::::::::: wo, wi の座標変換
-		// tangent, bitangent, normal ?
 		Vector3f wiLocal = Vector3f(dot(isect.tangent, *wi), dot(isect.bitangent, *wi), dot(isect.n, *wi));
 		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
-		return eval * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
+		return multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
 	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
@@ -591,7 +585,7 @@ private:
 
 	void estimateT(const Scene& sceneLow, const Scene& sceneOrig) {
 
-		if (M == 1) {
+		if (SpatialResolution == 1) {
 			T[0] = Vector3f(1.0f);
 			return;
 		}
@@ -652,7 +646,7 @@ private:
 				S.indexToVector(i, &wi, &wo, *samplers[omp_get_thread_num()]);
 
 				auto& sampler = samplers[omp_get_thread_num()];
-				Vector2f t = Vector2f(((i / M) % M + sampler->randf()) / M, ((i % M) + sampler->randf()) / M);
+				Vector2f t = Vector2f(((i / SpatialResolution) % SpatialResolution + sampler->randf()) / SpatialResolution, ((i % SpatialResolution) + sampler->randf()) / SpatialResolution);
 				Vector2f p = Vector2f(sampler->randf(), sampler->randf() );
 				float prob_p = 1.0f;
 				float kernel_p = 1.0f;
@@ -676,13 +670,13 @@ private:
 
 	Bounds2f getPatch(const Vector2f& p) const {
 		Bounds2f patch;
-		Vector2f patchSize = Vector2f(1.0f) / M;
-		int patchIndexU = (int)(p.u / patchSize.u * M);
-		int patchIndexV = (int)(p.v / patchSize.v * M);
-		patchIndexU = Xitils::clamp(patchIndexU, 0, M - 1);
-		patchIndexV = Xitils::clamp(patchIndexV, 0, M - 1);
-		patch.min.u = (float)patchIndexU / M;
-		patch.min.v = (float)patchIndexV / M;
+		Vector2f patchSize = Vector2f(1.0f) / SpatialResolution;
+		int patchIndexU = (int)(p.u / patchSize.u * SpatialResolution);
+		int patchIndexV = (int)(p.v / patchSize.v * SpatialResolution);
+		patchIndexU = Xitils::clamp(patchIndexU, 0, SpatialResolution - 1);
+		patchIndexV = Xitils::clamp(patchIndexV, 0, SpatialResolution - 1);
+		patch.min.u = (float)patchIndexU / SpatialResolution;
+		patch.min.v = (float)patchIndexV / SpatialResolution;
 		patch.max = patch.min + patchSize;
 		return patch;
 	}
@@ -760,7 +754,7 @@ private:
 			
 			contrib *= isect.object->material->bsdfCos(isect, sampler, wi);
 
-			res += contrib;
+			res += clampPositive(contrib);
 
 		}
 		res /= Sample;
@@ -860,7 +854,7 @@ private:
 				rayWi.d = wi;
 				rayWi.o = isect.p + rayWi.d * RayOffset;
 				if (dot(wi, isect.shading.n) > 0.0f && !sceneOrig.intersectAny(rayWi)) {
-					res += weight * isect.object->material->bsdfCos(isect, sampler, wi);
+					res += clampPositive(weight * isect.object->material->bsdfCos(isect, sampler, wi));
 				}
 
 				Xitils::Ray rayNext;
@@ -895,7 +889,6 @@ struct MyFrameData {
 	float initElapsed;
 	float frameElapsed;
 	Surface surface;
-	int triNum;
 	int sampleNum = 0;
 };
 
@@ -930,7 +923,6 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->surface = Surface(ImageSize.x, ImageSize.y, false);
 	frameData->frameElapsed = 0.0f;
 	frameData->sampleNum = 0;
-	frameData->triNum = 0;
 
 	getWindow()->setTitle("Xitils");
 	setWindowSize(ImageSize);
@@ -945,35 +937,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		40 * ToRad, 
 		(float)ImageSize.y / ImageSize.x
 		);
-	//scene->camera = std::make_shared<OrthographicCamera>(
-	//	translate(0, 0.5f, -3), 4, 3);
 
-	const int subdivision = 10;
-	auto teapot = std::make_shared<Teapot>();
-	teapot->subdivisions(subdivision);
-	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
+	//const int subdivision = 10;
+	//auto teapot = std::make_shared<Teapot>();
+	//teapot->subdivisions(subdivision);
+	//auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 
-
-	//auto teapot_material = std::make_shared<MultiLobeSVBRDF>();
-	//teapot_material->baseMaterial = std::make_shared<Diffuse>(Vector3f(0.8f));
-	//teapot_material->displacementScale = 0.01f;
-	//teapot_material->dispTexLow = std::make_shared<Texture>("dispcloth.jpg");
-	//teapot_material->dispTexLow = downsampleTexture(teapot_material->dispTexLow, teapot_material->displacementScale, &teapot_material->vmfs);
-	//auto& dispmap = teapot_material->dispTexLow;
-
-	auto teapot_basematerial = std::make_shared<Glossy>(Vector3f(0.6f), 3);
-
-	float dispScale = 0.01f;
-	//float dispScale = 0.02f;
-	auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
-	//auto dispTexOrig = std::make_shared<Texture>("displacement.png");
-	dispTexOrig->warpClamp = false;
-
+	// cornell box
 	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.6f));
-	
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 5);
+	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
 	auto cube = std::make_shared<Xitils::Cube>();
 	auto plane = std::make_shared<Xitils::Plane>();
 	scene->addObject(
@@ -995,63 +969,64 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispTexOrig, dispScale);
-	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, teapot_basematerial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
-	//);
 
-	//auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale);
-	//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
-	//scene->addObject(
-	//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial->getMutliLobeSVBRDF(), transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
-	//);
+	auto baseMaterial = std::make_shared<GlossyWithHighLight>(Vector3f(0.8f, 0.2f, 0.2f), Vector3f(1.0f), 2, 10, 0.05f);
 
-	auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(teapot_basematerial, dispTexOrig, dispScale);
-	auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), dispScale);
-	scene->addObject(
-		std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
-	);
+	const float DispScale = 0.01f;
 
-	//auto teapotMesh = std::make_shared<TriangleMesh>();
-	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, dispTexOrig, dispScale*3, ShellMappingLayerNum);
-	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_basematerial,
-	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
-	//	));
+	//auto dispTexOrig = std::make_shared<Texture>("dispcloth.jpg");
+	auto dispTexOrig = std::make_shared<Texture>("disp_fabric.jpg");
+	//auto dispTexOrig = std::make_shared<Texture>("displacement.png");
+	dispTexOrig->warpClamp = false;
 
-	//auto teapotMesh = std::make_shared<TriangleMesh>();
-	//teapotMesh->setGeometryWithShellMapping(*teapotMeshData, prefilteredDispMaterial->getDisplacementTextureLow(), dispScale, ShellMappingLayerNum);
-	//auto teapot_material = prefilteredDispMaterial;
-	//scene->addObject(std::make_shared<Object>(teapotMesh, teapot_material,
-	//	transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
-	//	));
+	if (MethodMode == MethodModeReference) {
+		//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispTexOrig, DispScale);
+		//scene->addObject(
+		//	std::make_shared<Object>(planeDisp, baseMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+		//);
+
+		auto cloth = std::make_shared<TriangleMesh>();
+		cloth->setGeometryWithShellMapping(*std::make_shared<TriMesh>(ObjLoader(loadFile("cloth.obj"))), dispTexOrig, DispScale, ShellMappingLayerNum);
+		scene->addObject(
+			std::make_shared<Object>(cloth, baseMaterial, transformTRS(Vector3f(0, -0.025f, 0), Vector3f(0, 0, 0), Vector3f(1.0f)))
+		);
+	} else if (MethodMode == MethodModeMultiLobeSVBRDF) {
+		auto svndf = std::make_shared<SVNDF>();
+		auto dispTexLow = downsampleDisplacementTexture(dispTexOrig, DispScale, svndf);
+		auto multiLobeSVBRDF = std::make_shared<MultiLobeSVBRDF>(baseMaterial, dispTexLow, DispScale, svndf);
+		//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(dispTexLow, DispScale);
+		//scene->addObject(
+		//	std::make_shared<Object>(planeDisp, multiLobeSVBRDF, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+		//);
+
+		auto cloth = std::make_shared<TriangleMesh>();
+		cloth->setGeometryWithShellMapping(*std::make_shared<TriMesh>(ObjLoader(loadFile("cloth.obj"))), dispTexLow, DispScale, ShellMappingLayerNum);
+		scene->addObject(
+			std::make_shared<Object>(cloth, multiLobeSVBRDF, transformTRS(Vector3f(0, -0.03f, 0), Vector3f(0, 0, 0), Vector3f(1.0f)))
+		);
+	} else if (MethodMode == MethodModeProposed) {
+		auto prefilteredDispMaterial = std::make_shared<PrefilteredDisplaceMapping>(baseMaterial, dispTexOrig, DispScale);
+		//auto planeDisp = std::make_shared<PlaneDisplaceMapped>(prefilteredDispMaterial->getDisplacementTextureLow(), DispScale);
+		//scene->addObject(
+		//	std::make_shared<Object>(planeDisp, prefilteredDispMaterial, transformTRS(Vector3f(0.25f, 0.5f, -1), Vector3f(-45, 180, 0), Vector3f(0.5f)))
+		//);
+
+		auto cloth = std::make_shared<TriangleMesh>();
+		cloth->setGeometryWithShellMapping(*std::make_shared<TriMesh>(ObjLoader(loadFile("cloth.obj"))), prefilteredDispMaterial->getDisplacementTextureLow(), DispScale, ShellMappingLayerNum);
+		scene->addObject(
+			std::make_shared<Object>(cloth, prefilteredDispMaterial, transformTRS(Vector3f(0, -0.03f, 0), Vector3f(0, 0, 0), Vector3f(1.0f)))
+		);
+	}
 
 	scene->buildAccelerationStructure();
-
-	//scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
 
 	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
-	//pathTracer = std::make_shared<DebugRayCaster>([&](const SurfaceInteraction& isect, Sampler& sampler) {
-	//	return (isect.shading.n) * 0.5f + Vector3f(0.5f);
-	//	} );
-	//pathTracer = std::make_shared<DebugRayCaster>([&](const SurfaceInteraction& isect, Sampler& sampler) {
-
-	//	auto p = std::dynamic_pointer_cast<MultiLobeSVBRDF>(isect.object->material);
-	//	
-	//	if (p) {
-	//		auto perturbed = p->perturbInteraction(isect, sampler);
-	//		return (perturbed.shading.n) * 0.5f + Vector3f(0.5f);
-	//	} else {
-	//		return Vector3f(0);
-	//	}
-
-	//	} );
 
 	auto time_end = std::chrono::system_clock::now();
 
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - init_time_start).count();
-	frameData->triNum = teapotMeshData->getNumTriangles();
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -1061,11 +1036,6 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
-	//scene->objects[0]->objectToWorld = rotateYXZ(uiFrameData.rot);
-	//scene->buildAccelerationStructure();
-
-	//renderTarget->clear();
-
 	int sample = 1;
 
 	frameData.sampleNum += sample;
@@ -1074,41 +1044,6 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
 		color += pathTracer->eval(*scene, sampler, ray);
-
-		//SurfaceInteraction isect;
-		//
-		//if (scene->intersect(ray, &isect)) {
-		//	//Vector3f dLight = normalize(Vector3f(1, 1, -1));
-		//	//color = Vector3f(1.0f, 1.0f, 1.0f) * clamp01(dot(isect.shading.n, dLight));
-
-		//	Vector3f wi;
-		//	Vector3f f;
-		//	if (isect.object->material->emissive) {
-		//		color += isect.object->material->emission(isect);
-		//	}
-		//	if (isect.object->material->specular) {
-		//		f = isect.object->material->evalAndSampleSpecular(isect, sampler, &wi);
-		//	} else {
-		//		float pdf;
-		//		f = isect.object->material->evalAndSample(isect, sampler, &wi, &pdf);
-		//	}
-		//	if (!f.isZero()) {
-
-		//		Xitils::Ray ray2;
-		//		SurfaceInteraction isect2;
-		//		ray2.d = wi;
-		//		ray2.o = isect.p + ray2.d * 0.001f;
-		//		if (scene->intersect(ray2,&isect2)) {
-		//			if (isect2.object->material->emissive) {
-		//				color += f * isect2.object->material->emission(isect2) * 10;
-		//			}
-		//		}
-
-		//	}
-
-		//	//color += isect.shading.n * 0.5f + Vector3f(0.5f);
-
-		//}
 	});
 
 	renderTarget->toneMap(&frameData.surface, frameData.sampleNum);
@@ -1128,19 +1063,8 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed : " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - time_start).count()) + " s").c_str());
-	//ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());
-
-	//float rot[3];
-	//rot[0] = uiFrameData.rot.x;
-	//rot[1] = uiFrameData.rot.y;
-	//rot[2] = uiFrameData.rot.z;
-	//ImGui::SliderFloat3("Rotation", rot, -180, 180 );
-	//uiFrameData.rot.x = rot[0];
-	//uiFrameData.rot.y = rot[1];
-	//uiFrameData.rot.z = rot[2];
 
 	ImGui::End();
 }

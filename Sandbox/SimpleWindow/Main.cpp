@@ -12,6 +12,8 @@ struct MyFrameData {
 };
 
 struct MyUIFrameData {
+	float radius = 30;
+	float distance = 100;
 };
 
 class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
@@ -54,12 +56,12 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			float theta1 = frameCount / M_PI * 0.05f;
 			float theta2 = theta1 + M_PI * 2.0f / 3.0f;
 			float theta3 = theta2 + M_PI * 2.0f / 3.0f;
-			const float r = 30.0f;
-			const float L = 100.0f;
+			const float r = uiFrameData.radius;
+			const float d = uiFrameData.distance;
 
-			vec2 p1 = vec2(cos(theta1), sin(theta1)) * L + vec2(ImageSize / 2);
-			vec2 p2 = vec2(cos(theta2), sin(theta2)) * L + vec2(ImageSize / 2);
-			vec2 p3 = vec2(cos(theta3), sin(theta3)) * L + vec2(ImageSize / 2);
+			vec2 p1 = vec2(cos(theta1), sin(theta1)) * d + vec2(ImageSize / 2);
+			vec2 p2 = vec2(cos(theta2), sin(theta2)) * d + vec2(ImageSize / 2);
+			vec2 p3 = vec2(cos(theta3), sin(theta3)) * d + vec2(ImageSize / 2);
 
 
 			if (length(p1 - p0) <= r) { color.r = 255; }
@@ -88,6 +90,8 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	ImGui::Text("Hello World!");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
 	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
+	ImGui::SliderFloat("Radius", &uiFrameData.radius, 10, 100);
+	ImGui::SliderFloat("Distance", &uiFrameData.distance, 10, 200);
 	ImGui::End();
 }
 

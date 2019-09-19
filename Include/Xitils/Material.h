@@ -118,6 +118,45 @@ namespace Xitils {
 
 	};
 
+	struct GlossyWithHighLight : public Material {
+	public:
+		float highlightRate;
+
+		GlossyWithHighLight(const Vector3f& albedo, const Vector3f& highlight, float sharpness, float sharpnessHighLight, float highlightRate) :
+			base(new Glossy(albedo, sharpness)),
+			highlight(new Glossy(highlight, sharpnessHighLight)),
+			highlightRate(highlightRate)
+		{}
+
+		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+			return (1.0f - highlightRate) * base->bsdfCos(isect, sampler, wi) + highlightRate * highlight->bsdfCos(isect, sampler, wi);
+		}
+
+		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+			Vector3f eval;
+			if (sampler.randf() <= highlightRate) {
+				float tmppdf;
+				Vector3f tmpeval = highlight->evalAndSample(isect, sampler, wi, &tmppdf);
+				eval = (1.0f - highlightRate)* base->bsdfCos(isect, sampler, *wi) + highlightRate * tmpeval;
+				*pdf = (1.0f - highlightRate) * base->pdf(isect, *wi) + highlightRate * tmppdf;
+			} else {
+				float tmppdf;
+				Vector3f tmpeval = base->evalAndSample(isect, sampler, wi, &tmppdf);
+				eval = (1.0f - highlightRate) * tmpeval + highlightRate * highlight->bsdfCos(isect, sampler, *wi);
+				*pdf = (1.0f - highlightRate) * tmppdf + highlightRate * highlight->pdf(isect, *wi);
+			}
+			return eval;
+		}
+
+		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+			return (1.0f - highlightRate) * base->pdf(isect, wi) + highlightRate * highlight->pdf(isect, wi);
+		}
+
+	private:
+		std::shared_ptr<Glossy> base;
+		std::shared_ptr<Glossy> highlight;
+	};
+
 	class SpecularReflection : public Material {
 	public:
 

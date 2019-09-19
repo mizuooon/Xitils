@@ -1,4 +1,3 @@
-**/.vs
-**/Build
-**/x64
-**/imgui.ini
+Sandbox/Data/imgui.ini
+Sandbox/Build/*
+!.gitkeep

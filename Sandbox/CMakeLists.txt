@@ -58,11 +58,11 @@ function(add_sandbox TargetName)
 	)
 	#set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${TargetName})
 	
-	# なんかC++のバージョン指定以下でやるとうまくいかない
+	# なんかC++のバージョン指定を以下のようにやるとうまくいかない
 	#target_compile_features(${TargetName} PRIVATE cxx_std_17)
 endfunction(add_sandbox)
 
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" )
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited configs" FORCE)
 
 enable_language(CXX)
 set(CMAKE_CXX_STANDARD 17)
@@ -75,15 +75,12 @@ add_definitions(-D_UNICODE)
 add_definitions(-DNOMINMAX)
 add_definitions(/MP)
 
-# add_subdirectory(SimpleWindow)
-add_subdirectory(RaycasterBVH)
-# add_subdirectory(RaycasterEmbree)
-# add_subdirectory(RaycasterOptix)
-
+add_subdirectory(SimplePathTracer)
+add_subdirectory(SimpleWindow)
 add_subdirectory(Microfacet-basedNormalMapping)
-
+add_subdirectory(PrefilteringForRenderingDisplacement-MappedSurfaces)
+add_subdirectory(VisualizeError)
 add_subdirectory(VonMisesFisherDistribution)
 
-add_subdirectory(PrefilteringForRenderingDisplacement-MappedSurfaces)
-
-add_subdirectory(VisualizeError)
+# add_subdirectory(_Experimental/RaycasterEmbree)
+# add_subdirectory(_Experimental/RaycasterOptix)
