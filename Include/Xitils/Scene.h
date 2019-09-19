@@ -27,7 +27,7 @@ namespace xitils {
 			accel = std::make_shared<AccelerationStructure>(tmp);
 		}
 
-		bool intersect(Ray& ray, SurfaceInteraction* isect) const {
+		bool intersect(Ray& ray, SurfaceIntersection* isect) const {
 			return accel->intersect(ray, isect);
 		}
 
@@ -46,12 +46,12 @@ namespace xitils {
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const Primitive* primitive) const {
+		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const TriangleIndexed* tri) const {
 			// TODO: ã‹L‚ð’¼‚µ‚½‚ç‚±‚¿‚ç‚à’¼‚·
 
 			if (lights.empty()) { return 0.0f; }
 
-			return object->surfacePDF(p, shape, primitive) / lights.size();
+			return object->surfacePDF(p, shape, tri) / lights.size();
 		}
 
 	private:

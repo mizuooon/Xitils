@@ -3,7 +3,12 @@
 #include <Xitils/App.h>
 #include <Xitils/Texture.h>
 #include <CinderImGui.h>
+
+#pragma warning(push)
+#pragma warning(disable:4067)
+#pragma warning(disable:4715)
 #include <tinycolormap/tinycolormap.hpp>
+#pragma warning(pop)
 
 using namespace xitils;
 using namespace ci;

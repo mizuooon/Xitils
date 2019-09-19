@@ -14,7 +14,7 @@ namespace xitils {
 
 		// BSDF * cos の値を返す
 		// スペキュラの物体ではデルタ関数になるので実装しない
-		virtual Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const {
+		virtual Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
@@ -22,13 +22,13 @@ namespace xitils {
 		// BSDF * cos / pdf の値を返し、wi のサンプリングも行う
 		// スペキュラの物体ではデルタ関数になり、このとき pdf は -1 として表される
 		// 戻り値が 0 のときには wi と pdf は有効ではない
-		virtual Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const {
+		virtual Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
 		// スペキュラの物体ではデルタ関数になるので実装しない
-		virtual float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const {
+		virtual float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 		}
 
@@ -50,7 +50,7 @@ namespace xitils {
 			albedo(albedo)
 		{}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 			if (texture == nullptr) {
 				return albedo / M_PI * clampPositive(dot(isect.shading.n, wi));
 			} else {
@@ -58,7 +58,7 @@ namespace xitils {
 			}
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& n = isect.shading.n;
 			*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 			*pdf = dot(*wi, n) / M_PI;
@@ -69,7 +69,7 @@ namespace xitils {
 			}
 		}
 
-		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			const auto& n = isect.shading.n;
 			return clampPositive(dot(wi, n)) / M_PI;
 		}
@@ -86,13 +86,13 @@ namespace xitils {
 			sharpness(sharpness)
 		{}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 			const auto& n = isect.shading.n;
 			float N = 2 * M_PI / (sharpness + 2);
 			return albedo * powf(dot((isect.wo + wi).normalize(), n), sharpness) / N;
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			float r1 = sampler.randf();
 			float r2 = sampler.randf();
 
@@ -111,7 +111,7 @@ namespace xitils {
 		}
 
 
-		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			const auto& n = isect.shading.n;
 			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
 		}
@@ -128,11 +128,11 @@ namespace xitils {
 			highlightRate(highlightRate)
 		{}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 			return (1.0f - highlightRate) * base->bsdfCos(isect, sampler, wi) + highlightRate * highlight->bsdfCos(isect, sampler, wi);
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			Vector3f eval;
 			if (sampler.randf() <= highlightRate) {
 				float tmppdf;
@@ -148,7 +148,7 @@ namespace xitils {
 			return eval;
 		}
 
-		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			return (1.0f - highlightRate) * base->pdf(isect, wi) + highlightRate * highlight->pdf(isect, wi);
 		}
 
@@ -160,7 +160,7 @@ namespace xitils {
 	class SpecularReflection : public Material {
 	public:
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 
 			const auto& n = isect.shading.n;
@@ -176,7 +176,7 @@ namespace xitils {
 
 		float index = 1.0f;
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 
@@ -205,7 +205,7 @@ namespace xitils {
 
 		float index = 1.0f;
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 
@@ -265,15 +265,15 @@ namespace xitils {
 			emissive = true;
 		}
 
-		Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 			return Vector3f();
 		}
 
-		Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 			return Vector3f();
 		}
 
-		float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			return 0.0f;
 		}
 

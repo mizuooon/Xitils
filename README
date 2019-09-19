@@ -38,7 +38,7 @@ Generate
 
 
 https://3dtextures.me/2019/07/24/dragon-scales-001/
-
+https://3dtextures.me/2018/12/10/fabric-007/ (色マップを白黒化して使用)
 
 再配布可能と明記されていないファイルについては含んでいないので、
 適宜個別にダウンロードする必要がある。
@@ -49,6 +49,18 @@ rnl_probe.hdr
 http://www.pauldebevec.com/Probes/
 
 
+Sandbox/Data 内が実行ディレクトリ。
+また、この中にデータが入っている。
+LFS で管理している。
+
+
 
 Include 内の Xitils 以外のリソースは別のプロジェクトのライブラリ
 個々の著作権情報についてはファイル中に記載されているのでそれを参照
+
+
+Object / Sphere / Primitive の関係について
+
+
+左手座標系 (ポリゴンは左回り)
+テクスチャのUV座標系で、Vは下方向

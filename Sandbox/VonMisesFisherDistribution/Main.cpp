@@ -65,7 +65,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	sampler = std::make_shared<Sampler>(0);
 
-	font = std::make_shared<cinder::Font>("arial", 20);
+	font = std::make_shared<cinder::Font>("arial", 20.0f);
 
 	while (samples.size() < 10000) {
 		auto v = sampleVectorFromHemiSphere(Vector3f(0,0,1), *sampler);

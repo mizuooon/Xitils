@@ -17,12 +17,11 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/Bounds.h
 	${XITILS_INCLUDE_DIR}/Xitils/Camera.h
 	${XITILS_INCLUDE_DIR}/Xitils/Geometry.h
-	${XITILS_INCLUDE_DIR}/Xitils/Interaction.h
+	${XITILS_INCLUDE_DIR}/Xitils/Intersection.h
 	${XITILS_INCLUDE_DIR}/Xitils/Material.h
 	${XITILS_INCLUDE_DIR}/Xitils/Matrix.h
 	${XITILS_INCLUDE_DIR}/Xitils/Object.h
 	${XITILS_INCLUDE_DIR}/Xitils/PathTracer.h
-	${XITILS_INCLUDE_DIR}/Xitils/Primitive.h
 	${XITILS_INCLUDE_DIR}/Xitils/Ray.h
 	${XITILS_INCLUDE_DIR}/Xitils/RenderTarget.h
 	${XITILS_INCLUDE_DIR}/Xitils/Sampler.h
@@ -31,6 +30,7 @@ target_sources(Xitils INTERFACE
 	${XITILS_INCLUDE_DIR}/Xitils/SkySphere.h
 	${XITILS_INCLUDE_DIR}/Xitils/Texture.h
 	${XITILS_INCLUDE_DIR}/Xitils/Transform.h
+	${XITILS_INCLUDE_DIR}/Xitils/TriangleIndexed.h
 	${XITILS_INCLUDE_DIR}/Xitils/TriangleMesh.h
 	${XITILS_INCLUDE_DIR}/Xitils/Utils.h
 	${XITILS_INCLUDE_DIR}/Xitils/Vector.h
@@ -74,6 +74,7 @@ set(CMAKE_CXX_FLAGS "/openmp")
 add_definitions(-D_UNICODE)
 add_definitions(-DNOMINMAX)
 add_definitions(/MP)
+add_definitions(/EHsc)
 
 add_subdirectory(SimplePathTracer)
 add_subdirectory(SimpleWindow)

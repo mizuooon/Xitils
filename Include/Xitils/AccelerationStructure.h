@@ -2,11 +2,10 @@
 
 #include "Utils.h"
 #include "Geometry.h"
-#include "Primitive.h"
 #include "Interaction.h"
-#include "Primitive.h"
 #include "Object.h"
 #include "Shape.h"
+#include "TriangleIndexed.h"
 
 namespace xitils {
 
@@ -19,18 +18,18 @@ namespace xitils {
 
 	class _AccelerationStructure {
 	public:
-		virtual bool intersect(Ray& ray, SurfaceInteraction *isect) const = 0;
+		virtual bool intersect(Ray& ray, SurfaceIntersection *isect) const = 0;
 		virtual bool intersectAny(const Ray& ray) const {
 			Ray rayTmp(ray);
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 			return intersect(rayTmp, &isect);
 		}
 	};
 
 	class _NaiveAccelerationStructure : public _AccelerationStructure {
 	public:
-		_NaiveAccelerationStructure(const std::vector<Primitive*>& primitives) {
-			map<Primitive*, Geometry*>(primitives, &geometries, [](const Geometry* primitive) { return (Geometry*)primitive; });
+		_NaiveAccelerationStructure(const std::vector<TriangleIndexed*>& tris) {
+			map<TriangleIndexed*, Geometry*>(tris, &geometries, [](const Geometry* tris) { return (Geometry*)tris; });
 		}
 		_NaiveAccelerationStructure(const std::vector<Object*>& objects) {
 			map<Object*, Geometry*>(objects, &geometries, [](const Geometry* object) { return (Geometry*)object; });
@@ -39,7 +38,7 @@ namespace xitils {
 			map<Shape*, Geometry*>(shapes, &geometries, [](const Geometry* shape) { return (Geometry*)shape; });
 		}
 
-		bool intersect(Ray& ray, SurfaceInteraction *isect) const override {
+		bool intersect(Ray& ray, SurfaceIntersection *isect) const override {
 			bool hit = false;
 			for(const auto& geometry : geometries) {
 				if (geometry->intersect(ray, &ray.tMax, isect)) {
@@ -76,7 +75,7 @@ namespace xitils {
 
 	class _BVH : public _AccelerationStructure {
 	public:
-		_BVH(const std::vector<Primitive*>& primitives) {
+		_BVH(const std::vector<TriangleIndexed*>& primitives) {
 			buildTrianglesAndBVH((const Geometry**)primitives.data(), primitives.size());
 		}
 
@@ -92,7 +91,7 @@ namespace xitils {
 			delete nodes;
 		}
 
-		bool intersect(Ray& ray, SurfaceInteraction* isect) const override {
+		bool intersect(Ray& ray, SurfaceIntersection* isect) const override {
 			return intersectSub(ray, isect, nodeRoot);
 		}
 
@@ -105,19 +104,19 @@ namespace xitils {
 		BVHNode* nodes;
 		int nodeCount = 0;
 
-		struct PrimBounds {
+		struct GeoBounds {
 			const Geometry* geometry;
 			Bounds3f bound;
 			Vector3f center;
 
-			PrimBounds(const Geometry* geometry, const Bounds3f& bound, const Vector3f& center):
+			GeoBounds(const Geometry* geometry, const Bounds3f& bound, const Vector3f& center):
 				geometry(geometry),
 				bound(bound),
 				center(center)
 			{}
 		};
 
-		bool intersectSub(Ray& ray, SurfaceInteraction* isect, BVHNode* node) const {
+		bool intersectSub(Ray& ray, SurfaceIntersection* isect, BVHNode* node) const {
 			if (!node->aabb.intersect(ray, nullptr, nullptr)) {
 				return false;
 			}
@@ -163,12 +162,12 @@ namespace xitils {
 
 		void buildTrianglesAndBVH(const Geometry** data, int primNum) {
 			ASSERT(primNum > 0);
-			std::vector<PrimBounds> aabbPrimitives;
+			std::vector<GeoBounds> aabbPrimitives;
 			aabbPrimitives.reserve(primNum);
 			for (int i = 0; i < primNum; ++i) {
-				const Geometry* prim = data[i];
-				Bounds3f bound = prim->bound();
-				aabbPrimitives.push_back(PrimBounds(prim, bound, bound.center()));
+				const Geometry* geo = data[i];
+				Bounds3f bound = geo->bound();
+				aabbPrimitives.push_back(GeoBounds(geo, bound, bound.center()));
 			}
 
 			int treeDepth = ceil(log2((float)primNum));
@@ -187,7 +186,7 @@ namespace xitils {
 			buildBVHSub(aabbPrimitives.begin(), aabbPrimitives.end(), nodeRoot, bucket);
 		}
 
-		void buildBVHSub(typename std::vector<PrimBounds>::iterator begin, const typename std::vector<PrimBounds>::iterator& end, BVHNode* node, BucketComputation& bucket, int depth = 0, const Bounds3f& aabb = Bounds3f()) {
+		void buildBVHSub(typename std::vector<GeoBounds>::iterator begin, const typename std::vector<GeoBounds>::iterator& end, BVHNode* node, BucketComputation& bucket, int depth = 0, const Bounds3f& aabb = Bounds3f()) {
 
 			if (end - begin == 1) {
 				node->geometry = begin->geometry;
@@ -201,7 +200,7 @@ namespace xitils {
 
 			int axis = node->aabb.size().maxDimension();
 			node->axis = axis;
-			std::sort(begin, end, [axis](const PrimBounds& a, const PrimBounds& b) {
+			std::sort(begin, end, [axis](const GeoBounds& a, const GeoBounds& b) {
 				return a.center[axis] < b.center[axis];
 				});
 

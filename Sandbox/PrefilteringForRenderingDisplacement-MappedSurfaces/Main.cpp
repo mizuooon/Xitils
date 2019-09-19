@@ -23,7 +23,7 @@ enum _MethodMode {
 	MethodModeProposed
 };
 
-const _MethodMode MethodMode = MethodModeMultiLobeSVBRDF;
+const _MethodMode MethodMode = MethodModeReference;
 
 using namespace xitils;
 using namespace ci;
@@ -467,21 +467,21 @@ public:
 		svndf(svndf)
 	{}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		return baseMaterial->bsdfCos(perturbInteraction(isect, sampler), sampler, wi);
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		return baseMaterial->evalAndSample(perturbInteraction(isect, sampler), sampler, wi, pdf);
 	}
 
-	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
-	SurfaceInteraction perturbInteraction(const SurfaceInteraction& isect, Sampler& sampler) const {
+	SurfaceIntersection perturbInteraction(const SurfaceIntersection& isect, Sampler& sampler) const {
 
-		SurfaceInteraction isectPerturbed = isect;
+		SurfaceIntersection isectPerturbed = isect;
 		Vector3f n = svndf->sampleNormal(isect.texCoord, sampler);
 
 		isectPerturbed.shading.n =
@@ -530,21 +530,21 @@ public:
 		estimateS(*sceneLow, *sceneOrig);
 	}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		Vector3f wiLocal = Vector3f(dot(isect.tangent, wi), dot(isect.bitangent, wi), dot(isect.n, wi));
 		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
 		return multiLobeSVBRDF->bsdfCos(isect, sampler, wi) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		Vector3f wiLocal = Vector3f(dot(isect.tangent, *wi), dot(isect.bitangent, *wi), dot(isect.n, *wi));
 		Vector3f woLocal = Vector3f(dot(isect.tangent, isect.wo), dot(isect.bitangent, isect.wo), dot(isect.n, isect.wo));
 
 		return multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
-	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		return 0.9f * multiLobeSVBRDF->pdf(isect, wi) + 0.1f * clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
@@ -693,7 +693,7 @@ private:
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
 			xitils::Ray ray;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 
 			Vector3f contrib(1.0f);
 
@@ -793,7 +793,7 @@ private:
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
 			xitils::Ray ray;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 
 			Vector3f weight(1.0f);
 			int pathLength = 1;
@@ -970,7 +970,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	);
 
 
-	auto baseMaterial = std::make_shared<GlossyWithHighLight>(Vector3f(0.8f, 0.2f, 0.2f), Vector3f(1.0f), 2, 10, 0.05f);
+	auto baseMaterial = std::make_shared<GlossyWithHighLight>(Vector3f(0.8f, 0.2f, 0.2f), Vector3f(1.0f), 2.0f, 10.0f, 0.05f);
 
 	const float DispScale = 0.01f;
 

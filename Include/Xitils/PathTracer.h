@@ -16,14 +16,14 @@ namespace xitils {
 	class DebugRayCaster : public PathTracer {
 	public:
 
-		DebugRayCaster(std::function<Vector3f(const SurfaceInteraction&, Sampler&)> f) :
+		DebugRayCaster(std::function<Vector3f(const SurfaceIntersection&, Sampler&)> f) :
 			f(f)
 		{}
 
 		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
 			Vector3f color;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 
 			Ray tmpRay(ray);
 			if (scene.intersect(tmpRay, &isect)) {
@@ -34,7 +34,7 @@ namespace xitils {
 		}
 
 	private:
-		std::function<Vector3f(const SurfaceInteraction&, Sampler&)> f;
+		std::function<Vector3f(const SurfaceIntersection&, Sampler&)> f;
 	};
 
 	class NaivePathTracer : public PathTracer {
@@ -46,7 +46,7 @@ namespace xitils {
 			Vector3f weight(1.0f);
 
 			Ray currentRay = ray;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 
 			int pathLength = 1;
 
@@ -104,8 +104,8 @@ namespace xitils {
 
 			Ray currentRay = ray;
 			Ray shadowRay;
-			SurfaceInteraction isect;
-			SurfaceInteraction nextIsect;
+			SurfaceIntersection isect;
+			SurfaceIntersection nextIsect;
 
 			int pathLength = 1;
 
@@ -148,7 +148,7 @@ namespace xitils {
 							if (nextIsect.object->material->emissive) {
 								float misWeight;
 								if (pdf_bsdf_x_bsdf >= 0.0f && scene.canSampleLight()) {
-									float pdf_light_x_bsdf = scene.surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.primitive);
+									float pdf_light_x_bsdf = scene.surfacePDF(nextIsect.p, nextIsect.object, nextIsect.shape, nextIsect.tri);
 									float cosLight = fabsf(dot(currentRay.d, nextIsect.shading.n));
 									float distSq = powf(currentRay.tMax, 2.0f);
 									pdf_light_x_bsdf *= distSq / cosLight;
@@ -244,7 +244,7 @@ namespace xitils {
 			Vector3f weight(1.0f);
 
 			Ray currentRay = ray;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 
 			int pathLength = 1;
 

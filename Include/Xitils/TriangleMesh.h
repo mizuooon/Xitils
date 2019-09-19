@@ -198,7 +198,7 @@ namespace xitils {
 			return scaledArea / area;
 		}
 
-		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
+		bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const override {
 			Ray rayTmp = Ray(ray);
 			if (accel->intersect(rayTmp, isect)) {
 				isect->shape = this;
@@ -221,16 +221,16 @@ namespace xitils {
 
 			SampledSurface res;
 			res.shape = this;
-			res.primitive = sampled.primitive;
+			res.tri = sampled.tri;
 			res.p = sampled.p;
 			res.n = sampled.n;
 			res.shadingN = sampled.shadingN;
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Primitive* primitive) const override {
+		float surfacePDF(const Vector3f& p, const TriangleIndexed* tri) const override {
 			// TODO: ã‹L‚ð’¼‚µ‚½‚ç‚±‚¿‚ç‚à’¼‚·
-			return primitive->surfacePDF(p) / triangleNum();
+			return tri->surfacePDF(p) / triangleNum();
 		}
 
 	private:
@@ -240,7 +240,7 @@ namespace xitils {
 		std::vector<Vector3f> tangents;
 		std::vector<Vector3f> bitangents;
 		std::vector<int> indices;
-		std::vector<Primitive*> triangles;
+		std::vector<TriangleIndexed*> triangles;
 
 		std::unique_ptr<AccelerationStructure> accel;
 

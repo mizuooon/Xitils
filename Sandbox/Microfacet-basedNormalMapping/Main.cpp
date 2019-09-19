@@ -40,7 +40,7 @@ public:
 		sharpness(sharpness)
 	{}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		const auto& n = isect.shading.n;
 		float N = 2 * M_PI / (sharpness + 2);
 
@@ -51,7 +51,7 @@ public:
 		}
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		float r1 = sampler.randf();
 		float r2 = sampler.randf();
 
@@ -70,7 +70,7 @@ public:
 	}
 
 
-	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		const auto& n = isect.shading.n;
 		if (dot(isect.wo, n) > 0.0f && dot(wi, n) > 0.0f) {
 			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
@@ -88,7 +88,7 @@ public:
 		material_wp(material_wp)
 	{}
 
-	Vector3f bsdfCos(const SurfaceInteraction& isect, Sampler& sampler, const Vector3f& wi) const override {
+	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -114,7 +114,7 @@ public:
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
 		Vector3f wr = -wo;
-		SurfaceInteraction isectfacet;
+		SurfaceIntersection isectfacet;
 		isectfacet = isect;
 		int i = 0;
 		float pdf;
@@ -165,7 +165,7 @@ public:
 		return result;
 	}
 
-	Vector3f evalAndSample(const SurfaceInteraction& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -191,7 +191,7 @@ public:
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
 		Vector3f wr = -wo;
-		SurfaceInteraction isectfacet;
+		SurfaceIntersection isectfacet;
 		isectfacet = isect;
 		int i = 0;
 		float tmppdf;
@@ -245,7 +245,7 @@ public:
 	}
 
 	// pdf ‚Ì‹ßŽ—’l‚ð‹‚ß‚Ä‚¢‚é
-	float pdf(const SurfaceInteraction& isect, const Vector3f& wi) const override {
+	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -270,7 +270,7 @@ public:
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
 		float probability_wp = lambda_p(wo, wp, wt, wg);
-		SurfaceInteraction isectfacet;
+		SurfaceIntersection isectfacet;
 		isectfacet = isect;
 		
 		float pdf = 0;
@@ -390,7 +390,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
 
-	auto baseMaterial = std::make_shared<GlossyClamped>(Vector3f(0.8f), 30);
+	auto baseMaterial = std::make_shared<GlossyClamped>(Vector3f(0.8f), 30.0f);
 
 	std::shared_ptr<Material> sphereMaterial;
 	
@@ -403,7 +403,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 			);
 	}
 
-	sphereMaterial->normalmap = std::make_shared<Texture>("normalmap.jpg");
+	sphereMaterial->normalmap = std::make_shared<Texture>("normal_scale.jpg");
 
 	scene->addObject(std::make_shared<Object>(std::make_shared<xitils::Sphere>(Vector2f(2, 1)), sphereMaterial,
 		transformTRS(Vector3f(0.0f, 1, 0.0f), Vector3f(0, -30, 30), Vector3f(1.0f))

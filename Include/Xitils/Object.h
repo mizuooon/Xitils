@@ -4,11 +4,11 @@
 #include "Geometry.h"
 #include "Interaction.h"
 #include "Material.h"
-#include "Transform.h"
-#include "Utils.h"
-#include "Primitive.h"
-#include "Shape.h"
 #include "Ray.h"
+#include "Shape.h"
+#include "Transform.h"
+#include "TriangleIndexed.h"
+#include "Utils.h"
 #include "Vector.h"
 
 namespace xitils {
@@ -19,7 +19,7 @@ namespace xitils {
 		struct SampledSurface {
 			const Object* object;
 			const Shape* shape;
-			const Primitive* primitive;
+			const TriangleIndexed* tri;
 			Vector3f p;
 			Vector3f n;
 			Vector3f shadingN;
@@ -41,7 +41,7 @@ namespace xitils {
 			return shape->surfaceArea() * shape->surfaceAreaScaling(objectToWorld);
 		}
 
-		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
+		bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const override {
 			if (shape->intersect(objectToWorld.inverse(ray), tHit, isect)) {
 				isect->p = objectToWorld(isect->p);
 				
@@ -96,7 +96,7 @@ namespace xitils {
 			SampledSurface res;
 			res.object = this;
 			res.shape = sampled.shape;
-			res.primitive = sampled.primitive;
+			res.tri = sampled.tri;
 			res.p = objectToWorld(sampled.p);
 			res.n = objectToWorld.asNormal(sampled.n);
 			res.shadingN = objectToWorld.asNormal(sampled.shadingN);
@@ -104,9 +104,9 @@ namespace xitils {
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p, const Shape* shape, const Primitive* primitive) const {
+		float surfacePDF(const Vector3f& p, const Shape* shape, const TriangleIndexed* tri) const {
 			Vector3f scaling = objectToWorld.getScaling();
-			return shape->surfacePDF(objectToWorld.inverse(p), primitive) / shape->surfaceAreaScaling(objectToWorld);
+			return shape->surfacePDF(objectToWorld.inverse(p), tri) / shape->surfaceAreaScaling(objectToWorld);
 		}
 
 	};

@@ -12,24 +12,15 @@
 
 namespace xitils {
 
-	class Primitive : public Geometry {
+	class TriangleIndexed : public Geometry {
 	public:
 
 		struct SampledSurface {
-			const Primitive* primitive;
+			const TriangleIndexed* tri;
 			Vector3f p;
 			Vector3f n;
 			Vector3f shadingN;
 		};
-
-		virtual float surfaceAreaScaling(const Transform& t) const = 0;
-
-		virtual SampledSurface sampleSurface(Sampler& sampler, float* pdf) const = 0;
-		virtual float surfacePDF(const Vector3f& p) const = 0;
-	};
-
-	class TriangleIndexed : public Primitive {
-	public:
 
 		const Vector3f* positions;
 		const Vector2f* texCoords;
@@ -81,7 +72,10 @@ namespace xitils {
 			return cross(v01, v02).length() / 2.0f / surfaceArea();
 		}
 
-		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
+		bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const override {
+
+			// PBRT ‚ÌŽÀ‘•‚ðŽQl‚É‚µ‚½
+			// http://www.pbr-book.org/3ed-2018/Shapes/Triangle_Meshes.html
 
 			const auto& p0 = position(0);
 			const auto& p1 = position(1);
@@ -151,15 +145,15 @@ namespace xitils {
 
 			*tHit = t;
 			isect->p = lerp(p0, p1, p2, b0, b1);
-			isect->n = cross(p1 - p0, p2 - p0).normalize();
 
 			isect->wo = normalize(-ray.d);
 
 			if (normals != nullptr) {
-				isect->shading.n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
+				isect->n = lerp(normal(0), normal(1), normal(2), b0, b1).normalize();
 			} else {
-				isect->shading.n = isect->n;
+				isect->n = cross(p1 - p0, p2 - p0).normalize();
 			}
+			isect->shading.n = isect->n;
 
 			if (tangents != nullptr) {
 				isect->tangent = lerp(tangent(0), tangent(1), tangent(2), b0, b1).normalize();
@@ -175,14 +169,14 @@ namespace xitils {
 
 			isect->shading.n = faceForward(isect->shading.n, isect->wo);
 
-			isect->primitive = this;
+			isect->tri = this;
 
 			perturbIntersection(*isect);
 
 			return true;
 		}
 
-		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const override {
+		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const {
 			float t0;
 			float t1;
 			float t2;
@@ -210,17 +204,17 @@ namespace xitils {
 			} else {
 				res.shadingN = lerp(normal(0), normal(1), normal(2), t0, t1).normalize();
 			}
-			res.primitive = this;
+			res.tri = this;
 			return res;
 		}
 
-		float surfacePDF(const Vector3f& p) const override {
+		float surfacePDF(const Vector3f& p) const {
 			return 1.0f / surfaceArea();
 		}
 
 	protected:
 		virtual bool discardByAlpha(const Vector2f& texCoord) const { return false; }
-		virtual void perturbIntersection(SurfaceInteraction& isect) const {}
+		virtual void perturbIntersection(SurfaceIntersection& isect) const {}
 	};
 
 
@@ -243,7 +237,7 @@ namespace xitils {
 			return displacementMapTexture->rgb(texCoord).x < height;
 		}
 
-		virtual void perturbIntersection(SurfaceInteraction& isect) const override {
+		virtual void perturbIntersection(SurfaceIntersection& isect) const override {
 
 			Vector3f a;
 			a.x = -displacementMapTexture->rgbDifferentialU(isect.texCoord).x * displacementScale;

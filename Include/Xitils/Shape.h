@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Utils.h"
-#include "Vector.h"
 #include "Bounds.h"
-#include "Transform.h"
-#include "Ray.h"
 #include "Interaction.h"
-#include "Primitive.h"
+#include "Transform.h"
+#include "TriangleIndexed.h"
+#include "Utils.h"
+#include "Ray.h"
+#include "Vector.h"
 
 namespace xitils {
 
@@ -15,7 +15,7 @@ namespace xitils {
 
 		struct SampledSurface {
 			const Shape* shape;
-			const Primitive* primitive;
+			const TriangleIndexed* tri;
 			Vector3f p;
 			Vector3f n;
 			Vector3f shadingN;
@@ -24,7 +24,7 @@ namespace xitils {
 		virtual float surfaceAreaScaling(const Transform& t) const = 0;
 
 		virtual SampledSurface sampleSurface(Sampler& sampler, float* pdf) const = 0;
-		virtual float surfacePDF(const Vector3f& p, const Primitive* primitive) const = 0;
+		virtual float surfacePDF(const Vector3f& p, const TriangleIndexed* tri) const = 0;
 	};
 
 	class Sphere : public Shape {
@@ -51,7 +51,7 @@ namespace xitils {
 			return 0.0f;
 		}
 
-		bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const override {
+		bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const override {
 
 			float A = ray.d.lengthSq();
 			float B = dot(ray.d, ray.o);
@@ -96,7 +96,7 @@ namespace xitils {
 			if (back) { isect->shading.n *= -1; }
 
 			isect->shape = this;
-			isect->primitive = nullptr;
+			isect->tri = nullptr;
 
 			return true;
 		}
@@ -114,7 +114,8 @@ namespace xitils {
 			return sample;
 		}
 
-		float surfacePDF(const Vector3f& p, const Primitive* primitive) const override {
+		float surfacePDF(const Vector3f& p, const TriangleIndexed* tri) const override {
+			// tri ‚ÍŽg—p‚µ‚È‚¢
 			return 1.0f / surfaceArea();
 		}
 

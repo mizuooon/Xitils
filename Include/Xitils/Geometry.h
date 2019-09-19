@@ -15,10 +15,10 @@ namespace xitils {
 
 		virtual float surfaceArea() const = 0;
 
-		virtual bool intersect(const Ray& ray, float* tHit, SurfaceInteraction* isect) const = 0;
+		virtual bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const = 0;
 		virtual bool intersectAny(const Ray& ray) const {
 			float tHit;
-			SurfaceInteraction isect;
+			SurfaceIntersection isect;
 			return intersect(ray, &tHit, &isect);
 		}
 
