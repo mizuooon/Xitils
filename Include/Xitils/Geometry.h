@@ -6,7 +6,7 @@
 #include "Bounds.h"
 #include "Interaction.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Geometry {
 	public:

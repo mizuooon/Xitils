@@ -8,7 +8,7 @@
 
 #define XITILS_APP(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ settings->setConsoleWindowEnabled(); })
 
-namespace Xitils::App {
+namespace xitils::app {
 
 	template<typename T, typename U> class XApp : public ci::app::App {
 	public:

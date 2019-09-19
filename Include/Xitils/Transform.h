@@ -6,7 +6,7 @@
 #include "Ray.h"
 #include "Bounds.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Transform {
 	public:

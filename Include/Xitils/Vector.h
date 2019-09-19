@@ -3,7 +3,7 @@
 #include "Utils.h"
 #include "Sampler.h"
 
-namespace Xitils {
+namespace xitils {
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector2;
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Vector3;

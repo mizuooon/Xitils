@@ -11,7 +11,7 @@
 #include "Ray.h"
 #include "Vector.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Object : public Geometry {
 	public:

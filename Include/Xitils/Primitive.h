@@ -10,7 +10,7 @@
 #include "Interaction.h"
 #include "Texture.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Primitive : public Geometry {
 	public:

@@ -24,7 +24,7 @@ const _MethodMode MethodMode = MethodModeProposed;
 const _TangentFacetMode TangentFacetMode = SameMaterialExplicit;
 
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -342,7 +342,7 @@ struct MyUIFrameData {
 	Vector3f rot;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -383,7 +383,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		);
 
 	auto diffuse_white = std::make_shared <Diffuse>(Vector3f(0.8f));
-	auto cube = std::make_shared<Xitils::Cube>();
+	auto cube = std::make_shared<xitils::Cube>();
 	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);
@@ -405,7 +405,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	sphereMaterial->normalmap = std::make_shared<Texture>("normalmap.jpg");
 
-	scene->addObject(std::make_shared<Object>(std::make_shared<Xitils::Sphere>(Vector2f(2, 1)), sphereMaterial,
+	scene->addObject(std::make_shared<Object>(std::make_shared<xitils::Sphere>(Vector2f(2, 1)), sphereMaterial,
 		transformTRS(Vector3f(0.0f, 1, 0.0f), Vector3f(0, -30, 30), Vector3f(1.0f))
 		));
 

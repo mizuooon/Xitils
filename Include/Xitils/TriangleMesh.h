@@ -3,7 +3,7 @@
 #include "Shape.h"
 #include "AccelerationStructure.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class TriangleMesh : public Shape {
 	public:

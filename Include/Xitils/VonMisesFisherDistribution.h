@@ -4,7 +4,7 @@
 #include "Sampler.h"
 #include "Vector.h"
 
-namespace Xitils {
+namespace xitils {
 
 	template<int N> class VonMisesFisherDistribution {
 	public:

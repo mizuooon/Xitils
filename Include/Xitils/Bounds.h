@@ -4,7 +4,7 @@
 #include "Vector.h"
 #include "Ray.h"
 
-namespace Xitils {
+namespace xitils {
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> class Bounds2 {
 	public:
@@ -24,7 +24,7 @@ namespace Xitils {
 
 		Bounds2(const _V& p): min(p), max(p) {}
 
-		Bounds2(const _V& p1, const _V& p2) : min(Xitils::min(p1,p2)), max(Xitils::max(p1, p2)) {}
+		Bounds2(const _V& p1, const _V& p2) : min(xitils::min(p1,p2)), max(xitils::max(p1, p2)) {}
 
 		const _V& operator[](int i) const {
 			ASSERT(i == 0 || i == 1);
@@ -70,8 +70,8 @@ namespace Xitils {
 
 		_V lerp(const Vector2f& t) const {
 			return _V(
-				Xitils::lerp(min.x, max.x, t.x),
-				Xitils::lerp(min.y, max.y, t.y));
+				xitils::lerp(min.x, max.x, t.x),
+				xitils::lerp(min.y, max.y, t.y));
 		}
 
 		_V offset(const _V& p) const {
@@ -104,9 +104,9 @@ namespace Xitils {
 
 		Bounds3(const _V& p) : min(p), max(p) {}
 
-		Bounds3(const _V& p1, const _V& p2) : min(Xitils::min(p1, p2)), max(Xitils::max(p1, p2)) {}
+		Bounds3(const _V& p1, const _V& p2) : min(xitils::min(p1, p2)), max(xitils::max(p1, p2)) {}
 
-		Bounds3(const _V& p1, const _V& p2, const _V& p3) : min(Xitils::min(p1, p2, p3)), max(Xitils::max(p1, p2, p3)) {}
+		Bounds3(const _V& p1, const _V& p2, const _V& p3) : min(xitils::min(p1, p2, p3)), max(xitils::max(p1, p2, p3)) {}
 
 		const _V& operator[](int i) const {
 			ASSERT(i == 0 || i == 1);
@@ -204,8 +204,8 @@ namespace Xitils {
 
 	template<typename B> B _merge(const B& b1, const B& b2) {
 		return B(
-			Xitils::min(b1.min, b2.min),
-			Xitils::max(b1.max, b2.max));
+			xitils::min(b1.min, b2.min),
+			xitils::max(b1.max, b2.max));
 	}
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Bounds2<T, T_SIMD, T_SIMDMASK> merge(const Bounds2<T, T_SIMD, T_SIMDMASK>& b1, const Bounds2<T, T_SIMD, T_SIMDMASK>& b2) { return _merge(b1, b2); }
@@ -213,8 +213,8 @@ namespace Xitils {
 
 	template<typename B, typename V> B _merge(const B& b, const V& p) {
 		return B(
-			Xitils::min(b.min, p),
-			Xitils::max(b.max, p));
+			xitils::min(b.min, p),
+			xitils::max(b.max, p));
 	}
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Bounds2<T, T_SIMD, T_SIMDMASK> merge(const Bounds2<T, T_SIMD, T_SIMDMASK>& b, const Vector2<T, T_SIMD, T_SIMDMASK>& p) { return _merge(b, p); }

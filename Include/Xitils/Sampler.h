@@ -3,7 +3,7 @@
 #include <random>
 #include "Utils.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class _SamplerMersenneTwister;
 	class _SamplerXORShift;

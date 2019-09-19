@@ -16,7 +16,7 @@ struct MyUIFrameData {
 	float distance = 100;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;

@@ -6,7 +6,7 @@
 #include "Ray.h"
 #include "Sampler.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Camera {
 	public:

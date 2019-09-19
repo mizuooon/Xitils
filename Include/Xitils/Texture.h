@@ -6,7 +6,7 @@
 #include "Utils.h"
 #include "Vector.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Texture {
 	public:

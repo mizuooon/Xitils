@@ -11,7 +11,7 @@
 #include <CinderImGui.h>
 
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -28,7 +28,7 @@ struct MyUIFrameData {
 	Vector3f rot;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -74,8 +74,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
 	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
-	auto cube = std::make_shared<Xitils::Cube>();
-	auto plane = std::make_shared<Xitils::Plane>();
+	auto cube = std::make_shared<xitils::Cube>();
+	auto plane = std::make_shared<xitils::Plane>();
 	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);

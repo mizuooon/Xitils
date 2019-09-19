@@ -8,7 +8,7 @@
 #include "Object.h"
 #include "Shape.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class _NaiveAccelerationStructure;
 	class _BVH;

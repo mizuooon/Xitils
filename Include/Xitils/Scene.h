@@ -6,7 +6,7 @@
 #include "SkySphere.h"
 #include "Utils.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Scene {
 	public:

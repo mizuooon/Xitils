@@ -3,7 +3,7 @@
 #include "Utils.h"
 #include "Vector.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Object;
 	class Shape;

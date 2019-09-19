@@ -3,7 +3,7 @@
 #include "Utils.h"
 #include "Vector.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class RenderTargetTileCollection;
 
@@ -40,9 +40,9 @@ namespace Xitils {
 					color /= sampleNum;
 					
 					ci::ColorA8u colA8u;
-					colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
-					colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
-					colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
+					colA8u.r = xitils::clamp((int)(color.x * 255), 0, 255);
+					colA8u.g = xitils::clamp((int)(color.y * 255), 0, 255);
+					colA8u.b = xitils::clamp((int)(color.z * 255), 0, 255);
 					colA8u.a = 255;
 
 					surface->setPixel(glm::ivec2(x, y), colA8u);

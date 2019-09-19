@@ -12,7 +12,7 @@
 #include <CinderImGui.h>
 
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -26,7 +26,7 @@ struct MyFrameData {
 struct MyUIFrameData {
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;

@@ -8,7 +8,7 @@
 #include "Interaction.h"
 #include "Primitive.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class Shape : public Geometry {
 	public:

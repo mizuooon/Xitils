@@ -25,7 +25,7 @@ enum _MethodMode {
 
 const _MethodMode MethodMode = MethodModeMultiLobeSVBRDF;
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -147,8 +147,8 @@ private:
 		float phaiNormalized = (float)phai / (2 * M_PI);
 		int thetaIndex = (int)(thetaNormalized * resolutionTheta);
 		int phaiIndex = (int)(phaiNormalized * resolutionPhai);
-		thetaIndex = Xitils::clamp(thetaIndex, 0, resolutionTheta - 1);
-		phaiIndex = Xitils::clamp(phaiIndex, 0, resolutionPhai - 1);
+		thetaIndex = xitils::clamp(thetaIndex, 0, resolutionTheta - 1);
+		phaiIndex = xitils::clamp(phaiIndex, 0, resolutionPhai - 1);
 		return thetaIndex * resolutionPhai + phaiIndex;
 	}
 
@@ -175,8 +175,8 @@ private:
 		ASSERT(inRange01(wTheta1));
 		ASSERT(inRange01(wPhai1));
 		
-		thetaIndex0 = Xitils::clamp(thetaIndex0, 0, resolutionTheta - 1);
-		thetaIndex1 = Xitils::clamp(thetaIndex1, 0, resolutionTheta - 1);
+		thetaIndex0 = xitils::clamp(thetaIndex0, 0, resolutionTheta - 1);
+		thetaIndex1 = xitils::clamp(thetaIndex1, 0, resolutionTheta - 1);
 		if (phaiIndex0 < 0) { phaiIndex0 = resolutionPhai - 1; }
 		if (phaiIndex1 >= resolutionPhai) { phaiIndex1 = 0; }
 
@@ -200,8 +200,8 @@ public:
 	{}
 
 	int positionToIndex(const Vector2f& p) const {
-		int uIndex = Xitils::clamp((int)(p.u * resolutionU), 0, resolutionU - 1);
-		int vIndex = Xitils::clamp((int)(p.v * resolutionV), 0, resolutionV - 1);
+		int uIndex = xitils::clamp((int)(p.u * resolutionU), 0, resolutionU - 1);
+		int vIndex = xitils::clamp((int)(p.v * resolutionV), 0, resolutionV - 1);
 		return uIndex * resolutionV + vIndex;
 	}
 
@@ -434,8 +434,8 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 
 		int x0 = px * DownSamplingRate;
 		int y0 = py * DownSamplingRate;
-		int x1 = Xitils::min(px + DownSamplingRate - 1, texOrig->getWidth() - 1);
-		int y1 = Xitils::min(py + DownSamplingRate - 1, texOrig->getHeight() - 1);
+		int x1 = xitils::min(px + DownSamplingRate - 1, texOrig->getWidth() - 1);
+		int y1 = xitils::min(py + DownSamplingRate - 1, texOrig->getHeight() - 1);
 
 		float dhdu2 = (texLow->rgbDifferentialU(px + 1, py).r - texLow->rgbDifferentialU(px - 1, py).r) / 2.0f;
 		float dhdv2 = (texLow->rgbDifferentialV(px, py + 1).r - texLow->rgbDifferentialU(px, py - 1).r) / 2.0f;
@@ -518,12 +518,12 @@ public:
 
 		auto planeLow = std::make_shared<PlaneDisplaceMapped>(displacementTexLow, displacementScale);
 		auto sceneLow = std::make_shared<Scene>();
-		sceneLow->addObject(std::make_shared<Object>(planeLow, multiLobeSVBRDF, Xitils::Transform()));
+		sceneLow->addObject(std::make_shared<Object>(planeLow, multiLobeSVBRDF, xitils::Transform()));
 		sceneLow->buildAccelerationStructure();
 
 		auto planeOrig = std::make_shared<PlaneDisplaceMapped>(displacementTexOrig, displacementScale);
 		auto sceneOrig = std::make_shared<Scene>();
-		sceneOrig->addObject(std::make_shared<Object>(planeOrig, baseMaterial, Xitils::Transform()));
+		sceneOrig->addObject(std::make_shared<Object>(planeOrig, baseMaterial, xitils::Transform()));
 		sceneOrig->buildAccelerationStructure();
 
 		estimateT(*sceneLow, *sceneOrig);
@@ -673,8 +673,8 @@ private:
 		Vector2f patchSize = Vector2f(1.0f) / SpatialResolution;
 		int patchIndexU = (int)(p.u / patchSize.u * SpatialResolution);
 		int patchIndexV = (int)(p.v / patchSize.v * SpatialResolution);
-		patchIndexU = Xitils::clamp(patchIndexU, 0, SpatialResolution - 1);
-		patchIndexV = Xitils::clamp(patchIndexV, 0, SpatialResolution - 1);
+		patchIndexU = xitils::clamp(patchIndexU, 0, SpatialResolution - 1);
+		patchIndexV = xitils::clamp(patchIndexV, 0, SpatialResolution - 1);
 		patch.min.u = (float)patchIndexU / SpatialResolution;
 		patch.min.v = (float)patchIndexV / SpatialResolution;
 		patch.max = patch.min + patchSize;
@@ -692,7 +692,7 @@ private:
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
-			Xitils::Ray ray;
+			xitils::Ray ray;
 			SurfaceInteraction isect;
 
 			Vector3f contrib(1.0f);
@@ -709,7 +709,7 @@ private:
 			if (!hit) { printf("%f %f - %f %f | %f %f\n", patch.min.u, patch.max.u, patch.min.v, patch.max.v, p.u, p.v); }
 			ASSERT(hit);
 
-			Xitils::Ray rayWo;
+			xitils::Ray rayWo;
 			rayWo.d = wo;
 			rayWo.o = isect.p + rayWo.d * RayOffset;
 			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
@@ -747,7 +747,7 @@ private:
 			} while ( !hit || !inRange(isect.p.x, patch.min.u, patch.max.u) || !inRange(isect.p.y, patch.min.v, patch.max.v));
 #endif
 
-			Xitils::Ray rayWi;
+			xitils::Ray rayWi;
 			rayWi.d = wi;
 			rayWi.o = isect.p + rayWi.d * RayOffset;
 			if (dot(wi, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWi)) { continue; }
@@ -792,7 +792,7 @@ private:
 		const int Sample = 500;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
-			Xitils::Ray ray;
+			xitils::Ray ray;
 			SurfaceInteraction isect;
 
 			Vector3f weight(1.0f);
@@ -810,7 +810,7 @@ private:
 			bool hit = sceneOrig.intersect(ray, &isect);
 			ASSERT(hit);
 
-			Xitils::Ray rayWo;
+			xitils::Ray rayWo;
 			rayWo.d = wo;
 			rayWo.o = isect.p + rayWo.d * RayOffset;
 			if (dot(wo, isect.shading.n) <= 0.0f || sceneOrig.intersectAny(rayWo)) { continue; }
@@ -850,14 +850,14 @@ private:
 #endif
 
 			while (true) {
-				Xitils::Ray rayWi;
+				xitils::Ray rayWi;
 				rayWi.d = wi;
 				rayWi.o = isect.p + rayWi.d * RayOffset;
 				if (dot(wi, isect.shading.n) > 0.0f && !sceneOrig.intersectAny(rayWi)) {
 					res += clampPositive(weight * isect.object->material->bsdfCos(isect, sampler, wi));
 				}
 
-				Xitils::Ray rayNext;
+				xitils::Ray rayNext;
 				float pdf;
 				weight *= isect.object->material->evalAndSample(isect, sampler, &rayNext.d, &pdf);
 				rayNext.o = isect.p + rayNext.d * RayOffset;
@@ -896,7 +896,7 @@ struct MyUIFrameData {
 	Vector3f rot;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -948,8 +948,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
 	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
 	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 8);
-	auto cube = std::make_shared<Xitils::Cube>();
-	auto plane = std::make_shared<Xitils::Plane>();
+	auto cube = std::make_shared<xitils::Cube>();
+	auto plane = std::make_shared<xitils::Plane>();
 	scene->addObject(
 		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
 	);

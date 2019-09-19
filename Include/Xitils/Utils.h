@@ -26,7 +26,7 @@
 #define NOT_IMPLEMENTED throw "Not implemented";
 
 
-namespace Xitils {
+namespace xitils {
 
 	static const float Pi = (float)M_PI;
 	static const float ToDeg = 180.0f / (float)Pi;

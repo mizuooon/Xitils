@@ -5,7 +5,7 @@
 #include <CinderImGui.h>
 #include <tinycolormap/tinycolormap.hpp>
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -18,7 +18,7 @@ struct MyUIFrameData {
 	float maxValue = 1.0f;
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -27,8 +27,8 @@ public:
 
 private:
 
-	std::shared_ptr<Xitils::Texture> image1;
-	std::shared_ptr<Xitils::Texture> image2;
+	std::shared_ptr<xitils::Texture> image1;
+	std::shared_ptr<xitils::Texture> image2;
 
 	gl::TextureRef texture;
 
@@ -67,9 +67,9 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			tinycolormap::Color color = tinycolormap::GetColor(t, tinycolormap::ColormapType::Jet);
 			
 			Color8u col8u;
-			col8u.r = Xitils::clamp<int>(color.r() * 255, 0, 255);
-			col8u.g = Xitils::clamp<int>(color.g() * 255, 0, 255);
-			col8u.b = Xitils::clamp<int>(color.b() * 255, 0, 255);
+			col8u.r = xitils::clamp<int>(color.r() * 255, 0, 255);
+			col8u.g = xitils::clamp<int>(color.g() * 255, 0, 255);
+			col8u.b = xitils::clamp<int>(color.b() * 255, 0, 255);
 			frameData.surface.setPixel(ivec2(x, y), col8u);
 		}
 	}

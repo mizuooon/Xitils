@@ -6,7 +6,7 @@
 #include "Scene.h"
 #include "Utils.h"
 
-namespace Xitils {
+namespace xitils {
 
 	class PathTracer {
 	public:
