@@ -56,6 +56,23 @@ namespace xitils {
 			ASSERT(channel == 4);
 			return data[(x + y * width) * channel + 3];
 		}
+		float r(int x, int y) const {
+			warp(x, y);
+			return data[(x + y * width) * channel + 0];
+		}
+		float g(int x, int y) const {
+			warp(x, y);
+			return data[(x + y * width) * channel + 1];
+		}
+		float b(int x, int y) const {
+			warp(x, y);
+			return data[(x + y * width) * channel + 2];
+		}
+		float a(int x, int y) const {
+			warp(x, y);
+			ASSERT(channel == 4);
+			return data[(x + y * width) * channel + 3];
+		}
 
 		Vector3f rgb(int x, int y) const {
 			warp(x, y);
@@ -161,6 +178,39 @@ namespace xitils {
 				u = u - floorf(u);
 				v = v - floorf(v);
 			}
+		}
+
+		std::shared_ptr<Texture> downsample(int rate) const {
+			int w_low = (width + rate - 1) / rate;
+			int h_low = (height + rate - 1) / rate;
+			auto tex_low = std::make_shared<Texture>(w_low, h_low);
+			for (int y_low = 0; y_low < h_low; ++y_low) {
+				for (int x_low = 0; x_low < w_low; ++x_low) {
+
+					int count = 0;
+					for (int ly = 0; ly < rate; ++ly) {
+						int y_orig = y_low * rate + ly;
+						if (y_orig >= height) { continue; }
+						for (int lx = 0; lx < rate; ++lx) {
+							int x_orig = x_low * rate + lx;
+							if (x_orig >= width) { continue; }
+							
+							tex_low->r(x_low, y_low) += r(x_orig, y_orig);
+							tex_low->g(x_low, y_low) += g(x_orig, y_orig);
+							tex_low->b(x_low, y_low) += b(x_orig, y_orig);
+							if (channel == 4) { tex_low->a(x_low, y_low) += a(x_orig, y_orig); }
+							++count;
+						}
+					}
+
+					tex_low->r(x_low, y_low) /= count;
+					tex_low->g(x_low, y_low) /= count;
+					tex_low->b(x_low, y_low) /= count;
+					if (channel == 4) { tex_low->a(x_low, y_low) /= count; }
+				}
+			}
+
+			return tex_low;
 		}
 
 	private:

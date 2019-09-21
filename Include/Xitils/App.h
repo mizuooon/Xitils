@@ -3,6 +3,8 @@
 #include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
+#include "cinder/ImageIo.h"
+#include "cinder/Utilities.h"
 #include <thread>
 #include <memory>
 
@@ -17,6 +19,8 @@ namespace xitils::app {
 
 		void mainLoop();
 		void draw() override final;
+
+		void keyDown(ci::app::KeyEvent e) override final;
 
 	protected:
 		virtual void onSetup(T* frameData, U* uiFrameData) {}
@@ -75,6 +79,13 @@ namespace xitils::app {
 		std::lock_guard lock(mtx);
 		onDraw(frameDataBuffer, uiFrameData);
 		uiFrameDataBuffer = uiFrameData;
+	}
+
+	template<typename T, typename U> void XApp<T, U>::keyDown(ci::app::KeyEvent e) {
+		std::lock_guard lock(mtx);
+		if (e.getCode() == ci::app::KeyEvent::KEY_F1) {
+			writeImage("./screesnshot.png", copyWindowSurface());
+		}
 	}
 
 }

@@ -20,7 +20,7 @@ struct MyFrameData {
 };
 
 struct MyUIFrameData {
-	float maxValue = 1.0f;
+	float maxValue = 0.05f;
 };
 
 class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
@@ -51,6 +51,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	frameData->surface = Surface(image1->getWidth(), image2->getHeight(), false);
 
+	setWindowSize(image1->getWidth(), image1->getHeight());
+
 	ui::initialize();
 }
 
@@ -68,7 +70,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			float d = fabsf(val1 - val2);
 			float d2 = powf(d, 2.0f);
 
-			float t = d / uiFrameData.maxValue;
+			float t = d2 / uiFrameData.maxValue;
 			tinycolormap::Color color = tinycolormap::GetColor(t, tinycolormap::ColormapType::Jet);
 			
 			Color8u col8u;

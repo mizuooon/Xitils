@@ -78,8 +78,8 @@ add_definitions(/EHsc)
 
 add_subdirectory(SimplePathTracer)
 add_subdirectory(SimpleWindow)
-add_subdirectory(Microfacet-basedNormalMapping)
-add_subdirectory(PrefilteringForRenderingDisplacement-MappedSurfaces)
+add_subdirectory(MicrofacetBasedNormalMapping)
+add_subdirectory(PrefilteringForRenderingDisplacementMappedSurfaces)
 add_subdirectory(VisualizeError)
 add_subdirectory(VonMisesFisherDistribution)
 
