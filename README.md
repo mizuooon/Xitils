@@ -184,7 +184,7 @@ const _TangentFacetMode TangentFacetMode = SameMaterialExplicit;
 右下: 提案手法 \
 (オリジナルのテクスチャ は 1024x1024、ダウンサンプリング後は 128x128)
 
-[Accurate Appearance Preserving Prefiltering for Rendering Displacement-Mapped Surfaces [Wu 2019]](https://sites.cs.ucsb.edu/~lingqi/#publications) 
+[Accurate Appearance Preserving Prefiltering for Rendering Displacement-Mapped Surfaces [Wu 2019]](https://winmad.github.io/) 
 を実装したもの。
 ディスプレースメントマッピングのダウンサンプリング時にシャドーイング・マスキング効果が低下して見た目が明るくなってしまうのを補償する方法を提案しています。
 
