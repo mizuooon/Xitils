@@ -186,7 +186,12 @@ const _TangentFacetMode TangentFacetMode = SameMaterialExplicit;
 
 [Accurate Appearance Preserving Prefiltering for Rendering Displacement-Mapped Surfaces [Wu 2019]](https://sites.cs.ucsb.edu/~lingqi/#publications) 
 を実装したもの。
-ディスプレースメントマッピングのダウンサンプリング時にシャドーイング・マスキング効果が低下して見た目が明るくなってしまうのを補償する方法を提案しています。
+ディスプレースメントマップをダウンサンプリングした際に
+シャドーイング・マスキング効果やそれに付随する局所散乱効果が低下し見た目が変化してしまう問題について、
+スケーリング関数を用いて上記効果の補償を行うことで元の見た目を保つようにする方法を提案しています。
+
+この論文を読んだ際の解説記事を以下にアップしてあります。 \
+[Accurate Appearance Preserving Prefiltering for Rendering Displacement-Mapped Surfaces - 水鳥コンビナート](http://mizuooon.hatenablog.jp/entry/accurate-appearance-preserving-prefiltering-for-rendering-displacement-mapped-surfaces)
 
 使用する描画モデルはソースコード中の定数
 ```
