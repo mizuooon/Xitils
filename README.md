@@ -17,7 +17,7 @@ Xitils は現在ヘッダオンリーで書かれていますが、
 ## ディレクトリ構成
 ```
 ┌ CMake/                      -- CMake の package 検索用 .cmake ファイル群
-├ Images/                     -- README で使用している画像ファイル群
+├ Documents/                  -- ドキュメントとそれに使用している画像ファイル
 ├ Include/ ┬ Xitils/          -- Xitils 本体 (ヘッダオンリー)
 │          └ <Other Folders>/ -- Xitils が依存しているライブラリ群
 ├ Sandbox/ ┬ _Experimental/   -- 開発中・実験中の Sandbox プロジェクト群
@@ -86,8 +86,8 @@ Sandbox プロジェクトが使用する画像ファイルなどは `Sandbox/Da
 `Sandbox/Data/` を実行ディレクトリとして、ビルドした実行可能ファイルを起動します。
 CMake で生成した VS 用ソリューション経由で実行可能ファイルを起動すれば、自動的にこのとおり実行されます。
 
-# Xitils のクラス構成・使い方
-追記予定
+# Xitils の各クラスの概要
+[Xitils の各クラスの概要](Documents/Xitils.md)
 
 # メモ
 
@@ -117,7 +117,7 @@ static void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
 # Sandbox プロジェクト
 
 ## SimpleWindow
-<img src="Images/SimpleWindow.png" width="600px">
+<img src="Documents/SimpleWindow.png" width="600px">
 
 - 簡単な画像をアニメーション表示するウィンドウを出す
 - UI に表示されている値を操作すると表示されている円のサイズや位置が変わる
@@ -127,23 +127,23 @@ static void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
   - 画像の表示部分は OpenGL
 
 ## SimplePathTracer
-<img src="Images/SimplePathTracer.png" width="500px">
+<img src="Documents/SimplePathTracer.png" width="500px">
 
 - シンプルなパストレーサーで Cornell Box をレンダリングする
   - NEE + BRDF Sampling の MIS を使ったパストレ
 
 ## VonMisesFisherDistribution
-<img src="Images/VonMisesFisherDistribution.png" width="600px">
+<img src="Documents/VonMisesFisherDistribution.png" width="600px">
 
 - von Mises-Fisher Distribution で球面分布を近似する
 
 ## VisualizeError
-<img src="Images/VisualizeError.png" width="500px">
+<img src="Documents/VisualizeError.png" width="500px">
 
 - 画像を 2 つ選択し、それらの二乗誤差をビジュアライズする
 
 ## MicrofacetBasedNormalMapping
-<img src="Images/MicrofacetBasedNormalMapping.png" width="800px">
+<img src="Documents/MicrofacetBasedNormalMapping.png" width="800px">
 
 左: ナイーブなノーマルマッピング \
 右: 提案手法 (tangent facet は same material)
@@ -176,7 +176,7 @@ const _TangentFacetMode TangentFacetMode = SameMaterialExplicit;
 理論を理解する上でそこまで重要ではなさそうだったので実装は省略しています。
 
 ## PrefilteringForRenderingDisplacementMappedSurfaces
-<img src="Images/PrefilteringForRenderingDisplacementMappedSurfaces.png" width="800px">
+<img src="Documents/PrefilteringForRenderingDisplacementMappedSurfaces.png" width="800px">
 
 左上: リファレンス \
 右上: 低解像度ディスプレースメントマップを使用 \
