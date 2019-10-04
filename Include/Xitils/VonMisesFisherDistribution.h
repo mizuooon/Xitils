@@ -6,14 +6,14 @@
 
 namespace xitils {
 
-	template<int N> class VonMisesFisherDistribution {
+	template<int _LobeNum> class VonMisesFisherDistribution {
 	public:
 
 		// 実装は以下を参考
 		// Numerically stable sampling of the von Misesisher distribution on S^2 (and other tricks)
 		// https://www.mitsuba-renderer.org/~wenzel/files/vmf.pdf
 
-		static const int LobeNum = N;
+		static const int LobeNum = _LobeNum;
 		static const int EncodedDataSize = LobeNum * 3 + LobeNum + (LobeNum - 1); // encode に必要な float の数 (byte ではない)
 
 		// ローブごと
@@ -65,13 +65,13 @@ namespace xitils {
 			return val;
 		}
 
-		static VonMisesFisherDistribution<N> approximateBySEM(const std::vector<Vector3f>& samples, Sampler& sampler) {
+		static VonMisesFisherDistribution<_LobeNum> approximateBySEM(const std::vector<Vector3f>& samples, Sampler& sampler) {
 
 			const float KappaLimit = 1000;
 			const int StepMax = 100000;
 			const float DiffThreshold = 1e-6;
 
-			VonMisesFisherDistribution<N> vmf;
+			VonMisesFisherDistribution<_LobeNum> vmf;
 			auto& mu = vmf.mu;
 			auto& kappa = vmf.kappa;
 			auto& alpha = vmf.alpha;
@@ -101,7 +101,7 @@ namespace xitils {
 			auto z = [&](int i, int j) -> float& { return z_data[i * LobeNum + j]; };
 
 			int step = 0;
-			VonMisesFisherDistribution<N> lastVMF;
+			VonMisesFisherDistribution<_LobeNum> lastVMF;
 
 			for (step = 0; step < StepMax; ++step) {
 				// E-step

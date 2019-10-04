@@ -36,6 +36,9 @@ const int VMFLobeNum = 4;
 const int ShellMappingLayerNum = 16;
 
 
+//----------------------------------------------------------------------------------------------------------
+
+// スケーリング関数の事前計算に使用するための、ディスプレースメントマッピングを適用した平面メッシュ
 class PlaneDisplaceMapped : public TriangleMesh {
 public:
 
@@ -83,10 +86,13 @@ public:
 
 };
 
+//----------------------------------------------------------------------------------------------------------
 
+// 2 次元の方向を 1 次元のインデックスに対応付けるためのクラス
 class AngularParam {
 public:
 
+	// theta は極角、phai は方位角
 	AngularParam(int resolutionTheta, int resolutionPhai):
 		resolutionTheta(resolutionTheta),
 		resolutionPhai(resolutionPhai)
@@ -192,6 +198,7 @@ private:
 	}
 };
 
+// 2 次元のテクスチャ座標系空間を 1 次元のインデックスに対応付けるためのクラス
 class SpatialParam {
 public:
 
@@ -245,9 +252,11 @@ private:
 	int resolutionV;
 };
 
+// 2 個の 2 次元方向 wi, wo を引数とする 4 次元関数をテーブル化するクラス
 class AngularTable {
 public:
 
+	// theta は極角、phai は方位角
 	AngularTable(int resolutionTheta, int resolutionPhai):
 		paramWi(resolutionTheta, resolutionPhai),
 		paramWo(resolutionTheta, resolutionPhai)
@@ -301,6 +310,7 @@ private:
 	AngularParam paramWi, paramWo;
 };
 
+// 1 個の 2 次元テクスチャ座標系座標 p を引数とする 2 次元関数をテーブル化するクラス
 class SpatialTable {
 public:
 
@@ -345,6 +355,9 @@ private:
 	SpatialParam paramPos;
 };
 
+//----------------------------------------------------------------------------------------------------------
+
+// 2 次元のテクスチャ座標系空間で変化する NDF を表現するクラス
 class SVNDF {
 public:
 	int resolutionU, resolutionV;
@@ -374,6 +387,7 @@ public:
 	}
 };
 
+// ディスプレースメントマッピングをダウンサンプリングし、低解像度テクスチャと SVNDF を生成する
 std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::shared_ptr<SVNDF> svndf) {
 
 	std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
@@ -454,6 +468,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 	return texLow;
 }
 
+// SVNDF とベース BRDF の畳み込みを行ったマテリアル。シャドーイング・マスキング効果を考慮しない。
 class MultiLobeSVBRDF : public Material {
 public:
 	std::shared_ptr<Material> baseMaterial;
@@ -498,6 +513,9 @@ public:
 
 };
 
+//----------------------------------------------------------------------------------------------------------
+
+// スケーリング関数でシャドーイング・マスキング効果を補償するマテリアル
 class PrefilteredDisplaceMapping : public Material {
 public:
 
