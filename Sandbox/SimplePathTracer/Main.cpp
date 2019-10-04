@@ -95,7 +95,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-
+	// teapot 作成
 	const int subdivision = 10;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
@@ -126,6 +126,7 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
+	// update 1 フレームごとに計算するサンプル数
 	int sample = 1;
 
 	frameData.sampleNum += sample;

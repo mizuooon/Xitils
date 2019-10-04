@@ -103,7 +103,6 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	gl::clear(Color::gray(0.0f));
 	
 	auto windowSize = ci::app::getWindowSize();
-	//gl::draw(texture, (windowSize - ImageSize) / 2);
 
 	glm::vec2 windowCenter;
 	windowCenter.x = ImageSize.x / 2;

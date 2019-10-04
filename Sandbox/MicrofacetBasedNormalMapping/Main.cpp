@@ -29,6 +29,8 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
+// wi がジオメトリ内部の方向、または wo がシェーディング法線から定義される半球の外である場合に
+// 値が 0 となる Glossy
 struct GlossyClamped : public Material {
 public:
 
@@ -81,16 +83,18 @@ public:
 
 };
 
-class SpecularMicrofacetNormalMapping : public Material {
+class MicrofacetNormalMapping : public Material {
 public:
 
-	SpecularMicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp):
+	// material_wp はベースとなるマテリアル
+	MicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp):
 		material_wp(material_wp)
 	{}
 
 	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
 
+		// ---- 接線方向を向く法線 wt を求める
 		Vector3f wg = isect.n;
 		Vector3f wp = isect.shading.n;
 		if (dot(wo, wg) < 0.0f) { wg *= -1; }
@@ -110,6 +114,7 @@ public:
 			wt *= -1;
 		}
 
+		// ---- 局所散乱を考慮した bsdf の値を、明示的なループを用いて求める
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
@@ -168,6 +173,7 @@ public:
 	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		const auto& wo = isect.wo;
 
+		// ---- 接線方向を向く法線 wt を求める
 		Vector3f wg = isect.n;
 		Vector3f wp = isect.shading.n;
 		if (dot(wo, wg) < 0.0f) { wg *= -1; }
@@ -187,6 +193,7 @@ public:
 			wt *= -1;
 		}
 
+		// ---- wi の方向と bsdf の値を、明示的なループを用いて求める
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
@@ -244,8 +251,10 @@ public:
 		return result;
 	}
 
-	// pdf の近似値を求めている
 	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+
+		// 高次の反射を diffuse で近似して、pdf の近似値を求める
+
 		const auto& wo = isect.wo;
 
 		Vector3f wg = isect.n;
@@ -399,7 +408,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		sphereMaterial = baseMaterial;
 	} else if (MethodMode == MethodModeProposed) {
 		sphereMaterial = 
-			std::make_shared<SpecularMicrofacetNormalMapping>(
+			std::make_shared<MicrofacetNormalMapping>(
 			baseMaterial
 			);
 	}
