@@ -1,0 +1,12 @@
+[submodule "ThirdParty/Cinder"]
+	path = ThirdParty/Cinder
+	url = https://github.com/cinder/Cinder.git
+[submodule "ThirdParty/Cinder-ImGui"]
+	path = ThirdParty/Cinder-ImGui
+	url = https://github.com/simongeilfus/Cinder-ImGui.git
+[submodule "ThirdParty/libsimdpp"]
+	path = ThirdParty/libsimdpp
+	url = https://github.com/p12tic/libsimdpp.git
+[submodule "ThirdParty/tinycolormap"]
+	path = ThirdParty/tinycolormap
+	url = https://github.com/yuki-koyama/tinycolormap.git

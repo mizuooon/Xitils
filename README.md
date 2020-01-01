@@ -11,28 +11,6 @@ Xitils は、レイトレーシング関連の論文などを実装してみる�
 また、Xitils 側ではなく個別のプロジェクトに対して書かれたコードについても、
 一般に使えそうだった場合は後で Xitils 側に吸い上げられます。
 
-Xitils は現在ヘッダオンリーで書かれていますが、
-これについては特にこだわりがある訳ではないので今後変わる可能性があります。
-
-## ディレクトリ構成
-```
-┌ CMake/                      -- CMake の package 検索用 .cmake ファイル群
-├ Documents/                  -- ドキュメントとそれに使用している画像ファイル
-├ Include/ ┬ Xitils/          -- Xitils 本体 (ヘッダオンリー)
-│          └ <Other Folders>/ -- Xitils が依存しているライブラリ群
-├ Sandbox/ ┬ _Experimental/   -- 開発中・実験中の Sandbox プロジェクト群
-│          ├ Build/           -- Sandbox プロジェクト群をビルドするフォルダ
-│          ├ Data/            -- Sandbox プロジェクト用の外部アセット置き場・実行ディレクトリ
-│          ├ <Other Folders>/ -- Sandbox プロジェクト群の本体
-│          └ CMakeList.txt    -- Sandbox プロジェクト群のビルド用 CMake ファイル
-├ LICENSE                     -- Xitils のライセンス (MIT)
-└ README.md                   -- Xitils の README (今見ているもの)
-```
-
-`CMake/` 内のファイル、また `Include/` に含まれる `Xitils/` 以外のライブラリは、
-Xitils が依存する別のプロジェクト群に帰属するものです。
-個々の著作権情報については各ソースファイル中に記載されているのでそれを参照してください。
-
 # ビルド・実行方法
 
 ## 推奨環境
@@ -45,30 +23,12 @@ Xitils が依存する別のプロジェクト群に帰属するものです。
 OS と IDE の環境依存については CMake での一部ビルドオプション設定を VS 用にベタ書きしているだけなので、
 そこだけ直せば他の環境でも普通に使えると思われます。
 
-## ビルド手順
-
-Xitils 自体はヘッダオンリーで書かれていますが、依存するライブラリはビルドの必要があり、インクルードするだけで使用可能という訳ではありません。
-以下では、Xitils を動作させるために必要な手順を、Sandbox プロジェクトを動作させるまでの手順として説明します。
+## ビルド方法
 
 1. CMake 3.8 以上をインストール | https://cmake.org/
-2. Cinder をビルドする
-    1. Cinder リポジトリを適当なフォルダにクローンする | https://github.com/cinder/Cinder
-    2. VS 用ソリューション `Cinder/proj/vc2015/cinder.sln` を Debug 設定 と Release 設定でビルド
-        - Boost が必要なのであらかじめ入れておく
-        - CMake ファイルもあるが、Windows だと上手くビルドできないらしいので VS のソリューションを使用する。 | https://www.libcinder.org/docs/guides/cmake/cmake.html#microsoft-windows
-3. Cinder-ImGui をビルドする
-   1. Cinder-ImGui リポジトリを Cinder の `blocks/` フォルダ内にクローンする | https://github.com/simongeilfus/Cinder-ImGui
-        - 違うフォルダに入れるとパスを通すのが面倒になる
-   2. VS 用ソリューション `Cinder-ImGui/proj/vc2015/Cinder-ImGui.sln` を Debug 設定 と Release 設定でビルド
-4. CMake で Sandbox ソリューションを作成、ビルドする
-    1. cmake-gui を起動
-    2. `Where is the source code: ` に `<Xitilsを置いているディレクトリ>/Xitils/Sandbox` と入力
-    3. `Where to build the binaries: ` に `<Xitilsを置いているディレクトリ>/Xitils/Sandbox/Build` と入力
-    4. Configure を実行
-    5. `lib_cinder`, `lib_cinderd` にそれぞれ Cinder の Release 版、Debug 版ライブラリのパスを入力
-    6. `lib_cinder_imgui`, `lib_cinder_imguid` にそれぞれ Cinder-ImGui の Release 版、Debug 版ライブラリのパスを入力
-    7. Generate を実行
-    8. `Xitils/Sandbox/Build` にソリューションファイルが作成されるので、そこからビルドを行う。
+2. サブモジュールを取得 | ```git submodule update --init --recursive```
+3. Build フォルダ内で CMake を実行 | ```cmake ..```
+4. 生成された VS ソリューションファイルからビルドを実行
 
 ## 実行手順
 
@@ -84,15 +44,20 @@ Sandbox プロジェクトが使用する画像ファイルなどは `Sandbox/Da
 
 ### 実行
 `Sandbox/Data/` を実行ディレクトリとして、ビルドした実行可能ファイルを起動します。
-CMake で生成した VS 用ソリューション経由で実行可能ファイルを起動すれば、自動的にこのとおり実行されます。
+CMake で生成した VS 用ソリューション経由で実行可能ファイルを起動すれば、自動的に上記のとおり実行されます。
 
 # Xitils の各クラスの概要
 [Xitils の各クラスの概要](Documents/Xitils.md)
 
 # メモ
 
+## 著作権情報
+`CMake/` 内のファイル、また `ThirdParty/` 内のライブラリは、
+Xitils が依存する別のプロジェクト群に帰属するものです。
+個々の著作権情報については各ソースファイル中に記載されているのでそれを参照してください。
+
 ## stb への修正点
-Cinder と stb をそのまま併用するとエラーが出るので、回避策として `stb/stbi_image.h` の 5099 行目
+Cinder と stb をそのまま併用するとエラーが出るので、回避策として `ThirdParty/stb/stbi_image.h` の 5099 行目
 ```
 void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
 ```
