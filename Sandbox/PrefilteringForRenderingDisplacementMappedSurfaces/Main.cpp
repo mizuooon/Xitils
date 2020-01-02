@@ -92,10 +92,10 @@ public:
 class AngularParam {
 public:
 
-	// theta ÇÕã…äpÅAphai ÇÕï˚à äp
-	AngularParam(int resolutionTheta, int resolutionPhai):
+	// theta ÇÕã…äpÅAphi ÇÕï˚à äp
+	AngularParam(int resolutionTheta, int resolutionPhi):
 		resolutionTheta(resolutionTheta),
-		resolutionPhai(resolutionPhai)
+		resolutionPhi(resolutionPhi)
 	{}
 
 	int vectorToIndex(const Vector3f& v) const {
@@ -110,11 +110,11 @@ public:
 		return angleToVector(indexToAngle(index, sampler));
 	}
 	
-	int size() const { return resolutionTheta * resolutionPhai; }
+	int size() const { return resolutionTheta * resolutionPhi; }
 
 private:
 	int resolutionTheta;
-	int resolutionPhai;
+	int resolutionPhi;
 
 	Vector2f vectorToAngle(const Vector3f& v) const {
 
@@ -125,76 +125,76 @@ private:
 		//if (n.x < 1e-6 && n.y < 1e-6) { return Vector2f(M_PI / 2, 0.0f); }
 
 		float theta = asinf(n.z); // [0, PI/2]
-		float phai = atan2(n.y, n.x); // [-PI, PI];
-		if (phai < 0.0f) { phai += 2 * M_PI; } // [0, 2PI] -- x é≤ï˚å¸Ç™ phai=0
+		float phi = atan2(n.y, n.x); // [-PI, PI];
+		if (phi < 0.0f) { phi += 2 * M_PI; } // [0, 2PI] -- x é≤ï˚å¸Ç™ phi=0
 
-		return Vector2f(theta, phai);
+		return Vector2f(theta, phi);
 	}
 
 	Vector3f angleToVector(const Vector2f& a) const {
 		float theta = a.x;
-		float phai = a.y;
-		return Vector3f( cosf(theta) * cosf(phai), cosf(theta) * sinf(phai), sinf(theta));
+		float phi = a.y;
+		return Vector3f( cosf(theta) * cosf(phi), cosf(theta) * sinf(phi), sinf(theta));
 	}
 
 	Vector2f indexToAngle(int index, Sampler& sampler) const {
-		int thetaIndex = index / resolutionPhai;
-		int phaiIndex = index % resolutionPhai;
+		int thetaIndex = index / resolutionPhi;
+		int phiIndex = index % resolutionPhi;
 		float thetaNormalized = (float)(thetaIndex + sampler.randf()) / resolutionTheta;
-		float phaiNormalized = (float)(phaiIndex + sampler.randf()) / resolutionPhai;
+		float phiNormalized = (float)(phiIndex + sampler.randf()) / resolutionPhi;
 		float theta = thetaNormalized * (M_PI / 2);
-		float phai = phaiNormalized * (2 * M_PI);
-		return Vector2f(theta, phai);
+		float phi = phiNormalized * (2 * M_PI);
+		return Vector2f(theta, phi);
 	}
 
 	int angleToIndex(const Vector2f& a) const {
 		float theta = a.x;
-		float phai = a.y;
+		float phi = a.y;
 		float thetaNormalized = (float)theta / (M_PI / 2);
-		float phaiNormalized = (float)phai / (2 * M_PI);
+		float phiNormalized = (float)phi / (2 * M_PI);
 		int thetaIndex = (int)(thetaNormalized * resolutionTheta);
-		int phaiIndex = (int)(phaiNormalized * resolutionPhai);
+		int phiIndex = (int)(phiNormalized * resolutionPhi);
 		thetaIndex = xitils::clamp(thetaIndex, 0, resolutionTheta - 1);
-		phaiIndex = xitils::clamp(phaiIndex, 0, resolutionPhai - 1);
-		return thetaIndex * resolutionPhai + phaiIndex;
+		phiIndex = xitils::clamp(phiIndex, 0, resolutionPhi - 1);
+		return thetaIndex * resolutionPhi + phiIndex;
 	}
 
 	void angleToIndexWeighted(const Vector2f& a, int* indices, float* weights) const {
 		float theta = a.x;
-		float phai = a.y;
+		float phi = a.y;
 
 		ASSERT(inRange(theta, 0, M_PI / 2));
-		ASSERT(inRange(phai, 0, 2 * M_PI));
+		ASSERT(inRange(phi, 0, 2 * M_PI));
 
 		float thetaNormalized = (float)theta / (M_PI / 2);
-		float phaiNormalized = (float)phai / (2 * M_PI);
+		float phiNormalized = (float)phi / (2 * M_PI);
 
 		int thetaIndex0 = (int)floorf(thetaNormalized * resolutionTheta - 0.5f);
-		int phaiIndex0 = (int)floorf(phaiNormalized * resolutionPhai - 0.5f);
+		int phiIndex0 = (int)floorf(phiNormalized * resolutionPhi - 0.5f);
 		int thetaIndex1 = thetaIndex0 + 1;
-		int phaiIndex1 = phaiIndex0 + 1;
+		int phiIndex1 = phiIndex0 + 1;
 
 		float wTheta1 = (thetaNormalized * resolutionTheta - 0.5f) - thetaIndex0;
-		float wPhai1 = (phaiNormalized * resolutionPhai - 0.5f) - phaiIndex0;
+		float wPhi1 = (phiNormalized * resolutionPhi - 0.5f) - phiIndex0;
 		float wTheta0 = 1.0f - wTheta1;
-		float wPhai0 = 1.0f - wPhai1;
+		float wPhi0 = 1.0f - wPhi1;
 
 		ASSERT(inRange01(wTheta1));
-		ASSERT(inRange01(wPhai1));
+		ASSERT(inRange01(wPhi1));
 		
 		thetaIndex0 = xitils::clamp(thetaIndex0, 0, resolutionTheta - 1);
 		thetaIndex1 = xitils::clamp(thetaIndex1, 0, resolutionTheta - 1);
-		if (phaiIndex0 < 0) { phaiIndex0 = resolutionPhai - 1; }
-		if (phaiIndex1 >= resolutionPhai) { phaiIndex1 = 0; }
+		if (phiIndex0 < 0) { phiIndex0 = resolutionPhi - 1; }
+		if (phiIndex1 >= resolutionPhi) { phiIndex1 = 0; }
 
-		indices[0] = thetaIndex0 * resolutionPhai + phaiIndex0;
-		weights[0] = wTheta0 * wPhai0;
-		indices[1] = thetaIndex0 * resolutionPhai + phaiIndex1;
-		weights[1] = wTheta0 * wPhai1;
-		indices[2] = thetaIndex1 * resolutionPhai + phaiIndex0;
-		weights[2] = wTheta1 * wPhai0;
-		indices[3] = thetaIndex1 * resolutionPhai + phaiIndex1;
-		weights[3] = wTheta1 * wPhai1;
+		indices[0] = thetaIndex0 * resolutionPhi + phiIndex0;
+		weights[0] = wTheta0 * wPhi0;
+		indices[1] = thetaIndex0 * resolutionPhi + phiIndex1;
+		weights[1] = wTheta0 * wPhi1;
+		indices[2] = thetaIndex1 * resolutionPhi + phiIndex0;
+		weights[2] = wTheta1 * wPhi0;
+		indices[3] = thetaIndex1 * resolutionPhi + phiIndex1;
+		weights[3] = wTheta1 * wPhi1;
 	}
 };
 
@@ -256,10 +256,10 @@ private:
 class AngularTable {
 public:
 
-	// theta ÇÕã…äpÅAphai ÇÕï˚à äp
-	AngularTable(int resolutionTheta, int resolutionPhai):
-		paramWi(resolutionTheta, resolutionPhai),
-		paramWo(resolutionTheta, resolutionPhai)
+	// theta ÇÕã…äpÅAphi ÇÕï˚à äp
+	AngularTable(int resolutionTheta, int resolutionPhi):
+		paramWi(resolutionTheta, resolutionPhi),
+		paramWo(resolutionTheta, resolutionPhi)
 	{
 		data.resize(size());
 	}
@@ -520,12 +520,12 @@ class PrefilteredDisplaceMapping : public Material {
 public:
 
 	const int SpatialResolution = 2;
-	const int PhaiResolution = 20;
-	const int ThetaResolution = PhaiResolution / 4;
+	const int PhiResolution = 20;
+	const int ThetaResolution = PhiResolution / 4;
 
 	PrefilteredDisplaceMapping(std::shared_ptr<Material> baseMaterial, std::shared_ptr<Texture> displacementTexOrig, float displacementScale):
 		T(SpatialResolution, SpatialResolution),
-		S(ThetaResolution, PhaiResolution),
+		S(ThetaResolution, PhiResolution),
 		baseMaterial(baseMaterial),
 		displacementTexOrig(displacementTexOrig),
 		displacementScale(displacementScale),

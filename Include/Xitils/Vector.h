@@ -759,6 +759,21 @@ namespace xitils {
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+	Vector3f anglesToVector(const Vector2f& angles) {
+		float theta = angles.x;
+		float phi = angles.y;
+		return Vector3f(cosf(theta), sinf(theta) * cosf(phi), sinf(theta) * sinf(phi));
+	}
+
+	Vector2f vectorToAngles(const Vector3f& v) {
+		Vector3f n = normalize(v);
+		float theta = acosf(n.x);
+		float phi = atan2f(n.z, n.y);
+		return Vector2f(theta, phi);
+	}
+
+	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 	struct BasisVectors {
 		BasisVectors(const Vector3f& v) {
 			e1 = normalize(v);
@@ -775,17 +790,24 @@ namespace xitils {
 		Vector3f toGlobal(const Vector3f& v) { return e1 * v.x + e2 * v.y + e3 * v.z; }
 	};
 
+	Vector2f sampleAnglesFromHemiSphere(Sampler &sampler) {
+		float theta = acosf(sampler.randf(1.0f));
+		float phi = sampler.randf(2.0f * Pi);
+		return Vector2f(theta, phi);
+	}
+
+	Vector2f sampleAnglesFromSphere(Sampler& sampler) {
+		float theta = acosf(sampler.randf(-1.0f, 1.0f));
+		float phi = sampler.randf(2.0f * Pi);
+		return Vector2f(theta, phi);
+	}
+
 	Vector3f sampleVectorFromHemiSphere(const Vector3f& v, Sampler& sampler) {
-		BasisVectors basis(v);
-		float phai = asinf(sampler.randf(1.0f));
-		float theta = sampler.randf(2.0f * Pi);
-		return basis.toGlobal(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
+		return BasisVectors(v).toGlobal(anglesToVector(sampleAnglesFromHemiSphere(sampler)));
 	}
 
 	Vector3f sampleVectorFromSphere(Sampler& sampler) {
-		float phai = asinf(sampler.randf(-1.0f, 1.0f));
-		float theta = sampler.randf(2.0f * Pi);
-		return Vector3f(sinf(phai), cosf(phai) * cosf(theta), cosf(phai) * sinf(theta));
+		return anglesToVector(sampleAnglesFromSphere(sampler));
 	}
 
 	Vector3f sampleVectorFromCosinedHemiSphere(const Vector3f& v, Sampler& sampler) {
@@ -793,8 +815,8 @@ namespace xitils {
 		
 		float u = sampler.randf(1.0f);
 		float r = sqrtf(u);
-		float theta = sampler.randf(2.0f * Pi);
-		return basis.toGlobal(safeSqrt(1.0f - u), r * cosf(theta), r * sinf(theta));
+		float phi = sampler.randf(2.0f * Pi);
+		return basis.toGlobal(safeSqrt(1.0f - u), r * cosf(phi), r * sinf(phi));
 	}
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------

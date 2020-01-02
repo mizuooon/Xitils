@@ -90,9 +90,9 @@ namespace xitils {
 				float u = sampler.randf();
 				float v = sampler.randf();
 				float theta = asinf(u); // [0, PI/2]
-				float phai = 2.0f * (float)M_PI * v - M_PI; // [-PI, PI]
+				float phi = 2.0f * (float)M_PI * v - M_PI; // [-PI, PI]
 
-				mu[j] = Vector3f(cosf(theta) * cosf(phai), cosf(theta) * sinf(phai), sinf(theta));
+				mu[j] = Vector3f(cosf(theta) * cosf(phi), cosf(theta) * sinf(phi), sinf(theta));
 				kappa[j] = 0.5f;
 				alpha[j] = 1.0f / LobeNum;
 			}

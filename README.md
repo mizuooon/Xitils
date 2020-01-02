@@ -100,7 +100,12 @@ static void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
 ## VonMisesFisherDistribution
 <img src="Documents/VonMisesFisherDistribution.png" width="600px">
 
-- von Mises-Fisher Distribution で球面分布を近似する
+- von Mises-Fisher Distribution を用いて球面分布を近似する
+
+## SphericalHarmonics
+<img src="Documents/SphericalHarmonics.png" width="600px">
+
+- 球面調和関数を用いて球面分布を近似する
 
 ## VisualizeError
 <img src="Documents/VisualizeError.png" width="500px">
@@ -117,7 +122,7 @@ static void stbi__tga_read_rgb16(stbi__context *s, stbi_uc* out)
 を実装したもの。
 物理的に破綻のないノーマルマッピングのモデルを提案しています。
 
-この論文を読んだ際の解説記事を以下にアップしてあります。 \
+この論文を読んだ際の解説記事を以下にアップしてあります。 \\
 [Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing - 水鳥コンビナート](http://mizuooon.hatenablog.jp/entry/microfacet-based-normal-mapping-for-robust-monte-carlo-path-tracing)
 
 使用する描画モデルはソースコード中の定数
