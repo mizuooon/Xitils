@@ -84,4 +84,42 @@ namespace xitils {
 
 
 	float safeSqrt(float x) { return sqrtf(clampPositive(x)); }
+
+	int fact(int n) {
+		ASSERT(n >= 0);
+		if (n <= 1) { return 1; }
+		int res = 1;
+		for (int i = 2; i <= n; ++i) {
+			res *= i;
+		}
+		return res;
+	}
+
+	int combination(int n, int k) {
+		if (n == 0) { return 1; }
+		
+		ASSERT(k >= 0 && k <= n);
+
+		if (k > n/2) { return combination(n, n - k); }
+
+		int ret = 1;
+		for (int i = n - k + 1; i <= n; ++i) {
+			ret *= i;
+		}
+		ret /= fact(k);
+
+		return ret;
+	}
+
+	int dfact(int n) {
+		// “ñdŠKæ
+		ASSERT(n >= 0);
+		if (n <= 1) { return 1; }
+		int res = 1;
+		for (int i = n; i >= 2; i -= 2) {
+			res *= i;
+		}
+		return res;
+
+	}
 }
