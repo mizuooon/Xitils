@@ -1,4 +1,4 @@
-[submodule "ThirdParty/Cinder"]
+﻿[submodule "ThirdParty/Cinder"]
 	path = ThirdParty/Cinder
 	url = https://github.com/cinder/Cinder.git
 [submodule "ThirdParty/Cinder-ImGui"]
@@ -10,3 +10,9 @@
 [submodule "ThirdParty/tinycolormap"]
 	path = ThirdParty/tinycolormap
 	url = https://github.com/yuki-koyama/tinycolormap.git
+[submodule "ThirdParty/Cinder-glTF"]
+	path = ThirdParty/Cinder-glTF
+	url = https://github.com/jhurlbut/Cinder-glTF.git
+[submodule "ThirdParty/gltf"]
+	path = ThirdParty/gltf
+	url = https://github.com/ryanbartley/gltf.git

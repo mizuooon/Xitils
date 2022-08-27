@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Utils.h"
 #include "Vector.h"
@@ -63,7 +63,7 @@ namespace xitils {
 		}
 
 		float surfaceAreaScaling(const Transform& t) const {
-			// TODO: ‚‘¬‰»
+			// TODO: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			const auto& p0 = t(position(0));
 			const auto& p1 = t(position(1));
 			const auto& p2 = t(position(2));
@@ -74,7 +74,7 @@ namespace xitils {
 
 		bool intersect(const Ray& ray, float* tHit, SurfaceIntersection* isect) const override {
 
-			// PBRT ‚ÌÀ‘•‚ğQl‚É‚µ‚½
+			// PBRT ï¿½Ìï¿½ï¿½ï¿½ï¿½ï¿½Qï¿½lï¿½É‚ï¿½ï¿½ï¿½
 			// http://www.pbr-book.org/3ed-2018/Shapes/Triangle_Meshes.html
 
 			const auto& p0 = position(0);
@@ -220,7 +220,7 @@ namespace xitils {
 
 	class TriangleIndexedWithShellMapping : public TriangleIndexed {
 	public:
-		float height; // [0,1] ‚Ì”ÍˆÍ
+		float height; // [0,1] ï¿½Ì”Íˆï¿½
 		float displacementScale;
 		const Texture* displacementMapTexture;
 
@@ -247,7 +247,7 @@ namespace xitils {
 
 			isect.shading.n = (a.x * isect.shading.tangent + a.y * isect.shading.bitangent + a.z * isect.shading.n).normalize();
 
-			// TODO: tangent ‚Æ bitangent
+			// TODO: tangent ï¿½ï¿½ bitangent
 			isect.shading.tangent = Vector3f();
 			isect.shading.bitangent = Vector3f();
 

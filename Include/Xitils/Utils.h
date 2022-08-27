@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #define _USE_MATH_DEFINES
 #define SIMDPP_ARCH_X86_AVX2
@@ -13,6 +13,7 @@
 #include <numeric>
 #include <glm/glm.hpp>
 #include <simdpp/simd.h>
+#include <iterator>
 
 #undef INFINITY
 
@@ -112,7 +113,7 @@ namespace xitils {
 	}
 
 	int dfact(int n) {
-		// “ñdŠKæ
+		// äºŒé‡éšŽä¹—
 		ASSERT(n >= 0);
 		if (n <= 1) { return 1; }
 		int res = 1;

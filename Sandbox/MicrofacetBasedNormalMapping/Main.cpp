@@ -1,4 +1,4 @@
-
+ï»¿
 
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/App.h>
@@ -29,8 +29,8 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-// wi ‚ªƒWƒIƒƒgƒŠ“à•”‚Ì•ûŒüA‚Ü‚½‚Í wo ‚ªƒVƒF[ƒfƒBƒ“ƒO–@ü‚©‚ç’è‹`‚³‚ê‚é”¼‹…‚ÌŠO‚Å‚ ‚éê‡‚É
-// ’l‚ª 0 ‚Æ‚È‚é Glossy
+// wi ï¿½ï¿½ï¿½Wï¿½Iï¿½ï¿½ï¿½gï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì•ï¿½ï¿½ï¿½ï¿½Aï¿½Ü‚ï¿½ï¿½ï¿½ wo ï¿½ï¿½ï¿½Vï¿½Fï¿½[ï¿½fï¿½Bï¿½ï¿½ï¿½Oï¿½@ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½`ï¿½ï¿½ï¿½ï¿½é”¼ï¿½ï¿½ï¿½ÌŠOï¿½Å‚ï¿½ï¿½ï¿½ê‡ï¿½ï¿½
+// ï¿½lï¿½ï¿½ 0 ï¿½Æ‚È‚ï¿½ Glossy
 struct GlossyClamped : public Material {
 public:
 
@@ -86,7 +86,7 @@ public:
 class MicrofacetNormalMapping : public Material {
 public:
 
-	// material_wp ‚Íƒx[ƒX‚Æ‚È‚éƒ}ƒeƒŠƒAƒ‹
+	// material_wp ï¿½Íƒxï¿½[ï¿½Xï¿½Æ‚È‚ï¿½}ï¿½eï¿½ï¿½ï¿½Aï¿½ï¿½
 	MicrofacetNormalMapping(const std::shared_ptr<Material>& material_wp):
 		material_wp(material_wp)
 	{}
@@ -94,7 +94,7 @@ public:
 	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
 		const auto& wo = isect.wo;
 
-		// ---- Úü•ûŒü‚ğŒü‚­–@ü wt ‚ğ‹‚ß‚é
+		// ---- ï¿½Úï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½@ï¿½ï¿½ wt ï¿½ï¿½ï¿½ï¿½ß‚ï¿½
 		Vector3f wg = isect.n;
 		Vector3f wp = isect.shading.n;
 		if (dot(wo, wg) < 0.0f) { wg *= -1; }
@@ -107,14 +107,14 @@ public:
 		Vector3f wt = cross(cross(wg, wp).normalize(), wg).normalize();
 
 		if (wt.hasNan()) {
-			// ”’l“I‚ÈƒGƒ‰[
+			// ï¿½ï¿½ï¿½lï¿½Iï¿½ÈƒGï¿½ï¿½ï¿½[
 			return Vector3f(0.0f);
 		}
 		if (dot(wp, wt) > 0) {
 			wt *= -1;
 		}
 
-		// ---- ‹ÇŠU—‚ğl—¶‚µ‚½ bsdf ‚Ì’l‚ğA–¾¦“I‚Èƒ‹[ƒv‚ğ—p‚¢‚Ä‹‚ß‚é
+		// ---- ï¿½Çï¿½ï¿½Uï¿½ï¿½ï¿½ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ bsdf ï¿½Ì’lï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Iï¿½Èƒï¿½ï¿½[ï¿½vï¿½ï¿½pï¿½ï¿½ï¿½Ä‹ï¿½ï¿½ß‚ï¿½
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
@@ -173,7 +173,7 @@ public:
 	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
 		const auto& wo = isect.wo;
 
-		// ---- Úü•ûŒü‚ğŒü‚­–@ü wt ‚ğ‹‚ß‚é
+		// ---- ï¿½Úï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½@ï¿½ï¿½ wt ï¿½ï¿½ï¿½ï¿½ß‚ï¿½
 		Vector3f wg = isect.n;
 		Vector3f wp = isect.shading.n;
 		if (dot(wo, wg) < 0.0f) { wg *= -1; }
@@ -186,14 +186,14 @@ public:
 		Vector3f wt = cross(cross(wg, wp).normalize(), wg).normalize();
 		
 		if ( wt.hasNan() ) {
-			// ”’l“I‚ÈƒGƒ‰[
+			// ï¿½ï¿½ï¿½lï¿½Iï¿½ÈƒGï¿½ï¿½ï¿½[
 			return Vector3f(0.0f);
 		}
 		if (dot(wp,wt) > 0) {
 			wt *= -1;
 		}
 
-		// ---- wi ‚Ì•ûŒü‚Æ bsdf ‚Ì’l‚ğA–¾¦“I‚Èƒ‹[ƒv‚ğ—p‚¢‚Ä‹‚ß‚é
+		// ---- wi ï¿½Ì•ï¿½ï¿½ï¿½ï¿½ï¿½ bsdf ï¿½Ì’lï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Iï¿½Èƒï¿½ï¿½[ï¿½vï¿½ï¿½pï¿½ï¿½ï¿½Ä‹ï¿½ï¿½ß‚ï¿½
 		Vector3f result(0.0f);
 		Vector3f weight(1.0f);
 		bool d = sampler.randf() < lambda_p(wo, wp, wt, wg); // true:wp, false:wt
@@ -253,7 +253,7 @@ public:
 
 	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 
-		// ‚Ÿ‚Ì”½Ë‚ğ diffuse ‚Å‹ß—‚µ‚ÄApdf ‚Ì‹ß—’l‚ğ‹‚ß‚é
+		// ï¿½ï¿½ï¿½ï¿½ï¿½Ì”ï¿½ï¿½Ë‚ï¿½ diffuse ï¿½Å‹ßï¿½ï¿½ï¿½ï¿½ÄApdf ï¿½Ì‹ßï¿½ï¿½lï¿½ï¿½ï¿½ï¿½ß‚ï¿½
 
 		const auto& wo = isect.wo;
 
@@ -269,7 +269,7 @@ public:
 		Vector3f wt = cross(cross(wg, wp).normalize(), wg).normalize();
 
 		if (wt.hasNan()) {
-			// ”’l“I‚ÈƒGƒ‰[
+			// ï¿½ï¿½ï¿½lï¿½Iï¿½ÈƒGï¿½ï¿½ï¿½[
 			return 1.0f;
 		}
 		if (dot(wp, wt) > 0) {

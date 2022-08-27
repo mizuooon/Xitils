@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Utils.h"
 #include "Bounds.h"
@@ -15,7 +15,7 @@ namespace Xitils {
 
 	class Parameter1D : public Parameter {
 	public:
-		std::function<float(float)> f; // R -> [0, 1] ‹·‹`’P’²‘‰Á‚Å‚ ‚é•K—v‚ª‚ ‚é
+		std::function<float(float)> f; // R -> [0, 1] ï¿½ï¿½ï¿½`ï¿½Pï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å‚ï¿½ï¿½ï¿½Kï¿½vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		std::function<float(float)> fInv; // [0, 1] -> R
 		float min;
 		float max;
@@ -90,10 +90,10 @@ namespace Xitils {
 				y = clamp01(y - floorf(y));
 				break;
 			case Parameter1D::Loop::Reverse:
-				if (y < 0) { y += 2 * (-floor(y)); } // “K“–‚È‹ô”‚ğ‘«‚µ‚Ä³‚É‚·‚é
+				if (y < 0) { y += 2 * (-floor(y)); } // ï¿½Kï¿½ï¿½ï¿½È‹ï¿½ï¿½ï¿½ğ‘«‚ï¿½ï¿½Äï¿½ï¿½É‚ï¿½ï¿½ï¿½
 				y = clamp01(((int)y) % 2 == 0 ?
-					y - floorf(y) // ®”•”‚ª‹ô”‚Ìê‡ Repeat ‚Æ“¯‚¶
-					: 1.0f - (y - floorf(y)) // ®”•”‚ªŠï”‚Ìê‡ ”½“]‚·‚é
+					y - floorf(y) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ìê‡ Repeat ï¿½Æ“ï¿½ï¿½ï¿½
+					: 1.0f - (y - floorf(y)) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï”ï¿½Ìê‡ ï¿½ï¿½ï¿½]ï¿½ï¿½ï¿½ï¿½
 				);
 				break;
 			}
@@ -136,7 +136,7 @@ namespace Xitils {
 			Vector2f a = toAngle(normalize(v));
 
 			if (sphericallySymmetric) {
-				// theta < 0 ‚Ì—Ìˆæ‚È‚ç x0,x1 ‚Ìw‚·ƒxƒNƒgƒ‹‚ğ”½“]
+				// theta < 0 ï¿½Ì—Ìˆï¿½È‚ï¿½ x0,x1 ï¿½Ìwï¿½ï¿½ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½ğ”½“]
 				float theta = a.x;
 				float valMin = -(float)M_PI / 2;
 				float valMax = (float)M_PI / 2;
@@ -308,11 +308,11 @@ namespace Xitils {
 		//	zip( args, params, &index, []( float x, Parameter p ) { return clamp( (int) p.f( x )*p.resolution, 0, p.resolution - 1 ); } );
 		//	return _data[flattenIndex( index )];
 		//}
-		//template <typename... Args> std::optional<T> eval( Args... args ) { // •âŠÔ‚ ‚è
+		//template <typename... Args> std::optional<T> eval( Args... args ) { // ï¿½ï¿½Ô‚ï¿½ï¿½ï¿½
 		//	std::vector<TableBinIndex>index;
 		//	return access( std::move( index ), args... );
 		//}
-		template <typename... Args> std::optional<ValueType*> access(Args... args) { // •âŠÔ‚È‚µ ƒe[ƒuƒ‹‚Ì’l‚É‘‚«‚İ‰Â”\
+		template <typename... Args> std::optional<ValueType*> access(Args... args) { // ï¿½ï¿½Ô‚È‚ï¿½ ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½Ì’lï¿½Éï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ‰Â”\
 			return access(std::make_index_sequence<N>{}, args...);
 		}
 

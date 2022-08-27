@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Utils.h"
 #include "Sampler.h"
@@ -599,11 +599,11 @@ namespace xitils {
 
 	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	// min, max ‚È‚Çˆê•”‚ÌŠÖ”‚Íƒeƒ“ƒvƒŒ[ƒg‚Æ‚µ‚Äˆê”Ê‚ÌƒNƒ‰ƒX‚É‘Î‚µ‚ÄŠù‚É’è‹`‚³‚ê‚Ä‚¢‚é‚ªA
-	// Vector Œn‚ÌƒNƒ‰ƒX‚ğ“n‚·Û‚É‚ÍˆÈ‰º‚Å’è‹`‚µ‚½ŠÖ”ŒQ‚ª—Dæ“I‚Ég—p‚³‚ê‚éB
-	// ‚±‚ÌƒI[ƒo[ƒ[ƒh‚ğs‚¤‚½‚ß‚É Vector2/3/4 ‚²‚Æ‚ÉŠÖ”‚ÌƒCƒ“ƒ^ƒtƒF[ƒX‚ğ’è‹`‚µ‚Â‚Â
-	// ‚»‚ÌÀ‘Ì‚Í Vector ŒnƒNƒ‰ƒXŠÔ‚Åg‚¢‰ñ‚¹‚é‚æ‚¤ƒeƒ“ƒvƒŒ[ƒg‰»‚µ‚Ä‚¢‚é‚Ì‚Å
-	// ‚â‚âç’·‚È‘‚«•û‚É‚È‚Á‚Ä‚¢‚éB
+	// min, max ãªã©ä¸€éƒ¨ã®é–¢æ•°ã¯ãƒ†ãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆã¨ã—ã¦ä¸€èˆ¬ã®ã‚¯ãƒ©ã‚¹ã«å¯¾ã—ã¦æ—¢ã«å®šç¾©ã•ã‚Œã¦ã„ã‚‹ãŒã€
+	// Vector ç³»ã®ã‚¯ãƒ©ã‚¹ã‚’æ¸¡ã™éš›ã«ã¯ä»¥ä¸‹ã§å®šç¾©ã—ãŸé–¢æ•°ç¾¤ãŒå„ªå…ˆçš„ã«ä½¿ç”¨ã•ã‚Œã‚‹ã€‚
+	// ã“ã®ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰ã‚’è¡Œã†ãŸã‚ã« Vector2/3/4 ã”ã¨ã«é–¢æ•°ã®ã‚¤ãƒ³ã‚¿ãƒ•ã‚§ãƒ¼ã‚¹ã‚’å®šç¾©ã—ã¤ã¤
+	// ãã®å®Ÿä½“ã¯ Vector ç³»ã‚¯ãƒ©ã‚¹é–“ã§ä½¿ã„å›ã›ã‚‹ã‚ˆã†ãƒ†ãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆåŒ–ã—ã¦ã„ã‚‹ã®ã§
+	// ã‚„ã‚„å†—é•·ãªæ›¸ãæ–¹ã«ãªã£ã¦ã„ã‚‹ã€‚
 
 
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> operator*(T val, const Vector2<T, T_SIMD, T_SIMDMASK>& v) { return v * val; }
@@ -690,11 +690,13 @@ namespace xitils {
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> Vector2<T, T_SIMD, T_SIMDMASK> max(const Vector2<T, T_SIMD, T_SIMDMASK>& v1, const Vector2<T, T_SIMD, T_SIMDMASK>& v2, const Vector4<T, T_SIMD, T_SIMDMASK>& v3) { return _max(v1, v2, v3); }
 
 	template <typename V> inline bool _inRange(const V& v, typename V::_T minVal, typename V::_T maxVal) {
-		V::_T_SIMD val = simdpp::load_u<V::_T_SIMD>(&v);
-		V::_T_SIMDMASK mask = simdpp::cmp_ge(val, simdpp::load_splat<V::_T_SIMD>(&minVal));
-		mask = mask & simdpp::cmp_le(val, simdpp::load_splat<V::_T_SIMD>(&maxVal));
-		mask = mask | simdpp::to_mask(simdpp::make_float<V::_T_SIMD>(0, 0, 0, 1));
-		return simdpp::reduce_and(simdpp::bit_cast<simdpp::uint32x4, V::_T_SIMDMASK>(mask)) != 0;
+		using _T_SIMD = typename V::_T_SIMD;
+		using _T_SIMDMASK = typename V::_T_SIMDMASK;
+		_T_SIMD = simdpp::load_u<_T_SIMD>(&v);
+		_T_SIMDMASK mask = simdpp::cmp_ge(v, simdpp::load_splat<_T_SIMD>(&minVal));
+		mask = mask & simdpp::cmp_le(v, simdpp::load_splat<_T_SIMD>(&maxVal));
+		mask = mask | simdpp::to_mask(simdpp::make_float<_T_SIMD>(0, 0, 0, 1));
+		return simdpp::reduce_and(simdpp::bit_cast<simdpp::uint32x4, _T_SIMDMASK>(mask)) != 0;
 	}
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool inRange(const Vector2<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _inRange(v, minVal, maxVal); }
 	template <typename T, typename T_SIMD, typename T_SIMDMASK> bool inRange(const Vector3<T, T_SIMD, T_SIMDMASK>& v, T_SIMD minVal, T_SIMD maxVal) { return _inRange(v, minVal, maxVal); }
@@ -707,9 +709,11 @@ namespace xitils {
 
 
 	template <typename V> inline V _clamp(const V& v, typename V::_T minVal, typename V::_T maxVal) {
-		auto val1 = simdpp::load_u<V::_T_SIMD>(&v);
-		auto val2 = simdpp::load_splat<V::_T_SIMD>(&minVal);
-		auto val3 = simdpp::load_splat<V::_T_SIMD>(&maxVal);
+		using _T_SIMD = typename V::_T_SIMD;
+		using _T_SIMDMASK = typename V::_T_SIMDMASK;
+		auto val1 = simdpp::load_u<_T_SIMD>(&v);
+		auto val2 = simdpp::load_splat<_T_SIMD>(&minVal);
+		auto val3 = simdpp::load_splat<_T_SIMD>(&maxVal);
 		val1 = simdpp::blend(val1, val2, simdpp::cmp_gt(val1, val2));
 		val1 = simdpp::blend(val1, val3, simdpp::cmp_lt(val1, val3));
 		val1 = simdpp::insert<3, 4>(val1, 0);

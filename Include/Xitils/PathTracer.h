@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Interaction.h"
 #include "Ray.h"
@@ -95,7 +95,7 @@ namespace xitils {
 	class StandardPathTracer : public PathTracer {
 	public:
 
-		// NEE ‚Æ BRDF ƒTƒ“ƒvƒŠƒ“ƒO‚Ì MIS
+		// NEE ï¿½ï¿½ BRDF ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ MIS
 
 		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
@@ -198,7 +198,7 @@ namespace xitils {
 							}
 
 							if (misWeight > 0.0f) {
-								float G = fabs(dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq; // bsdfCos ‚ÉƒIƒuƒWƒFƒNƒg‘¤‚ÌƒRƒTƒCƒ“€‚ÍŠù‚ÉŠÜ‚Ü‚ê‚Ä‚¢‚é
+								float G = fabs(dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq; // bsdfCos ï¿½ÉƒIï¿½uï¿½Wï¿½Fï¿½Nï¿½gï¿½ï¿½ï¿½ÌƒRï¿½Tï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ÍŠï¿½ï¿½ÉŠÜ‚Ü‚ï¿½Ä‚ï¿½ï¿½ï¿½
 								radiance +=
 									weight * misWeight
 									* isect.object->material->bsdfCos(isect, sampler, shadowRay.d)
@@ -234,7 +234,7 @@ namespace xitils {
 		float shadowRayMargin = 0.0001f;
 	};
 
-	// ƒVƒ“ƒOƒ‹ƒXƒLƒƒƒbƒ^ƒŠƒ“ƒO‚Ì‚Ý•\Ž¦
+	// ï¿½Vï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Xï¿½Lï¿½ï¿½ï¿½bï¿½^ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Ì‚Ý•\ï¿½ï¿½
 	class DebugRayTracerSingleScattering : public PathTracer {
 	public:
 

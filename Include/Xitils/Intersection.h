@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Utils.h"
 #include "Vector.h"
@@ -22,8 +22,8 @@ namespace xitils {
 		const Shape* shape = nullptr;
 		const TriangleIndexed* tri = nullptr;
 
-		// ƒWƒIƒƒgƒŠ‚Ìî•ñ‚ğ•\‚·
-		// ‚±‚Ìî•ñ‚Í•Ï‰»‚µ‚È‚¢
+		// ï¿½Wï¿½Iï¿½ï¿½ï¿½gï¿½ï¿½ï¿½Ìï¿½ï¿½ï¿½\ï¿½ï¿½
+		// ï¿½ï¿½ï¿½Ìï¿½ï¿½Í•Ï‰ï¿½ï¿½ï¿½ï¿½È‚ï¿½
 		Vector3f n;
 		Vector3f tangent, bitangent;
 
@@ -31,8 +31,8 @@ namespace xitils {
 			Vector3f n;
 			Vector3f tangent, bitangent;
 		};
-		// ƒVƒF[ƒfƒBƒ“ƒO‚Ég—p‚·‚éî•ñ‚ğ•\‚·
-		// ƒm[ƒ}ƒ‹ƒ}ƒbƒsƒ“ƒO‚È‚Ç‚Å•Ï‰»‚·‚é
+		// ï¿½Vï¿½Fï¿½[ï¿½fï¿½Bï¿½ï¿½ï¿½Oï¿½Égï¿½pï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½\ï¿½ï¿½
+		// ï¿½mï¿½[ï¿½}ï¿½ï¿½ï¿½}ï¿½bï¿½sï¿½ï¿½ï¿½Oï¿½È‚Ç‚Å•Ï‰ï¿½ï¿½ï¿½ï¿½ï¿½
 		Shading shading;
 	};
 

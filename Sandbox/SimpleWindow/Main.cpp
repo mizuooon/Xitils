@@ -1,4 +1,4 @@
-
+﻿
 #include <Xitils/App.h>
 #include <CinderImGui.h>
 
@@ -89,7 +89,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	ImGui::Begin("ImGui Window");
 	ImGui::Text("Hello World!");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
+	ImGui::Text(("Elapsed: " + std::to_string(frameData.elapsed) + " ms / frame").c_str());
 	ImGui::SliderFloat("Radius", &uiFrameData.radius, 10, 100);
 	ImGui::SliderFloat("Distance", &uiFrameData.distance, 10, 200);
 	ImGui::End();

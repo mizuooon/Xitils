@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Bounds.h"
 #include "Interaction.h"
@@ -115,7 +115,7 @@ namespace xitils {
 		}
 
 		float surfacePDF(const Vector3f& p, const TriangleIndexed* tri) const override {
-			// tri ‚ÍŽg—p‚µ‚È‚¢
+			// tri ï¿½ÍŽgï¿½pï¿½ï¿½ï¿½È‚ï¿½
 			return 1.0f / surfaceArea();
 		}
 

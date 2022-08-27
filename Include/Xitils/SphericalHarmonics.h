@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Texture.h"
 #include "Utils.h"
@@ -18,7 +18,7 @@ namespace xitils {
 
 		SphericalHarmonics(int samples, const std::function<float(const Vector3f&)>& func, Sampler& sampler) {
 
-			// TODO: P ‚ğƒRƒ“ƒpƒCƒ‹‚É¶¬
+			// TODO: P ï¿½ï¿½Rï¿½ï¿½ï¿½pï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½Éï¿½ï¿½ï¿½
 
 			P[0] = [](float t) { return 1.0f; };
 
@@ -90,7 +90,7 @@ namespace xitils {
 		}
 
 		void estimateCoeff(int samples, const std::function<float(const Vector3f&)>& func, Sampler& sampler) {
-			// TODO: ƒCƒ“ƒ|[ƒ^ƒ“ƒXƒTƒ“ƒvƒŠƒ“ƒO			
+			// TODO: ï¿½Cï¿½ï¿½ï¿½|ï¿½[ï¿½^ï¿½ï¿½ï¿½Xï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½O			
 
 			for (int l = 0; l <= L; ++l) {
 				for (int m = -l; m <= l; ++m) {

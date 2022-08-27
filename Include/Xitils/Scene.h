@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "AccelerationStructure.h"
 #include "Camera.h"
@@ -38,8 +38,8 @@ namespace xitils {
 		bool canSampleLight() const { return !lights.empty(); }
 
 		Object::SampledSurface sampleSurface(Sampler& sampler, float* pdf) const {
-			// TODO: ‚·‚×‚Ä‚Ì Object ‚©‚ç“™Šm—¦‚ÅƒTƒ“ƒvƒŠƒ“ƒO‚µ‚Ä‚¢‚é‚ªA
-			//       –{“–‚Í–ÊÏ‚É”ä—á‚µ‚½Šm—¦‚Å‘I‚Ô‚×‚«
+			// TODO: ï¿½ï¿½ï¿½×‚Ä‚ï¿½ Object ï¿½ï¿½ï¿½ç“™ï¿½mï¿½ï¿½ï¿½ÅƒTï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ä‚ï¿½ï¿½é‚ªï¿½A
+			//       ï¿½{ï¿½ï¿½ï¿½Í–ÊÏ‚É”ï¿½á‚µï¿½ï¿½ï¿½mï¿½ï¿½ï¿½Å‘Iï¿½Ô‚×‚ï¿½
 			auto& light = sampler.select(lights);
 			auto res = light->sampleSurface(sampler, pdf);
 			*pdf /= lights.size();
@@ -47,7 +47,7 @@ namespace xitils {
 		}
 
 		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const TriangleIndexed* tri) const {
-			// TODO: ã‹L‚ğ’¼‚µ‚½‚ç‚±‚¿‚ç‚à’¼‚·
+			// TODO: ï¿½ï¿½Lï¿½ğ’¼‚ï¿½ï¿½ï¿½ï¿½ç‚±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 			if (lights.empty()) { return 0.0f; }
 

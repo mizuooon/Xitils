@@ -1,4 +1,4 @@
-
+ï»¿
 
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/App.h>
@@ -38,14 +38,14 @@ const int ShellMappingLayerNum = 16;
 
 //----------------------------------------------------------------------------------------------------------
 
-// ƒXƒP[ƒŠƒ“ƒOŠÖ”‚Ì–‘OŒvZ‚Ég—p‚·‚é‚½‚ß‚ÌAƒfƒBƒXƒvƒŒ[ƒXƒƒ“ƒgƒ}ƒbƒsƒ“ƒO‚ğ“K—p‚µ‚½•½–ÊƒƒbƒVƒ…
+// ï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Öï¿½ï¿½Ìï¿½ï¿½Oï¿½vï¿½Zï¿½Égï¿½pï¿½ï¿½ï¿½é‚½ï¿½ß‚ÌAï¿½fï¿½Bï¿½Xï¿½vï¿½ï¿½ï¿½[ï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½gï¿½}ï¿½bï¿½sï¿½ï¿½ï¿½Oï¿½ï¿½Kï¿½pï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êƒï¿½ï¿½bï¿½Vï¿½ï¿½
 class PlaneDisplaceMapped : public TriangleMesh {
 public:
 
 	PlaneDisplaceMapped(std::shared_ptr<const Texture> displacement, float displacementScale) {
 
-		// xy ‚Æ uv ‚ÌÀ•W‚ªˆê’v‚µ‚ÄA‚©‚Â z •ûŒü‚ğŒü‚­‚æ‚¤‚É•½–Ê‚ğ¶¬
-		// (0,0) - (1,1) ‚Ì—Ìˆæ‚ğ’†S‚Æ‚µ‚ÄAuv •ûŒü‚»‚ê‚¼‚ê 3 ƒ‹[ƒv‚¸‚Â‚³‚¹‚Ä‚¢‚é
+		// xy ï¿½ï¿½ uv ï¿½Ìï¿½ï¿½Wï¿½ï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ÄAï¿½ï¿½ï¿½ï¿½ z ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ‚¤ï¿½É•ï¿½ï¿½Ê‚ğ¶ï¿½
+		// (0,0) - (1,1) ï¿½Ì—Ìˆï¿½ğ’†Sï¿½Æ‚ï¿½ï¿½ÄAuv ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê‚¼ï¿½ï¿½ 3 ï¿½ï¿½ï¿½[ï¿½vï¿½ï¿½ï¿½Â‚ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½
 
 		std::array<Vector3f, 4> positions;
 		for (int i = 0; i < 4; ++i) {
@@ -88,11 +88,11 @@ public:
 
 //----------------------------------------------------------------------------------------------------------
 
-// 2 ŸŒ³‚Ì•ûŒü‚ğ 1 ŸŒ³‚ÌƒCƒ“ƒfƒbƒNƒX‚É‘Î‰•t‚¯‚é‚½‚ß‚ÌƒNƒ‰ƒX
+// 2 ï¿½ï¿½ï¿½ï¿½ï¿½Ì•ï¿½ï¿½ï¿½ï¿½ï¿½ 1 ï¿½ï¿½ï¿½ï¿½ï¿½ÌƒCï¿½ï¿½ï¿½fï¿½bï¿½Nï¿½Xï¿½É‘Î‰ï¿½ï¿½tï¿½ï¿½ï¿½é‚½ï¿½ß‚ÌƒNï¿½ï¿½ï¿½X
 class AngularParam {
 public:
 
-	// theta ‚Í‹ÉŠpAphi ‚Í•ûˆÊŠp
+	// theta ï¿½Í‹ÉŠpï¿½Aphi ï¿½Í•ï¿½ï¿½ÊŠp
 	AngularParam(int resolutionTheta, int resolutionPhi):
 		resolutionTheta(resolutionTheta),
 		resolutionPhi(resolutionPhi)
@@ -126,7 +126,7 @@ private:
 
 		float theta = asinf(n.z); // [0, PI/2]
 		float phi = atan2(n.y, n.x); // [-PI, PI];
-		if (phi < 0.0f) { phi += 2 * M_PI; } // [0, 2PI] -- x ²•ûŒü‚ª phi=0
+		if (phi < 0.0f) { phi += 2 * M_PI; } // [0, 2PI] -- x ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ phi=0
 
 		return Vector2f(theta, phi);
 	}
@@ -198,7 +198,7 @@ private:
 	}
 };
 
-// 2 ŸŒ³‚ÌƒeƒNƒXƒ`ƒƒÀ•WŒn‹óŠÔ‚ğ 1 ŸŒ³‚ÌƒCƒ“ƒfƒbƒNƒX‚É‘Î‰•t‚¯‚é‚½‚ß‚ÌƒNƒ‰ƒX
+// 2 ï¿½ï¿½ï¿½ï¿½ï¿½Ìƒeï¿½Nï¿½Xï¿½`ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½nï¿½ï¿½Ô‚ï¿½ 1 ï¿½ï¿½ï¿½ï¿½ï¿½ÌƒCï¿½ï¿½ï¿½fï¿½bï¿½Nï¿½Xï¿½É‘Î‰ï¿½ï¿½tï¿½ï¿½ï¿½é‚½ï¿½ß‚ÌƒNï¿½ï¿½ï¿½X
 class SpatialParam {
 public:
 
@@ -252,11 +252,11 @@ private:
 	int resolutionV;
 };
 
-// 2 ŒÂ‚Ì 2 ŸŒ³•ûŒü wi, wo ‚ğˆø”‚Æ‚·‚é 4 ŸŒ³ŠÖ”‚ğƒe[ƒuƒ‹‰»‚·‚éƒNƒ‰ƒX
+// 2 ï¿½Â‚ï¿½ 2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ wi, wo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ‚ï¿½ï¿½ï¿½ 4 ï¿½ï¿½ï¿½ï¿½ï¿½Öï¿½ï¿½ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½ï¿½ï¿½X
 class AngularTable {
 public:
 
-	// theta ‚Í‹ÉŠpAphi ‚Í•ûˆÊŠp
+	// theta ï¿½Í‹ÉŠpï¿½Aphi ï¿½Í•ï¿½ï¿½ÊŠp
 	AngularTable(int resolutionTheta, int resolutionPhi):
 		paramWi(resolutionTheta, resolutionPhi),
 		paramWo(resolutionTheta, resolutionPhi)
@@ -266,15 +266,15 @@ public:
 
 	Vector3f& operator[](int i) { return data[i]; }
 
-	// ƒe[ƒuƒ‹‚Ì bin ‚ÌQÆ‚ğ“¾‚é
-	// ‘‚«‚İ—p
+	// ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½ bin ï¿½ÌQï¿½Æ‚ğ“¾‚ï¿½
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ—p
 	Vector3f& at(const Vector3f& wi, const Vector3f& wo) {
 		return data[vectorToIndex(wi, wo)];
 	}
 
-	// ƒe[ƒuƒ‹ã‚Ì’l‚©‚ç•âŠÔ‚ğ‚µ‚ÄV‚µ‚­’l‚ğ“¾‚é
-	// (À‘•ã‚Å‚ÍAŠm—¦“I‚É bin ‚ğ“Ç‚ñ‚Å‚¢‚é‚¾‚¯)
-	// “Ç‚İo‚µ—p
+	// ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½Ì’lï¿½ï¿½ï¿½ï¿½ï¿½Ô‚ï¿½ï¿½ï¿½ÄVï¿½ï¿½ï¿½ï¿½ï¿½lï¿½ğ“¾‚ï¿½
+	// (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å‚ÍAï¿½mï¿½ï¿½ï¿½Iï¿½ï¿½ bin ï¿½ï¿½Ç‚ï¿½Å‚ï¿½ï¿½é‚¾ï¿½ï¿½)
+	// ï¿½Ç‚İoï¿½ï¿½ï¿½p
 	Vector3f eval(const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
 
 		std::vector<int> indicesWi(4);
@@ -310,7 +310,7 @@ private:
 	AngularParam paramWi, paramWo;
 };
 
-// 1 ŒÂ‚Ì 2 ŸŒ³ƒeƒNƒXƒ`ƒƒÀ•WŒnÀ•W p ‚ğˆø”‚Æ‚·‚é 2 ŸŒ³ŠÖ”‚ğƒe[ƒuƒ‹‰»‚·‚éƒNƒ‰ƒX
+// 1 ï¿½Â‚ï¿½ 2 ï¿½ï¿½ï¿½ï¿½ï¿½eï¿½Nï¿½Xï¿½`ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½nï¿½ï¿½ï¿½W p ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ‚ï¿½ï¿½ï¿½ 2 ï¿½ï¿½ï¿½ï¿½ï¿½Öï¿½ï¿½ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½ï¿½ï¿½X
 class SpatialTable {
 public:
 
@@ -322,15 +322,15 @@ public:
 
 	Vector3f& operator[](int i) { return data[i]; }
 
-	// ƒe[ƒuƒ‹‚Ì bin ‚ÌQÆ‚ğ“¾‚é
-	// ‘‚«‚İ—p
+	// ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½ bin ï¿½ÌQï¿½Æ‚ğ“¾‚ï¿½
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ—p
 	Vector3f& at(const Vector2f& p) {
 		return data[positionToIndex(p)];
 	}
 
-	// ƒe[ƒuƒ‹ã‚Ì’l‚©‚ç•âŠÔ‚ğ‚µ‚½’l‚ğ“¾‚é
-	// (À‘•ã‚Å‚ÍAŠm—¦“I‚É bin ‚ğ“Ç‚ñ‚Å‚¢‚é‚¾‚¯)
-	// “Ç‚İo‚µ—p
+	// ï¿½eï¿½[ï¿½uï¿½ï¿½ï¿½ï¿½Ì’lï¿½ï¿½ï¿½ï¿½ï¿½Ô‚ï¿½ï¿½ï¿½ï¿½ï¿½lï¿½ğ“¾‚ï¿½
+	// (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å‚ÍAï¿½mï¿½ï¿½ï¿½Iï¿½ï¿½ bin ï¿½ï¿½Ç‚ï¿½Å‚ï¿½ï¿½é‚¾ï¿½ï¿½)
+	// ï¿½Ç‚İoï¿½ï¿½ï¿½p
 	Vector3f eval(const Vector2f& p, Sampler &sampler) const {
 		std::vector<int> indices(4);
 		std::vector<float> weights(4);
@@ -357,7 +357,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------
 
-// 2 ŸŒ³‚ÌƒeƒNƒXƒ`ƒƒÀ•WŒn‹óŠÔ‚Å•Ï‰»‚·‚é NDF ‚ğ•\Œ»‚·‚éƒNƒ‰ƒX
+// 2 ï¿½ï¿½ï¿½ï¿½ï¿½Ìƒeï¿½Nï¿½Xï¿½`ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½nï¿½ï¿½Ô‚Å•Ï‰ï¿½ï¿½ï¿½ï¿½ï¿½ NDF ï¿½ï¿½\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½ï¿½ï¿½X
 class SVNDF {
 public:
 	int resolutionU, resolutionV;
@@ -387,7 +387,7 @@ public:
 	}
 };
 
-// ƒfƒBƒXƒvƒŒ[ƒXƒƒ“ƒgƒ}ƒbƒsƒ“ƒO‚ğƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚µA’á‰ğ‘œ“xƒeƒNƒXƒ`ƒƒ‚Æ SVNDF ‚ğ¶¬‚·‚é
+// ï¿½fï¿½Bï¿½Xï¿½vï¿½ï¿½ï¿½[ï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½gï¿½}ï¿½bï¿½sï¿½ï¿½ï¿½Oï¿½ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Aï¿½ï¿½ğ‘œ“xï¿½eï¿½Nï¿½Xï¿½`ï¿½ï¿½ï¿½ï¿½ SVNDF ï¿½ğ¶ï¿½ï¿½ï¿½ï¿½ï¿½
 std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::shared_ptr<SVNDF> svndf) {
 
 	std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
@@ -405,7 +405,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 	svndf->vmfs.clear();
 	svndf->vmfs.resize(texLow->getWidth() * texLow->getHeight());
 
-	// texLow ‚Ì‰Šú’l‚Í•’Ê‚É texOrig ‚ğƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚µ‚½’l
+	// texLow ï¿½Ìï¿½ï¿½ï¿½ï¿½lï¿½Í•ï¿½ï¿½Ê‚ï¿½ texOrig ï¿½ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½ï¿½ï¿½l
 
 	std::vector<Vector2f> ave_slope_orig(texLow->getWidth() * texLow->getHeight());
 #pragma omp parallel for schedule(dynamic, 1)
@@ -463,12 +463,12 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 		return (ave_slope - ave_slope_orig[py * texLow->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
 	};
 
-	// TODO: ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì³‹K‰»€“ü‚ê‚é
+	// TODO: ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Ìï¿½ï¿½Kï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 	return texLow;
 }
 
-// SVNDF ‚Æƒx[ƒX BRDF ‚Ìô‚İ‚İ‚ğs‚Á‚½ƒ}ƒeƒŠƒAƒ‹BƒVƒƒƒh[ƒCƒ“ƒOEƒ}ƒXƒLƒ“ƒOŒø‰Ê‚ğl—¶‚µ‚È‚¢B
+// SVNDF ï¿½Æƒxï¿½[ï¿½X BRDF ï¿½Ìï¿½İï¿½ï¿½İ‚ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½}ï¿½eï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½Bï¿½Vï¿½ï¿½ï¿½hï¿½[ï¿½Cï¿½ï¿½ï¿½Oï¿½Eï¿½}ï¿½Xï¿½Lï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ê‚ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½ï¿½B
 class MultiLobeSVBRDF : public Material {
 public:
 	std::shared_ptr<Material> baseMaterial;
@@ -515,7 +515,7 @@ public:
 
 //----------------------------------------------------------------------------------------------------------
 
-// ƒXƒP[ƒŠƒ“ƒOŠÖ”‚ÅƒVƒƒƒh[ƒCƒ“ƒOEƒ}ƒXƒLƒ“ƒOŒø‰Ê‚ğ•â‚·‚éƒ}ƒeƒŠƒAƒ‹
+// ï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Öï¿½ï¿½ÅƒVï¿½ï¿½ï¿½hï¿½[ï¿½Cï¿½ï¿½ï¿½Oï¿½Eï¿½}ï¿½Xï¿½Lï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ê‚ï¿½âï¿½ï¿½ï¿½ï¿½}ï¿½eï¿½ï¿½ï¿½Aï¿½ï¿½
 class PrefilteredDisplaceMapping : public Material {
 public:
 
@@ -701,13 +701,13 @@ private:
 	}
 
 	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
-		// IR ‚Íl—¶‚µ‚È‚¢
+		// IR ï¿½Ílï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
 
 		Vector3f res;
 		const Vector3f wg(0, 0, 1);
 		Bounds2f patch = getPatch(texelPos);
 
-		//const int Sample = 100; // ‰½‰ñ•]‰¿‚·‚éH
+		//const int Sample = 100; // ï¿½ï¿½ï¿½ï¿½]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½H
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
@@ -716,7 +716,7 @@ private:
 
 			Vector3f contrib(1.0f);
 
-			// patch “à‚ÌˆÊ’u‚ğƒTƒ“ƒvƒ‹
+			// patch ï¿½ï¿½ÌˆÊ’uï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
 #ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
@@ -734,7 +734,7 @@ private:
 			if (dot(wo, isect.shading.n) <= 0.0f || sceneLow.intersectAny(rayWo)) { continue; }
 
 			Vector3f wm = getNormalLow(p);
-			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // ŒW” V ‚Íœ‚¢‚½’l
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // ï¿½Wï¿½ï¿½ V ï¿½Íï¿½ï¿½ï¿½ï¿½ï¿½ï¿½l
 			contrib *= kernel_p / prob_p * A_G_p_wo;
 #else
 			ray.d = -wo;
@@ -801,7 +801,7 @@ private:
 	}
 
 	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneOrig, Sampler& sampler) const {
-		// IR ‚ğl—¶‚·‚é
+		// IR ï¿½ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 		Vector3f res;
 		const Vector3f wg(0, 0, 1);
@@ -817,9 +817,9 @@ private:
 			Vector3f weight(1.0f);
 			int pathLength = 1;
 
-			// patch “à‚ÌˆÊ’u‚ğƒTƒ“ƒvƒ‹
+			// patch ï¿½ï¿½ÌˆÊ’uï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
 #ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
-			// texelPos ‚ğŠÜ‚Şƒpƒbƒ`“à‚Ån“_‚Æ‚È‚éˆÊ’u‚ğƒTƒ“ƒvƒ‹
+			// texelPos ï¿½ï¿½Ü‚Şƒpï¿½bï¿½`ï¿½ï¿½Ånï¿½_ï¿½Æ‚È‚ï¿½Ê’uï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
 			float kernel_p = 1.0f / patch.area();
@@ -835,7 +835,7 @@ private:
 			if (dot(wo, isect.shading.n) <= 0.0f || sceneOrig.intersectAny(rayWo)) { continue; }
 
 			const Vector3f& wm = isect.shading.n;
-			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // ŒW” V ‚Íœ‚¢‚½’l
+			float A_G_p_wo = clampPositive(dot(wo, wm)) / clampPositive(dot(wg, wm)); // ï¿½Wï¿½ï¿½ V ï¿½Íï¿½ï¿½ï¿½ï¿½ï¿½ï¿½l
 
 			weight *= A_G_p_wo * kernel_p / prob_p;
 #else

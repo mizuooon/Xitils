@@ -1,4 +1,4 @@
-
+ï»¿
 
 #include <Xitils/AccelerationStructure.h>
 #include <Xitils/App.h>
@@ -95,7 +95,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	);
 
-	// teapot ì¬
+	// teapot ï¿½ì¬
 	const int subdivision = 10;
 	auto teapot = std::make_shared<Teapot>();
 	teapot->subdivisions(subdivision);
@@ -126,7 +126,7 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
-	// update 1 ƒtƒŒ[ƒ€‚²‚Æ‚ÉŒvZ‚·‚éƒTƒ“ƒvƒ‹”
+	// update 1 ï¿½tï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Æ‚ÉŒvï¿½Zï¿½ï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½
 	int sample = 1;
 
 	frameData.sampleNum += sample;
@@ -154,7 +154,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed in Initialization: " + std::_Floating_to_string("%.1f", frameData.initElapsed) + " ms").c_str());
+	ImGui::Text(("Elapsed in Initialization: " + std::to_string(frameData.initElapsed) + " ms").c_str());
 	ImGui::Text(("Elapsed : " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - time_start).count()) + " s").c_str());
 	ImGui::Text(("Samples: " + std::to_string(frameData.sampleNum)).c_str());
 

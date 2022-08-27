@@ -1,4 +1,4 @@
-
+﻿
 #include <cuda_runtime.h>
 
 #include <optixu/optixu_math_namespace.h>

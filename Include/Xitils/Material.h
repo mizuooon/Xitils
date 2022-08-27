@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Texture.h"
 #include "Utils.h"
@@ -12,28 +12,28 @@ namespace xitils {
 
 		std::shared_ptr<Texture> normalmap;
 
-		// BSDF * cos ‚Ì’l‚ğ•Ô‚·
-		// ƒXƒyƒLƒ…ƒ‰‚Ì•¨‘Ì‚Å‚Íƒfƒ‹ƒ^ŠÖ”‚É‚È‚é‚Ì‚ÅÀ‘•‚µ‚È‚¢
+		// BSDF * cos ï¿½Ì’lï¿½ï¿½Ô‚ï¿½
+		// ï¿½Xï¿½yï¿½Lï¿½ï¿½ï¿½ï¿½ï¿½Ì•ï¿½ï¿½Ì‚Å‚Íƒfï¿½ï¿½ï¿½^ï¿½Öï¿½ï¿½É‚È‚ï¿½Ì‚Åï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
 		virtual Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
-		// BSDF * cos / pdf ‚Ì’l‚ğ•Ô‚µAwi ‚ÌƒTƒ“ƒvƒŠƒ“ƒO‚às‚¤
-		// ƒXƒyƒLƒ…ƒ‰‚Ì•¨‘Ì‚Å‚Íƒfƒ‹ƒ^ŠÖ”‚É‚È‚èA‚±‚Ì‚Æ‚« pdf ‚Í -1 ‚Æ‚µ‚Ä•\‚³‚ê‚é
-		// –ß‚è’l‚ª 0 ‚Ì‚Æ‚«‚É‚Í wi ‚Æ pdf ‚Í—LŒø‚Å‚Í‚È‚¢
+		// BSDF * cos / pdf ï¿½Ì’lï¿½ï¿½Ô‚ï¿½ï¿½Awi ï¿½ÌƒTï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½sï¿½ï¿½
+		// ï¿½Xï¿½yï¿½Lï¿½ï¿½ï¿½ï¿½ï¿½Ì•ï¿½ï¿½Ì‚Å‚Íƒfï¿½ï¿½ï¿½^ï¿½Öï¿½ï¿½É‚È‚ï¿½Aï¿½ï¿½ï¿½Ì‚Æ‚ï¿½ pdf ï¿½ï¿½ -1 ï¿½Æ‚ï¿½ï¿½Ä•\ï¿½ï¿½ï¿½ï¿½ï¿½
+		// ï¿½ß‚ï¿½lï¿½ï¿½ 0 ï¿½Ì‚Æ‚ï¿½ï¿½É‚ï¿½ wi ï¿½ï¿½ pdf ï¿½Í—Lï¿½ï¿½ï¿½Å‚Í‚È‚ï¿½
 		virtual Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
-		// ƒXƒyƒLƒ…ƒ‰‚Ì•¨‘Ì‚Å‚Íƒfƒ‹ƒ^ŠÖ”‚É‚È‚é‚Ì‚ÅÀ‘•‚µ‚È‚¢
+		// ï¿½Xï¿½yï¿½Lï¿½ï¿½ï¿½ï¿½ï¿½Ì•ï¿½ï¿½Ì‚Å‚Íƒfï¿½ï¿½ï¿½^ï¿½Öï¿½ï¿½É‚È‚ï¿½Ì‚Åï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
 		virtual float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 		}
 
-		// ‹P“x‚ğ•Ô‚·
-		// emissive ‚Ìƒ}ƒeƒŠƒAƒ‹‚Ì‚İ‚Åg—p‚·‚é
+		// ï¿½Pï¿½xï¿½ï¿½Ô‚ï¿½
+		// emissive ï¿½Ìƒ}ï¿½eï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½Ì‚İ‚Ågï¿½pï¿½ï¿½ï¿½ï¿½
 		virtual Vector3f emission(const Vector3f& wo, const Vector3f& n, const Vector3f& shadingN) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Utils.h"
 #include "Sampler.h"
@@ -9,14 +9,14 @@ namespace xitils {
 	template<int _LobeNum> class VonMisesFisherDistribution {
 	public:
 
-		// À‘•‚ÍˆÈ‰º‚ğQl
+		// å®Ÿè£…ã¯ä»¥ä¸‹ã‚’å‚è€ƒ
 		// Numerically stable sampling of the von Misesisher distribution on S^2 (and other tricks)
 		// https://www.mitsuba-renderer.org/~wenzel/files/vmf.pdf
 
 		static const int LobeNum = _LobeNum;
-		static const int EncodedDataSize = LobeNum * 3 + LobeNum + (LobeNum - 1); // encode ‚É•K—v‚È float ‚Ì” (byte ‚Å‚Í‚È‚¢)
+		static const int EncodedDataSize = LobeNum * 3 + LobeNum + (LobeNum - 1); // encode ã«å¿…è¦ãª float ã®æ•° (byte ã§ã¯ãªã„)
 
-		// ƒ[ƒu‚²‚Æ
+		// ãƒ­ãƒ¼ãƒ–ã”ã¨
 		std::vector<Vector3f> mu;
 		std::vector<float> kappa;
 		std::vector<float> alpha;
@@ -40,7 +40,7 @@ namespace xitils {
 				dest[n * 5 + 1] = mu[n].y;
 				dest[n * 5 + 2] = mu[n].z;
 				dest[n * 5 + 3] = kappa[n];
-				if (n < lobe - 1) { dest[n * 5 + 4] = alpha[n]; }
+				if (n < LobeNum - 1) { dest[n * 5 + 4] = alpha[n]; }
 			}
 		}
 

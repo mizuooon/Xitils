@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Shape.h"
 #include "AccelerationStructure.h"
@@ -190,7 +190,7 @@ namespace xitils {
 		}
 
 		float surfaceAreaScaling(const Transform& t)  const override {
-			// TODO: ‚‘¬‰»
+			// TODO: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			float scaledArea = 0.0f;
 			for (const auto& tri : triangles) {
 				scaledArea += tri->surfaceArea() * tri->surfaceAreaScaling(t);
@@ -213,8 +213,8 @@ namespace xitils {
 		}
 
 		SampledSurface sampleSurface(Sampler& sampler, float* pdf) const override {
-			// TODO: ‚·‚×‚Ä‚Ì Triangle ‚©‚ç“™Šm—¦‚ÅƒTƒ“ƒvƒŠƒ“ƒO‚µ‚Ä‚¢‚é‚ªA
-			//       –{“–‚Í–ÊÏ‚É”ä—á‚µ‚½Šm—¦‚Å‘I‚Ô‚×‚«
+			// TODO: ï¿½ï¿½ï¿½×‚Ä‚ï¿½ Triangle ï¿½ï¿½ï¿½ç“™ï¿½mï¿½ï¿½ï¿½ÅƒTï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ä‚ï¿½ï¿½é‚ªï¿½A
+			//       ï¿½{ï¿½ï¿½ï¿½Í–ÊÏ‚É”ï¿½á‚µï¿½ï¿½ï¿½mï¿½ï¿½ï¿½Å‘Iï¿½Ô‚×‚ï¿½
 			auto& tri = sampler.select(triangles);
 			auto sampled = tri->sampleSurface(sampler, pdf);
 			*pdf /= triangleNum();
@@ -229,7 +229,7 @@ namespace xitils {
 		}
 
 		float surfacePDF(const Vector3f& p, const TriangleIndexed* tri) const override {
-			// TODO: ã‹L‚ð’¼‚µ‚½‚ç‚±‚¿‚ç‚à’¼‚·
+			// TODO: ï¿½ï¿½Lï¿½ð’¼‚ï¿½ï¿½ï¿½ï¿½ç‚±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			return tri->surfacePDF(p) / triangleNum();
 		}
 

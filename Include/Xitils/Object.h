@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Bounds.h"
 #include "Geometry.h"
@@ -55,9 +55,9 @@ namespace xitils {
 
 				isect->wo = objectToWorld.asNormal(isect->wo);
 
-				// ƒm[ƒ}ƒ‹ƒ}ƒbƒv‚ªÝ’è‚³‚ê‚Ä‚¢‚½ê‡‚»‚ê‚ð“K—p
+				// ï¿½mï¿½[ï¿½}ï¿½ï¿½ï¿½}ï¿½bï¿½vï¿½ï¿½ï¿½Ý’è‚³ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ê‡ï¿½ï¿½ï¿½ï¿½ï¿½Kï¿½p
 				if (material->normalmap != nullptr) {
-					// shading.n ‚Í•Ï‰»‚³‚¹‚é‚ªAtangnet ‚Æ bitangent ‚Í•Ï‰»‚³‚¹‚È‚¢‚Ì‚Å’ˆÓ
+					// shading.n ï¿½Í•Ï‰ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½é‚ªï¿½Atangnet ï¿½ï¿½ bitangent ï¿½Í•Ï‰ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½ï¿½Ì‚Å’ï¿½ï¿½ï¿½
 
 					Vector3f n = material->normalmap->rgb(isect->texCoord) * 2 - Vector3f(1.0f);
 					isect->shading.n =
@@ -75,7 +75,7 @@ namespace xitils {
 					isect->shading.bitangent = objectToWorld.asNormal(isect->shading.bitangent);
 				}
 
-				// texCoord, tHit ‚Í•ÏŠ·‚µ‚È‚­‚Ä‚æ‚¢
+				// texCoord, tHit ï¿½Í•ÏŠï¿½ï¿½ï¿½ï¿½È‚ï¿½ï¿½Ä‚æ‚¢
 
 				isect->object = this;
 

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <random>
 #include "Utils.h"
@@ -39,7 +39,7 @@ namespace xitils {
 			return v[randi(v.size())];
 		}
 
-		// ƒEƒFƒCƒg‚É”ä—á‚µ‚½Šm—¦‚Å®”’l‚ğæ“¾
+		// ã‚¦ã‚§ã‚¤ãƒˆã«æ¯”ä¾‹ã—ãŸç¢ºç‡ã§æ•´æ•°å€¤ã‚’å–å¾—
 		const int randiAlongWeights(const std::vector<float>& weights) {
 			std::vector<float> normalizedWeights = weights;
 			float weightSum = sum(normalizedWeights);
@@ -67,7 +67,7 @@ namespace xitils {
 
 		template<typename T> const T& selectAlongNormalizedWeights(const std::vector<T>& v, const std::vector<float>& weights) {
 			ASSERT(v.size() == weights.size() || v.size() == weights.size() + 1);
-			return v[randiAlongNormalizedWeights(weigths, v.size() == weights.size() + 1)];
+			return v[randiAlongNormalizedWeights(weights, v.size() == weights.size() + 1)];
 		}
 
 	protected:
@@ -92,7 +92,7 @@ namespace xitils {
 		std::uniform_int_distribution<unsigned int> dist;
 	};
 
-	// TODO: ƒoƒO‚Á‚Ä‚é
+	// TODO: ãƒã‚°ã£ã¦ã‚‹
 	class _SamplerXORShift : public _Sampler {
 	public:
 
@@ -105,7 +105,7 @@ namespace xitils {
 			x ^= x << 13;
 			x ^= x >> 17;
 			x ^= x << 5;
-			return (x != 0xFFFFFFFF) ? x : randf(); // 0xFFFFFFFF ‚ÍŠÜ‚Ü‚È‚¢‚æ‚¤‚É‚·‚é
+			return (x != 0xFFFFFFFF) ? x : randf(); // 0xFFFFFFFF ã¯å«ã¾ãªã„ã‚ˆã†ã«ã™ã‚‹
 		}
 
 	private:

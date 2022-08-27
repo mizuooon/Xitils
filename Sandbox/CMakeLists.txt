@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+ï»¿cmake_minimum_required(VERSION 3.8)
 
 set(SANDBOX_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Data")
 
@@ -16,7 +16,7 @@ function(add_sandbox TargetName)
 	)
 	#set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${TargetName})
 	
-	# ‚È‚ñ‚©C++‚Ìƒo[ƒWƒ‡ƒ“w’è‚ğˆÈ‰º‚Ì‚æ‚¤‚É‚â‚é‚Æ‚¤‚Ü‚­‚¢‚©‚È‚¢
+	# ï¿½È‚ï¿½C++ï¿½Ìƒoï¿½[ï¿½Wï¿½ï¿½ï¿½ï¿½ï¿½wï¿½ï¿½ï¿½È‰ï¿½ï¿½Ì‚æ‚¤ï¿½É‚ï¿½ï¿½Æ‚ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
 	#target_compile_features(${TargetName} PRIVATE cxx_std_17)
 endfunction(add_sandbox)
 
