@@ -10,7 +10,7 @@
 
 #include <cinder/gl/Batch.h>
 
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
@@ -25,7 +25,7 @@ struct MyFrameData {
 struct MyUIFrameData {
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -102,7 +102,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			float nx = (float)x / frameData.surface.getWidth();
 			float ny = (float)y / frameData.surface.getHeight();
 
-			Xitils::Ray ray;
+			xitils::Ray ray;
 			ray.o = Vector3f((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
 			ray.d = normalize(Vector3f(0, 0, 1));
 
@@ -136,9 +136,9 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			}
 
 			ColorA8u colA8u;
-			colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
-			colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
-			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
+			colA8u.r = xitils::clamp((int)(color.x * 255), 0, 255);
+			colA8u.g = xitils::clamp((int)(color.y * 255), 0, 255);
+			colA8u.b = xitils::clamp((int)(color.z * 255), 0, 255);
 			colA8u.a = 255;
 
 			frameData.surface.setPixel(ivec2(x, y), colA8u);
@@ -164,7 +164,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
+	ImGui::Text(("Elapsed: " + std::to_string(frameData.elapsed) + " ms / frame").c_str());
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::End();
 

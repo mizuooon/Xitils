@@ -1,24 +1,134 @@
 ﻿
+//#include <windows.h>
+
+//#include <cuda_gl_interop.h>
 #include <cuda_runtime.h>
 
-#include <optixu/optixu_math_namespace.h>
-#include <optixu/optixpp_namespace.h>
+#include <optix.h>
+#include <optix_function_table_definition.h>
+#include <optix_stubs.h>
 
-
-#include <Xitils/App.h>
-#include <Xitils/Geometry.h>
-#include <Xitils/AccelerationStructure.h>
+#include <xitils/App.h>
+#include <xitils/Geometry.h>
+#include <xitils/AccelerationStructure.h>
 #include <CinderImGui.h>
 
-#include <cinder/gl/Batch.h>
+//#include <cinder/gl/Batch.h>
 
-#include "Common.h"
-#include "optixRaycastingKernels.h"
-
-using namespace Xitils;
+using namespace xitils;
 using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
+
+
+#define CUDA_CHECK( call ) cudaCheck( call, #call, __FILE__, __LINE__ )
+
+#define OPTIX_CHECK( call ) optixCheck( call, #call, __FILE__, __LINE__ )
+
+#define OPTIX_CHECK_LOG( call ) optixCheckLog( call, log, sizeof( log ), sizeof_log, #call, __FILE__, __LINE__ )
+
+inline void cudaCheck(cudaError_t error, const char* call, const char* file, unsigned int line)
+{
+	if (error != cudaSuccess)
+	{
+		std::stringstream ss;
+		ss << "CUDA call (" << call << " ) failed with error: '"
+			<< cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
+		throw Exception(ss.str().c_str());
+	}
+}
+
+inline void optixCheck(OptixResult res, const char* call, const char* file, unsigned int line)
+{
+	if (res != OPTIX_SUCCESS)
+	{
+		std::stringstream ss;
+		ss << "Optix call '" << call << "' failed: " << file << ':' << line << " " << res << ")\n";
+		throw Exception(ss.str().c_str());
+	}
+}
+
+inline void optixCheckLog(OptixResult  res,
+	const char* log,
+	size_t       sizeof_log,
+	size_t       sizeof_log_returned,
+	const char* call,
+	const char* file,
+	unsigned int line)
+{
+	if (res != OPTIX_SUCCESS)
+	{
+		std::stringstream ss;
+		ss << "Optix call '" << call << "' failed: " << file << ':' << line << ")\nLog:\n"
+			<< log << (sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "") << " " << res << '\n';
+		throw Exception(ss.str().c_str());
+	}
+}
+
+static void contextLogCallback(uint32_t level, const char* tag, const char* msg, void* /* callback_data */)
+{
+	std::cerr << "[" << std::setw(2) << level << "][" << std::setw(12) << tag << "]: " << msg << "\n";
+}
+
+static void getInputDataFromFile(std::string& ptx, const char* sample_name, const char* filename)
+{
+	//const std::string sourceFilePath = sampleInputFilePath(sample_name, filename);
+
+	//// Try to open source PTX file
+	//if (!readSourceFile(ptx, sourceFilePath))
+	//{
+	//	std::string err = "Couldn't open source file " + sourceFilePath;
+	//	throw std::runtime_error(err.c_str());
+	//}
+}
+
+struct PtxSourceCache
+{
+	std::map<std::string, std::string*> map;
+	~PtxSourceCache()
+	{
+		for (std::map<std::string, std::string*>::const_iterator it = map.begin(); it != map.end(); ++it)
+			delete it->second;
+	}
+};
+static PtxSourceCache g_ptxSourceCache;
+const char* getInputData(const char* sample,
+	const char* sampleDir,
+	const char* filename,
+	size_t& dataSize,
+	const char** log,
+	const std::vector<const char*>& compilerOptions)
+{
+	if (log)
+		*log = NULL;
+
+	std::string* ptx, cu;
+	std::string                                   key = std::string(filename) + ";" + (sample ? sample : "");
+	std::map<std::string, std::string*>::iterator elem = g_ptxSourceCache.map.find(key);
+
+	if (elem == g_ptxSourceCache.map.end())
+	{
+		ptx = new std::string();
+#if CUDA_NVRTC_ENABLED
+		SUTIL_ASSERT(fileExtensionForLoading() == ".ptx");
+		std::string location;
+		getCuStringFromFile(cu, location, sampleDir, filename);
+		getPtxFromCuString(*ptx, sampleDir, cu.c_str(), location.c_str(), log, compilerOptions);
+#else
+		getInputDataFromFile(*ptx, sample, filename);
+#endif
+		g_ptxSourceCache.map[key] = ptx;
+	} else
+	{
+		ptx = elem->second;
+	}
+	dataSize = ptx->size();
+	return ptx->c_str();
+}
+
+
+
+
 
 struct MyFrameData {
 	float elapsed;
@@ -29,7 +139,7 @@ struct MyFrameData {
 struct MyUIFrameData {
 };
 
-class MyApp : public Xitils::App::XApp<MyFrameData, MyUIFrameData> {
+class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
@@ -43,21 +153,58 @@ private:
 	void execute();
 
 	int frameCount = 0;
-	optix::Context context;
-	int cuda_device_ordinal;
-	int optix_device_ordinal;
-	optix::Buffer positionBuffer;
-	optix::Buffer indexBuffer;
-	optix::Buffer texcoordBuffer;
-	optix::Geometry geometry;
-	optix::Material material;
-	optix::Buffer rays;
-	optix::Buffer hits;
-	::Ray* rays_d = nullptr;
-	Hit* hits_d = nullptr;
-	optix::float3* image_d = nullptr;
-	std::vector<optix::float3> image_h;
 
+	struct OptixInfo
+	{
+		OptixDeviceContext context = 0;
+
+		// シーン全体のInstance acceleration structure
+		//InstanceAccelData ias = {};
+		// GPU上におけるシーンの球体データ全てを格納している配列のポインタ
+		void* d_sphere_data = nullptr;
+		// GPU上におけるシーンの三角形データ全てを格納している配列のポインタ
+		void* d_mesh_data = nullptr;
+		
+		OptixModule module = nullptr;
+		OptixPipelineCompileOptions pipeline_compile_options = {};
+		OptixPipeline               pipeline = nullptr;
+
+		// Ray generation プログラム 
+		OptixProgramGroup           raygen_prg = nullptr;
+		// Miss プログラム
+		OptixProgramGroup           miss_prg = nullptr;
+
+		// 球体用のHitGroup プログラム
+		OptixProgramGroup           sphere_hitgroup_prg = nullptr;
+		// メッシュ用のHitGroupプログラム
+		OptixProgramGroup           mesh_hitgroup_prg = nullptr;
+
+		// マテリアル用のCallableプログラム
+		// OptiXでは基底クラスのポインタを介した、派生クラスの関数呼び出し (ポリモーフィズム)が
+		// 禁止されているため、Callable関数を使って疑似的なポリモーフィズムを実現する
+		// ここでは、Lambertian, Dielectric, Metal の3種類を実装している
+		//CallableProgram             lambertian_prg = {};
+		//CallableProgram             dielectric_prg = {};
+		//CallableProgram             metal_prg = {};
+
+		// テクスチャ用のCallableプログラム
+		// Constant ... 単色、Checker ... チェッカーボード
+		//CallableProgram             constant_prg = {};
+		//CallableProgram             checker_prg = {};
+
+		// CUDA stream
+		CUstream                    stream = 0;
+
+		// Pipeline launch parameters
+		// CUDA内で extern "C" __constant__ Params params
+		// と宣言することで、全モジュールからアクセス可能である。
+		//Params                      params;
+		//Params* d_params;
+
+		// Shader binding table
+		OptixShaderBindingTable     sbt = {};
+	} optixInfo;
+	
 	gl::TextureRef texture;
 
 	std::shared_ptr<TriMesh> mesh;
@@ -70,7 +217,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->elapsed = 0.0f;
 	frameData->triNum = 0;
 
-	getWindow()->setTitle("Xitils");
+	getWindow()->setTitle("xitils");
 	setWindowSize(ImageSize.x, ImageSize.y);
 	setFrameRate(60);
 
@@ -89,48 +236,88 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	cameraRange.x = 4.0f;
 	cameraRange.y = cameraRange.x * 3.0f / 4.0f;
 
-	optix::float3 bbox_min, bbox_max;
-	bbox_min.x = -cameraRange.x / 2.0f;
-	bbox_min.y = -cameraRange.y / 2.0f;
-	bbox_min.z = -100;
-	bbox_max.x = cameraRange.x / 2.0f;
-	bbox_max.y = cameraRange.y / 2.0f;
-	bbox_max.z = 100;
+	// CUDAの初期化
+	CUDA_CHECK(cudaFree(0));
 
-	bbox_min.y += 0.5f;
-	bbox_max.y += 0.5f;
+	OptixDeviceContext context;
+	CUcontext   cu_ctx = 0;
+	OPTIX_CHECK(optixInit());
+	OptixDeviceContextOptions options = {};
+	options.logCallbackFunction = &contextLogCallback;
+	// Callbackで取得するメッセージのレベル
+	// 0 ... disable、メッセージを受け取らない
+	// 1 ... fatal、修復不可能なエラー。コンテクストやOptiXが不能状態にある
+	// 2 ... error、修復可能エラー。
+	// 3 ... warning、意図せぬ挙動や低パフォーマンスを導くような場合に警告してくれる
+	// 4 ... print、全メッセージを受け取る
+	options.logCallbackLevel = 4;
+	OPTIX_CHECK(optixDeviceContextCreate(cu_ctx, &options, &context));
 
-	const int n = ImageSize.x* ImageSize.y;
+	optixInfo.context = context;
 
-	cudaMalloc(&rays_d, sizeof(::Ray) * n);
-	createRaysOrthoOnDevice( rays_d, ImageSize.x, ImageSize.y, bbox_min, bbox_max, 0.0f);
-	rays = context->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_USER, n);
-	rays->setElementSize(sizeof(::Ray));
-	rays->setDevicePointer(optix_device_ordinal, rays_d);
-	context["rays"]->set(rays);
 
-	cudaMalloc(&hits_d, sizeof(Hit) * n);
-	hits = context->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_USER, n);
-	hits->setElementSize(sizeof(Hit));
-	hits->setDevicePointer(optix_device_ordinal, hits_d);
-	context["hits"]->set(hits);
+
+
+
+	OptixModuleCompileOptions module_compile_options = {};
+	module_compile_options.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
+	module_compile_options.optLevel = OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
+	// ~7.3 系では OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO
+	module_compile_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+
+	optixInfo.pipeline_compile_options.usesMotionBlur = false;
+	optixInfo.pipeline_compile_options.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
+	optixInfo.pipeline_compile_options.numPayloadValues = 2;
+
+	// Attributeの個数設定
+	// Sphereの交差判定で法線とテクスチャ座標を intersection -> closesthitに渡すので
+	// (x, y, z) ... 3次元、(s, t) ... 2次元 で計5つのAttributeが必要 
+	// optixinOneWeekend.cu:347行目参照
+	optixInfo.pipeline_compile_options.numAttributeValues = 5;
+
+#ifdef DEBUG 
+	optixInfo.pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_DEBUG | OPTIX_EXCEPTION_FLAG_TRACE_DEPTH | OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
+#else
+	optixInfo.pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;
+#endif
+	// Pipeline launch parameterの変数名
+	optixInfo.pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
+
+	size_t      inputSize = 0;
+	auto file = cinder::loadFile("F:/workspace/Xitils/Sandbox/_Experimental/RaycasterOptix/optixPathTracer.cu");
+	const char* input = (const char*)file->getBuffer()->getData();
+	inputSize = file->getBuffer()->getSize();
+
+	// PTXからModuleを作成
+	char   log[2048];
+	size_t sizeof_log = sizeof(log);
+	OPTIX_CHECK_LOG(optixModuleCreateFromPTX(
+		optixInfo.context,      // OptixDeviceContext
+		&module_compile_options,
+		&optixInfo.pipeline_compile_options,
+		input,
+		inputSize,
+		log,
+		&sizeof_log,
+		&optixInfo.module       // OptixModule
+	));
 
 }
 
 void MyApp::execute() {
-	RTsize n;
-	rays->getSize(n);
-	context->launch(0, n);
+	//RTsize n;
+	//rays->getSize(n);
+	//context->launch(0, n);
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
-	cudaFree(rays_d);
-	cudaFree(hits_d);
-	cudaFree(image_d);
+	//cudaFree(rays_d);
+	//cudaFree(hits_d);
+	//cudaFree(image_d);
 
-	indexBuffer->destroy();
-	positionBuffer->destroy();
-	context->destroy();
+	//indexBuffer->destroy();
+	//positionBuffer->destroy();
+	//context->destroy();
 }
 
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
@@ -140,10 +327,10 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	execute();
 
-	cudaMalloc(&image_d, n * sizeof(optix::float3));
-	image_h.resize(n);
-	shadeHitsOnDevice(image_d, n, hits_d);
-	cudaMemcpy(&image_h[0], image_d, (size_t)n * sizeof(optix::float3), cudaMemcpyDeviceToHost);
+	//cudaMalloc(&image_d, n * sizeof(optix::float3));
+	//image_h.resize(n);
+	//shadeHitsOnDevice(image_d, n, hits_d);
+	//cudaMemcpy(&image_h[0], image_d, (size_t)n * sizeof(optix::float3), cudaMemcpyDeviceToHost);
 
 #pragma omp parallel for schedule(dynamic, 1)
 	for (int y = 0; y < frameData.surface.getHeight(); ++y) {
@@ -161,18 +348,18 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 			float nx = (float)x / frameData.surface.getWidth();
 			float ny = (float)y / frameData.surface.getHeight();
 
-			Xitils::Ray ray;
+			xitils::Ray ray;
 			ray.o = Vector3f((nx - 0.5f) * cameraRange.x + cameraOffset.x, -(ny - 0.5f) * cameraRange.y + cameraOffset.y, -100);
 			ray.d = normalize(Vector3f(0, 0, 1));
 
-			color.x = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].x;
-			color.y = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].y;
-			color.z = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].z;
+			//color.x = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].x;
+			//color.y = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].y;
+			//color.z = image_h[(ImageSize.y-1 - y) * ImageSize.x + x].z;
 
 			ColorA8u colA8u;
-			colA8u.r = Xitils::clamp((int)(color.x * 255), 0, 255);
-			colA8u.g = Xitils::clamp((int)(color.y * 255), 0, 255);
-			colA8u.b = Xitils::clamp((int)(color.z * 255), 0, 255);
+			colA8u.r = xitils::clamp((int)(color.x * 255), 0, 255);
+			colA8u.g = xitils::clamp((int)(color.y * 255), 0, 255);
+			colA8u.b = xitils::clamp((int)(color.z * 255), 0, 255);
 			colA8u.a = 255;
 
 			frameData.surface.setPixel(ivec2(x, y), colA8u);
@@ -198,7 +385,7 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 
 	ImGui::Begin("ImGui Window");
 	ImGui::Text(("Image Resolution: " + std::to_string(ImageSize.x) + " x " + std::to_string(ImageSize.y)).c_str());
-	ImGui::Text(("Elapsed: " + std::_Floating_to_string("%.1f", frameData.elapsed) + " ms / frame").c_str());
+	ImGui::Text(("Elapsed: " + std::to_string(frameData.elapsed) + " ms / frame").c_str());
 	ImGui::Text(("Triangles: " + std::to_string(frameData.triNum)).c_str());
 	ImGui::End();
 
@@ -220,64 +407,64 @@ bool MyApp::readSourceFile(std::string& str, const std::string& filename){
 
 
 void MyApp::createContext() {
-	context = optix::Context::create();
-	context->setRayTypeCount(1);
-	context->setEntryPointCount(1);
+	//context = optix::Context::create();
+	//context->setRayTypeCount(1);
+	//context->setEntryPointCount(1);
 
-	context->setStackSize(200);
+	//context->setStackSize(200);
 
-	const std::vector<int> enabled_devices = context->getEnabledDevices();
-	context->setDevices(enabled_devices.begin(), enabled_devices.begin() + 1);
-	optix_device_ordinal = enabled_devices[0];
-	{
-		cuda_device_ordinal = -1;
-		context->getDeviceAttribute(optix_device_ordinal, RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL, sizeof(int), &cuda_device_ordinal);
-	}
-	
-	cudaSetDevice(cuda_device_ordinal);
+	//const std::vector<int> enabled_devices = context->getEnabledDevices();
+	//context->setDevices(enabled_devices.begin(), enabled_devices.begin() + 1);
+	//optix_device_ordinal = enabled_devices[0];
+	//{
+	//	cuda_device_ordinal = -1;
+	//	context->getDeviceAttribute(optix_device_ordinal, RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL, sizeof(int), &cuda_device_ordinal);
+	//}
+	//
+	//cudaSetDevice(cuda_device_ordinal);
 
-	std::string ptx;
-	readSourceFile(ptx, "RaycasterOptix_generated_RaycasterOptix.cu.ptx");
+	//std::string ptx;
+	//readSourceFile(ptx, "RaycasterOptix_generated_RaycasterOptix.cu.ptx");
 
-	geometry = context->createGeometry();
+	//geometry = context->createGeometry();
 
-	geometry->setIntersectionProgram(context->createProgramFromPTXString(ptx, "intersect"));
-	geometry->setBoundingBoxProgram(context->createProgramFromPTXString(ptx, "bounds"));
+	//geometry->setIntersectionProgram(context->createProgramFromPTXString(ptx, "intersect"));
+	//geometry->setBoundingBoxProgram(context->createProgramFromPTXString(ptx, "bounds"));
 
-	material = context->createMaterial();
-	optix::GeometryInstance geometry_instance = context->createGeometryInstance(geometry, &material, &material + 1);
-	optix::GeometryGroup geometry_group = context->createGeometryGroup(&geometry_instance, &geometry_instance + 1);
-	geometry_group->setAcceleration(context->createAcceleration("Trbvh"));
-	context["top_object"]->set(geometry_group);
+	//material = context->createMaterial();
+	//optix::GeometryInstance geometry_instance = context->createGeometryInstance(geometry, &material, &material + 1);
+	//optix::GeometryGroup geometry_group = context->createGeometryGroup(&geometry_instance, &geometry_instance + 1);
+	//geometry_group->setAcceleration(context->createAcceleration("Trbvh"));
+	//context["top_object"]->set(geometry_group);
 
-	// Closest hit program for returning geometry attributes.  No shading.
-	optix::Program closest_hit = context->createProgramFromPTXString(ptx, "closest_hit");
-	material->setClosestHitProgram( /*ray type*/ 0, closest_hit);
+	//// Closest hit program for returning geometry attributes.  No shading.
+	//optix::Program closest_hit = context->createProgramFromPTXString(ptx, "closest_hit");
+	//material->setClosestHitProgram( /*ray type*/ 0, closest_hit);
 
-	// Raygen program that reads rays directly from an input buffer.
-	optix::Program ray_gen = context->createProgramFromPTXString(ptx, "ray_gen");
-	context->setRayGenerationProgram( /*entry point*/ 0, ray_gen);
+	//// Raygen program that reads rays directly from an input buffer.
+	//optix::Program ray_gen = context->createProgramFromPTXString(ptx, "ray_gen");
+	//context->setRayGenerationProgram( /*entry point*/ 0, ray_gen);
 }
 
 void MyApp::setMesh() {
-	int vertexNum = mesh->getNumVertices();
-	positionBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, vertexNum);
-	memcpy(positionBuffer->map(), mesh->getPositions<3>(), vertexNum * 3 * sizeof(float));
-	positionBuffer->unmap();
+	//int vertexNum = mesh->getNumVertices();
+	//positionBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, vertexNum);
+	//memcpy(positionBuffer->map(), mesh->getPositions<3>(), vertexNum * 3 * sizeof(float));
+	//positionBuffer->unmap();
 
-	int trianglesNum = mesh->getNumTriangles();
-	indexBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_INT3, trianglesNum);
-	memcpy(indexBuffer->map(), mesh->getIndices().data(), trianglesNum * 3 * sizeof(int32_t));
-	indexBuffer->unmap();
+	//int trianglesNum = mesh->getNumTriangles();
+	//indexBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_INT3, trianglesNum);
+	//memcpy(indexBuffer->map(), mesh->getIndices().data(), trianglesNum * 3 * sizeof(int32_t));
+	//indexBuffer->unmap();
 
-	geometry->setPrimitiveCount(trianglesNum);
-	geometry["vertex_buffer"]->set(positionBuffer);
-	geometry["index_buffer"]->set(indexBuffer);
+	//geometry->setPrimitiveCount(trianglesNum);
+	//geometry["vertex_buffer"]->set(positionBuffer);
+	//geometry["index_buffer"]->set(indexBuffer);
 
-	// Connect texcoord buffer, used for masking
-	const int num_texcoords = 0;
-	texcoordBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT2, num_texcoords);
-	geometry["texcoord_buffer"]->set(texcoordBuffer);
+	//// Connect texcoord buffer, used for masking
+	//const int num_texcoords = 0;
+	//texcoordBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT2, num_texcoords);
+	//geometry["texcoord_buffer"]->set(texcoordBuffer);
 }
 
 XITILS_APP(MyApp)

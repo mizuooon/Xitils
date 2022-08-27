@@ -10,6 +10,6 @@ target_include_directories(RaycasterEmbree
 	PRIVATE ${EMBREE_INCLUDE_DIRS}
 	)
 	
-target_link_libraries(RaycasterEmbree
+target_link_libraries(RaycasterEmbree PRIVATE
 	${EMBREE_LIBRARIES}
 	)

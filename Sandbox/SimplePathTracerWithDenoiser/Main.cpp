@@ -10,6 +10,8 @@
 #include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
 
+#include <OpenImageDenoise/oidn.hpp>
+
 
 using namespace xitils;
 using namespace ci;
@@ -137,7 +139,30 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 		color += pathTracer->eval(*scene, sampler, ray);
 	});
 
-	renderTarget->toneMap(&frameData.surface, frameData.sampleNum);
+
+	// Create an Intel Open Image Denoise device
+	oidn::DeviceRef device = oidn::newDevice();
+	device.commit();
+
+	auto renderTarget2 = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+
+	int width = renderTarget->width;
+	int height = renderTarget->height;
+	// Create a filter for denoising a beauty (color) image using optional auxiliary images too
+	oidn::FilterRef filter = device.newFilter("RT"); // generic ray tracing filter
+	filter.setImage("color", renderTarget->data.data(), oidn::Format::Float3, width, height, 0, sizeof(Vector3f)); // beauty
+	//filter.setImage("albedo", albedoPtr, oidn::Format::Float3, width, height); // auxiliary
+	//filter.setImage("normal", normalPtr, oidn::Format::Float3, width, height); // auxiliary
+	filter.setImage("output", renderTarget2->data.data(), oidn::Format::Float3, width, height, 0, sizeof(Vector3f)); // denoised beauty
+	filter.set("hdr", true); // beauty image is HDR
+	filter.commit();
+
+	// Filter the image
+	filter.execute();
+
+
+
+	renderTarget2->toneMap(&frameData.surface, frameData.sampleNum);
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();

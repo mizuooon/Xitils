@@ -16,3 +16,9 @@
 [submodule "ThirdParty/gltf"]
 	path = ThirdParty/gltf
 	url = https://github.com/ryanbartley/gltf.git
+[submodule "ThirdParty/OpenImageDenoise"]
+	path = ThirdParty/OpenImageDenoise
+	url = https://github.com/OpenImageDenoise/oidn
+[submodule "ThirdParty/oneTBB"]
+	path = ThirdParty/oneTBB
+	url = https://github.com/oneapi-src/oneTBB
