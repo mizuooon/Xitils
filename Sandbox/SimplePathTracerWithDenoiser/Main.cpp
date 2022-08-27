@@ -44,8 +44,10 @@ private:
 	std::shared_ptr<Scene> scene;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 800);
 
-	std::shared_ptr<RenderTarget> renderTarget;
+	std::shared_ptr<DenoisableRenderTarget> renderTarget;
 	std::shared_ptr<PathTracer> pathTracer;
+
+	oidn::DeviceRef device;
 
 	decltype(std::chrono::system_clock::now()) time_start;
 };
@@ -111,7 +113,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene->buildAccelerationStructure();
 
-	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+	renderTarget = std::make_shared<DenoisableRenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
 
@@ -119,6 +121,10 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - init_time_start).count();
 	frameData->triNum = teapotMeshData->getNumTriangles();
+
+
+	device = oidn::newDevice();
+	device.commit();
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
@@ -128,41 +134,55 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	auto time_start = std::chrono::system_clock::now();
 
+	if (frameData.frameElapsed > 0) { return; }
+
 	// update 1 フレームごとに計算するサンプル数
 	int sample = 1;
 
 	frameData.sampleNum += sample;
 
-	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
+	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-		color += pathTracer->eval(*scene, sampler, ray);
+		auto res = pathTracer->eval(*scene, sampler, ray);
+		pixel.color += res.color;
+		pixel.albedo += res.albedo;
+		pixel.normal += res.normal;
+		});
+
+	renderTarget->normalize(sample, [](DenoisableRenderTargetPixel& pixel, int sampleNum)
+	{
+		pixel /= sampleNum;
+		pixel.normal = clamp01(pixel.normal * 0.5f + Vector3f(1.0f));
 	});
 
+	auto denoisedRenderTarget = std::make_shared<SimpleRenderTarget>(ImageSize.x, ImageSize.y);
 
-	// Create an Intel Open Image Denoise device
-	oidn::DeviceRef device = oidn::newDevice();
-	device.commit();
-
-	auto renderTarget2 = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+	int colorOffset = 0;
+	int albedoOffset = colorOffset + sizeof(Vector3f);
+	int normalOffset = albedoOffset + sizeof(Vector3f);
 
 	int width = renderTarget->width;
 	int height = renderTarget->height;
-	// Create a filter for denoising a beauty (color) image using optional auxiliary images too
-	oidn::FilterRef filter = device.newFilter("RT"); // generic ray tracing filter
-	filter.setImage("color", renderTarget->data.data(), oidn::Format::Float3, width, height, 0, sizeof(Vector3f)); // beauty
-	//filter.setImage("albedo", albedoPtr, oidn::Format::Float3, width, height); // auxiliary
-	//filter.setImage("normal", normalPtr, oidn::Format::Float3, width, height); // auxiliary
-	filter.setImage("output", renderTarget2->data.data(), oidn::Format::Float3, width, height, 0, sizeof(Vector3f)); // denoised beauty
-	filter.set("hdr", true); // beauty image is HDR
+	oidn::FilterRef filter = device.newFilter("RT");
+	filter.setImage("color", renderTarget->data.data(), oidn::Format::Float3, width, height, colorOffset, sizeof(DenoisableRenderTargetPixel));
+	filter.setImage("albedo", renderTarget->data.data(), oidn::Format::Float3, width, height, albedoOffset, sizeof(DenoisableRenderTargetPixel));
+	filter.setImage("normal", renderTarget->data.data(), oidn::Format::Float3, width, height, normalOffset, sizeof(DenoisableRenderTargetPixel));
+	filter.setImage("output", denoisedRenderTarget->data.data(), oidn::Format::Float3, width, height, 0, sizeof(Vector3f));
+	filter.set("hdr", true);
 	filter.commit();
-
-	// Filter the image
 	filter.execute();
 
-
-
-	renderTarget2->toneMap(&frameData.surface, frameData.sampleNum);
+	denoisedRenderTarget->toneMap(&frameData.surface, frameData.sampleNum, [](const Vector3f& pixel, int sampleNum)
+	{
+		auto color = pixel;
+		ci::ColorA8u colA8u;
+		colA8u.r = xitils::clamp((int)(color.x * 255), 0, 255);
+		colA8u.g = xitils::clamp((int)(color.y * 255), 0, 255);
+		colA8u.b = xitils::clamp((int)(color.z * 255), 0, 255);
+		colA8u.a = 255;
+		return colA8u;
+	});
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();

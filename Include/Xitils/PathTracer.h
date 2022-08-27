@@ -8,41 +8,52 @@
 
 namespace xitils {
 
+	struct PathTracerEvalResult
+	{
+		Vector3f color;
+		Vector3f albedo;
+		Vector3f normal;
+	};
+
 	class PathTracer {
 	public:
-		virtual Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const = 0;
+		virtual PathTracerEvalResult eval(const Scene& scene, Sampler& sampler, const Ray& ray) const = 0;
 	};
 
 	class DebugRayCaster : public PathTracer {
 	public:
 
-		DebugRayCaster(std::function<Vector3f(const SurfaceIntersection&, Sampler&)> f) :
+		DebugRayCaster(std::function<PathTracerEvalResult(const SurfaceIntersection&, Sampler&)> f) :
 			f(f)
 		{}
 
-		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
+		PathTracerEvalResult eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
-			Vector3f color;
+			PathTracerEvalResult res;
 			SurfaceIntersection isect;
 
 			Ray tmpRay(ray);
 			if (scene.intersect(tmpRay, &isect)) {
-				color = f(isect, sampler);
+				res = f(isect, sampler);
 			}
 
-			return color;
+			return res;
 		}
 
 	private:
-		std::function<Vector3f(const SurfaceIntersection&, Sampler&)> f;
+		std::function<PathTracerEvalResult(const SurfaceIntersection&, Sampler&)> f;
 	};
 
 	class NaivePathTracer : public PathTracer {
 	public:
 
-		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
+		PathTracerEvalResult eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
-			Vector3f radiance;
+			PathTracerEvalResult res;
+			Vector3f& radiance = res.color;
+			Vector3f& albedo = res.albedo;
+			Vector3f& normal = res.normal;
+
 			Vector3f weight(1.0f);
 
 			Ray currentRay = ray;
@@ -62,8 +73,14 @@ namespace xitils {
 				}
 
 				if (scene.intersect(currentRay, &isect)) {
+					if(pathLength == 1)
+					{
+						albedo += isect.object->material->getAlbedo();
+						normal += isect.n;
+					}
+
 					if (isect.object->material->emissive) {
-						radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
+						radiance += weight * isect.object->material->getEmission(-currentRay.d, isect.n, isect.shading.n);
 					}
 
 					float pdf;
@@ -83,7 +100,7 @@ namespace xitils {
 				++pathLength;
 			}
 
-			return radiance;
+			return res;
 		}
 
 	private:
@@ -95,11 +112,15 @@ namespace xitils {
 	class StandardPathTracer : public PathTracer {
 	public:
 
-		// NEE �� BRDF �T���v�����O�� MIS
+		// NEE と BRDF サンプリングの MIS
 
-		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
+		PathTracerEvalResult eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
-			Vector3f radiance;
+			PathTracerEvalResult res;
+			Vector3f& radiance = res.color;
+			Vector3f& albedo = res.albedo;
+			Vector3f& normal = res.normal;
+
 			Vector3f weight(1.0f);
 
 			Ray currentRay = ray;
@@ -114,11 +135,13 @@ namespace xitils {
 					radiance += weight * scene.skySphere->getRadiance(currentRay.d);
 				}
 			}else{
+				albedo += isect.object->material->getAlbedo();
+				normal += isect.n;
 
 				++pathLength;
 
 				if (isect.object->material->emissive) {
-					radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
+					radiance += weight * isect.object->material->getEmission(-currentRay.d, isect.n, isect.shading.n);
 				}
 				
 				while (true) {
@@ -160,7 +183,7 @@ namespace xitils {
 								if (misWeight > 0.0f) {
 									radiance += weight * misWeight
 										* material_eval
-										* nextIsect.object->material->emission(-currentRay.d, nextIsect.n, nextIsect.shading.n)
+										* nextIsect.object->material->getEmission(-currentRay.d, nextIsect.n, nextIsect.shading.n)
 										;
 								}
 
@@ -188,7 +211,7 @@ namespace xitils {
 							float pdf_bsdf_x_light;
 							float distSq = powf(sampledLightSurfaceDist, 2.0f);
 							if (pdf_bsdf_x_bsdf >= 0.0f) {
-								pdf_bsdf_x_light = isect.object->material->pdf(isect, shadowRay.d);
+								pdf_bsdf_x_light = isect.object->material->getPDF(isect, shadowRay.d);
 								float cosLight = fabsf(dot(-shadowRay.d, sampledLightSurface.shadingN));
 								pdf_bsdf_x_light *= cosLight / distSq;
 
@@ -198,11 +221,11 @@ namespace xitils {
 							}
 
 							if (misWeight > 0.0f) {
-								float G = fabs(dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq; // bsdfCos �ɃI�u�W�F�N�g���̃R�T�C�����͊��Ɋ܂܂�Ă���
+								float G = fabs(dot(-shadowRay.d, sampledLightSurface.shadingN)) / distSq; // bsdfCos にオブジェクト側のコサイン項は既に含まれている
 								radiance +=
 									weight * misWeight
 									* isect.object->material->bsdfCos(isect, sampler, shadowRay.d)
-									* sampledLightSurface.object->material->emission(-shadowRay.d, sampledLightSurface.n, sampledLightSurface.shadingN)
+									* sampledLightSurface.object->material->getEmission(-shadowRay.d, sampledLightSurface.n, sampledLightSurface.shadingN)
 									* G / pdf_light_x_light;
 							}
 
@@ -224,7 +247,7 @@ namespace xitils {
 
 			}
 
-			return radiance;
+			return res;
 		}
 
 	private:
@@ -234,13 +257,17 @@ namespace xitils {
 		float shadowRayMargin = 0.0001f;
 	};
 
-	// �V���O���X�L���b�^�����O�̂ݕ\��
+	// シングルスキャッタリングのみ表示
 	class DebugRayTracerSingleScattering : public PathTracer {
 	public:
 
-		Vector3f eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
+		PathTracerEvalResult eval(const Scene& scene, Sampler& sampler, const Ray& ray) const override {
 
-			Vector3f radiance;
+			PathTracerEvalResult res;
+			Vector3f& radiance = res.color;
+			Vector3f& albedo = res.albedo;
+			Vector3f& normal = res.normal;
+
 			Vector3f weight(1.0f);
 
 			Ray currentRay = ray;
@@ -262,7 +289,7 @@ namespace xitils {
 
 				if (scene.intersect(currentRay, &isect)) {
 					if (isect.object->material->emissive) {
-						radiance += weight * isect.object->material->emission(-currentRay.d, isect.n, isect.shading.n);
+						radiance += weight * isect.object->material->getEmission(-currentRay.d, isect.n, isect.shading.n);
 					}
 
 					float pdf;
@@ -282,7 +309,7 @@ namespace xitils {
 				++pathLength;
 			}
 
-			return radiance;
+			return res;
 		}
 
 	private:

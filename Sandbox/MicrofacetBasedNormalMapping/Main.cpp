@@ -64,7 +64,7 @@ public:
 		Vector3f h = basis.toGlobal(powf(r2, 1 / (sharpness + 1.0f)), cosf(2 * M_PI * r1) * sqrt, sinf(2 * M_PI * r1) * sqrt).normalize();
 		*wi = -(isect.wo - 2.0f * dot(isect.wo, h) * h).normalize();
 
-		*pdf = this->pdf(isect, *wi);
+		*pdf = this->getPDF(isect, *wi);
 
 		if (*pdf == 0.0f) { return Vector3f(0.0f); }
 
@@ -72,7 +72,7 @@ public:
 	}
 
 
-	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		const auto& n = isect.shading.n;
 		if (dot(isect.wo, n) > 0.0f && dot(wi, n) > 0.0f) {
 			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
@@ -243,7 +243,7 @@ public:
 		*wi = wr;
 
 		if (!specular) {
-			*pdf = this->pdf(isect, *wi);
+			*pdf = this->getPDF(isect, *wi);
 		} else {
 			*pdf = -1.0f;
 		}
@@ -251,7 +251,7 @@ public:
 		return result;
 	}
 
-	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 
 		// �����̔��˂� diffuse �ŋߎ����āApdf �̋ߎ��l����߂�
 
@@ -263,7 +263,7 @@ public:
 		if (dot(wg, wp) < 0.0f) { wp *= -1; }
 
 		if (wg == wp) {
-			return material_wp->pdf(isect, wi);
+			return material_wp->getPDF(isect, wi);
 		}
 
 		Vector3f wt = cross(cross(wg, wp).normalize(), wg).normalize();
@@ -289,7 +289,7 @@ public:
 		if (probability_wp > 0.0f) {
 			isectfacet.n = wp;
 			isectfacet.shading.n = wp;
-			pdf += probability_wp * g_wi_wp * material_wp->pdf(isectfacet, wi);
+			pdf += probability_wp * g_wi_wp * material_wp->getPDF(isectfacet, wi);
 			diff_pdf += probability_wp * (1.0f - g_wi_wp);
 		}
 
@@ -298,7 +298,7 @@ public:
 			isectfacet.shading.n = wt;
 			float g_wi_wt = G1(wi, wt, wp, wt, wg);
 			if (TangentFacetMode == SameMaterialExplicit) {
-				pdf += probability_wp * g_wi_wt * material_wp->pdf(isectfacet, wi);
+				pdf += probability_wp * g_wi_wt * material_wp->getPDF(isectfacet, wi);
 				diff_pdf += probability_wp * g_wi_wt;
 			} else if (TangentFacetMode == SpecularExplicit) {
 				Vector3f wr = -(isectfacet.wo - 2 * dot(isectfacet.shading.n, isectfacet.wo) * isectfacet.shading.n).normalize();
@@ -308,7 +308,7 @@ public:
 				isectfacet.shading.n = wp;
 				isectfacet.wo = -wr;
 
-				pdf += probability_wp * (1.0f - g_wr_wt) * g_wi_wp * material_wp->pdf(isectfacet, wi);
+				pdf += probability_wp * (1.0f - g_wr_wt) * g_wi_wp * material_wp->getPDF(isectfacet, wi);
 				diff_pdf += probability_wp * (1.0f - g_wr_wt) * (1.0f - g_wi_wp);
 			}
 		}

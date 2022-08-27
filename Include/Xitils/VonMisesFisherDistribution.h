@@ -11,7 +11,7 @@ namespace xitils {
 
 		// 実装は以下を参考
 		// Numerically stable sampling of the von Misesisher distribution on S^2 (and other tricks)
-		// https://www.mitsuba-renderer.org/~wenzel/files/vmf.pdf
+		// https://www.mitsuba-renderer.org/~wenzel/files/vmf.getPDF
 
 		static const int LobeNum = _LobeNum;
 		static const int EncodedDataSize = LobeNum * 3 + LobeNum + (LobeNum - 1); // encode に必要な float の数 (byte ではない)

@@ -12,33 +12,39 @@ namespace xitils {
 
 		std::shared_ptr<Texture> normalmap;
 
-		// BSDF * cos �̒l��Ԃ�
-		// �X�y�L�����̕��̂ł̓f���^�֐��ɂȂ�̂Ŏ������Ȃ�
+		// BSDF * cos の値を返す
+		// スペキュラの物体ではデルタ関数になるので実装しない
 		virtual Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
-		// BSDF * cos / pdf �̒l��Ԃ��Awi �̃T���v�����O��s��
-		// �X�y�L�����̕��̂ł̓f���^�֐��ɂȂ�A���̂Ƃ� pdf �� -1 �Ƃ��ĕ\�����
-		// �߂�l�� 0 �̂Ƃ��ɂ� wi �� pdf �͗L���ł͂Ȃ�
+		// BSDF * cos / getPDF の値を返し、wi のサンプリングも行う
+		// スペキュラの物体ではデルタ関数になり、このとき getPDF は -1 として表される
+		// 戻り値が 0 のときには wi と getPDF は有効ではない
 		virtual Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
-		// �X�y�L�����̕��̂ł̓f���^�֐��ɂȂ�̂Ŏ������Ȃ�
-		virtual float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const {
+		// スペキュラの物体ではデルタ関数になるので実装しない
+		virtual float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const {
 			NOT_IMPLEMENTED;
 		}
 
-		// �P�x��Ԃ�
-		// emissive �̃}�e���A���݂̂Ŏg�p����
-		virtual Vector3f emission(const Vector3f& wo, const Vector3f& n, const Vector3f& shadingN) const {
+		// 輝度を返す
+		// emissive のマテリアルのみで使用する
+		virtual Vector3f getEmission(const Vector3f& wo, const Vector3f& n, const Vector3f& shadingN) const {
 			NOT_IMPLEMENTED;
 			return Vector3f();
 		}
 
+		// アルベドを返す
+		// デノイザ用
+		virtual Vector3f getAlbedo() const
+		{
+			return Vector3f();
+		}
 	};
 
 	class Diffuse : public Material {
@@ -69,9 +75,13 @@ namespace xitils {
 			}
 		}
 
-		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			const auto& n = isect.shading.n;
 			return clampPositive(dot(wi, n)) / M_PI;
+		}
+
+		Vector3f getAlbedo() const override {
+			return albedo;
 		}
 	};
 
@@ -103,7 +113,7 @@ namespace xitils {
 			Vector3f h = basis.toGlobal(powf(r2, 1 / (sharpness + 1.0f)), cosf(2 * M_PI * r1) * sqrt, sinf(2 * M_PI * r1) * sqrt).normalize();
 			*wi = -(isect.wo - 2.0f * dot(isect.wo, h) * h).normalize();
 
-			*pdf = this->pdf(isect, *wi);
+			*pdf = this->getPDF(isect, *wi);
 
 			if (*pdf == 0.0f) { return Vector3f(0.0f); }
 
@@ -111,11 +121,14 @@ namespace xitils {
 		}
 
 
-		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			const auto& n = isect.shading.n;
 			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
 		}
 
+		Vector3f getAlbedo() const override {
+			return albedo;
+		}
 	};
 
 	struct GlossyWithHighLight : public Material {
@@ -138,18 +151,22 @@ namespace xitils {
 				float tmppdf;
 				Vector3f tmpeval = highlight->evalAndSample(isect, sampler, wi, &tmppdf);
 				eval = (1.0f - highlightRate)* base->bsdfCos(isect, sampler, *wi) + highlightRate * tmpeval;
-				*pdf = (1.0f - highlightRate) * base->pdf(isect, *wi) + highlightRate * tmppdf;
+				*pdf = (1.0f - highlightRate) * base->getPDF(isect, *wi) + highlightRate * tmppdf;
 			} else {
 				float tmppdf;
 				Vector3f tmpeval = base->evalAndSample(isect, sampler, wi, &tmppdf);
 				eval = (1.0f - highlightRate) * tmpeval + highlightRate * highlight->bsdfCos(isect, sampler, *wi);
-				*pdf = (1.0f - highlightRate) * tmppdf + highlightRate * highlight->pdf(isect, *wi);
+				*pdf = (1.0f - highlightRate) * tmppdf + highlightRate * highlight->getPDF(isect, *wi);
 			}
 			return eval;
 		}
 
-		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
-			return (1.0f - highlightRate) * base->pdf(isect, wi) + highlightRate * highlight->pdf(isect, wi);
+		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+			return (1.0f - highlightRate) * base->getPDF(isect, wi) + highlightRate * highlight->getPDF(isect, wi);
+		}
+		
+		Vector3f getAlbedo() const override {
+			return base->getAlbedo();
 		}
 
 	private:
@@ -273,11 +290,11 @@ namespace xitils {
 			return Vector3f();
 		}
 
-		float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			return 0.0f;
 		}
 
-		Vector3f emission(const Vector3f& wo, const Vector3f& n, const Vector3f& shadingN) const override {
+		Vector3f getEmission(const Vector3f& wo, const Vector3f& n, const Vector3f& shadingN) const override {
 			return dot(wo,n) > 0.0f ? power : Vector3f();
 		}
 	};

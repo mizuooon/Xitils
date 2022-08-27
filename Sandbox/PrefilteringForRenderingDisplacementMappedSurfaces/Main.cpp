@@ -491,7 +491,7 @@ public:
 		return baseMaterial->evalAndSample(perturbInteraction(isect, sampler), sampler, wi, pdf);
 	}
 
-	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 		return clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
@@ -563,8 +563,8 @@ public:
 		return multiLobeSVBRDF->evalAndSample(isect, sampler, wi, pdf) * evalRir(isect.texCoord, wiLocal, woLocal, sampler);
 	}
 
-	float pdf(const SurfaceIntersection& isect, const Vector3f& wi) const override {
-		return 0.9f * multiLobeSVBRDF->pdf(isect, wi) + 0.1f * clampPositive(dot(isect.shading.n, wi)) / M_PI;
+	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+		return 0.9f * multiLobeSVBRDF->getPDF(isect, wi) + 0.1f * clampPositive(dot(isect.shading.n, wi)) / M_PI;
 	}
 
 	std::shared_ptr<const Texture> getDisplacementTextureLow() { return displacementTexLow; }
