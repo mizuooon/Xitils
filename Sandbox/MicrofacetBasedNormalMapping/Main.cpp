@@ -365,7 +365,7 @@ private:
 	std::shared_ptr<Scene> scene;
 	inline static const glm::ivec2 ImageSize = glm::ivec2(800, 800);
 
-	std::shared_ptr<RenderTarget> renderTarget;
+	std::shared_ptr<SimpleRenderTarget> renderTarget;
 	std::shared_ptr<PathTracer> pathTracer;
 
 	decltype(std::chrono::system_clock::now()) time_start;
@@ -421,7 +421,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 
 	scene->buildAccelerationStructure();
 
-	renderTarget = std::make_shared<RenderTarget>(ImageSize.x, ImageSize.y);
+	renderTarget = std::make_shared<SimpleRenderTarget>(ImageSize.x, ImageSize.y);
 
 	pathTracer = std::make_shared<StandardPathTracer>();
 }
@@ -439,11 +439,20 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
 		auto ray = scene->camera->GenerateRay(pFilm, sampler);
 
-		color += pathTracer->eval(*scene, sampler, ray) * 0.5f;
+		color += pathTracer->eval(*scene, sampler, ray).color * 0.5f;
 
 	});
 
-	renderTarget->toneMap(&frameData.surface, frameData.sampleNum);
+	renderTarget->map(&frameData.surface, [&frameData](const Vector3f& pixel)
+		{
+			auto color = pixel/ frameData.sampleNum;
+			ci::ColorA8u colA8u;
+			colA8u.r = xitils::clamp((int)(color.x * 255), 0, 255);
+			colA8u.g = xitils::clamp((int)(color.y * 255), 0, 255);
+			colA8u.b = xitils::clamp((int)(color.z * 255), 0, 255);
+			colA8u.a = 255;
+			return colA8u;
+		});
 
 	auto time_end = std::chrono::system_clock::now();
 	frameData.frameElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();

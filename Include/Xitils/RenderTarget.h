@@ -31,14 +31,22 @@ namespace xitils {
 		}
 
 		void render(const Scene& scene, int sampleNum, std::function<void(const Vector2f&, Sampler&, T&)> f);
-		void normalize(int sampleNum, std::function<void(T&, int)> f);
-
-		void toneMap(ci::Surface* surface, int sampleNum, std::function<ci::ColorA8u(const T&, int)> f) {
+		void map(std::function<void(T&)> f) {
 #pragma omp parallel for schedule(dynamic, 1)
 			for (int y = 0; y < height; ++y) {
 #pragma omp parallel for schedule(dynamic, 1)
 				for (int x = 0; x < width; ++x) {
-					surface->setPixel(glm::ivec2(x, y), f((*this)[Vector2i(x, y)], sampleNum));
+					f((*this)[Vector2i(x, y)]);
+				}
+			}
+		}
+
+		void map(ci::Surface* surface, std::function<ci::ColorA8u(const T&)> f) {
+#pragma omp parallel for schedule(dynamic, 1)
+			for (int y = 0; y < height; ++y) {
+#pragma omp parallel for schedule(dynamic, 1)
+				for (int x = 0; x < width; ++x) {
+					surface->setPixel(glm::ivec2(x, y), f((*this)[Vector2i(x, y)]));
 				}
 			}
 		}
@@ -112,25 +120,6 @@ namespace xitils {
 						Vector2i localPos = Vector2i(lx, ly);
 						auto pFilm = tile.GenerateFilmPosition(localPos, true);
 						f(pFilm, *tile.sampler, (*this)[tile.ImagePosition(localPos)]);
-					}
-				}
-			}
-		}
-	}
-
-	template<typename T>
-	void RenderTarget<T>::normalize(int sampleNum, std::function<void(T&, int)> f) {
-#pragma omp parallel for schedule(dynamic, 1)
-		for (int i = 0; i < tiles->size(); ++i) {
-			auto& tile = (*tiles)[i];
-			for (int s = 0; s < sampleNum; ++s) {
-				for (int ly = 0; ly < RenderTargetTile<T>::Height; ++ly) {
-					if (tile.offset.y + ly >= height) { continue; }
-					for (int lx = 0; lx < RenderTargetTile<T>::Width; ++lx) {
-						if (tile.offset.x + lx >= width) { continue; }
-
-						Vector2i localPos = Vector2i(lx, ly);
-						f((*this)[tile.ImagePosition(localPos)], sampleNum);
 					}
 				}
 			}

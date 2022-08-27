@@ -150,9 +150,9 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 		pixel.normal += res.normal;
 		});
 
-	renderTarget->normalize(sample, [](DenoisableRenderTargetPixel& pixel, int sampleNum)
+	renderTarget->map([&frameData](DenoisableRenderTargetPixel& pixel)
 	{
-		pixel /= sampleNum;
+		pixel /= frameData.sampleNum;
 		pixel.normal = clamp01(pixel.normal * 0.5f + Vector3f(1.0f));
 	});
 
@@ -173,7 +173,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	filter.commit();
 	filter.execute();
 
-	denoisedRenderTarget->toneMap(&frameData.surface, frameData.sampleNum, [](const Vector3f& pixel, int sampleNum)
+	denoisedRenderTarget->map(&frameData.surface, [](const Vector3f& pixel)
 	{
 		auto color = pixel;
 		ci::ColorA8u colA8u;

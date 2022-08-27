@@ -284,7 +284,7 @@ namespace xitils {
 	//			v = Vector3f(0, 0, 1);
 	//		}
 
-	//		Vector3f n = clamp01((v.normalize() + Vector3f(1.0f)) * 0.5f);
+	//		Vector3f n = clamp01((v.map() + Vector3f(1.0f)) * 0.5f);
 
 	//		return n;
 	//	}
