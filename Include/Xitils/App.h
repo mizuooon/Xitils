@@ -9,6 +9,12 @@
 #include <memory>
 
 #define XITILS_APP(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ settings->setConsoleWindowEnabled(); })
+#define XITILS_APP_HEADLESS(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ \
+	Window::Format format;\
+	format.hide();\
+	settings->setDefaultWindowFormat(format);\
+	settings->setConsoleWindowEnabled();\
+})
 
 namespace xitils::app {
 
@@ -18,6 +24,7 @@ namespace xitils::app {
 		void cleanup() override final;
 
 		void mainLoop();
+		void update() override final;
 		void draw() override final;
 
 		void keyDown(ci::app::KeyEvent e) override final;
@@ -27,6 +34,12 @@ namespace xitils::app {
 		virtual void onCleanup(T* frameData, U* uiFrameData) {}
 		virtual void onUpdate(T& frameData, const U& uiFrameData) {}
 		virtual void onDraw(const T& frameData, U& uiFrameData) {}
+
+		void close()
+		{
+			std::mutex mtx;
+			threadClosing = true;
+		}
 
 	private:
 		T frameData;
@@ -39,6 +52,7 @@ namespace xitils::app {
 
 		std::shared_ptr<std::thread> mainLoopThread;
 		bool threadClosing = false;
+		bool threadClosed = false;
 	};
 
 	template<typename T, typename U> void XApp<T,U>::setup() {
@@ -52,7 +66,10 @@ namespace xitils::app {
 
 	template<typename T, typename U> void XApp<T, U>::cleanup() {
 		if (mainLoopThread) {
-			threadClosing = true;
+			{
+				std::lock_guard lock(mtx);
+				threadClosing = true;
+			}
 			mainLoopThread->join();
 		}
 		onCleanup(&frameData, &uiFrameData);
@@ -67,11 +84,18 @@ namespace xitils::app {
 			{
 				std::lock_guard lock(mtx);
 				frameDataBuffer = frameData;
+				if (threadClosing) { break; }
 			}
 
 			std::this_thread::yield();
+		}
+		threadClosed = true;
+	}
 
-			if (threadClosing) { break; }
+	template<typename T, typename U> void XApp<T, U>::update() {
+		if(threadClosed)
+		{
+			getWindow()->close();
 		}
 	}
 

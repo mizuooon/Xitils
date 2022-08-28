@@ -38,8 +38,8 @@ namespace xitils {
 		bool canSampleLight() const { return !lights.empty(); }
 
 		Object::SampledSurface sampleSurface(Sampler& sampler, float* pdf) const {
-			// TODO: ���ׂĂ� Object ���瓙�m���ŃT���v�����O���Ă��邪�A
-			//       �{���͖ʐςɔ�Ⴕ���m���őI�Ԃׂ�
+			// TODO: すべての Object から等確率でサンプリングしているが、
+			//       本当は面積に比例した確率で選ぶべき
 			auto& light = sampler.select(lights);
 			auto res = light->sampleSurface(sampler, pdf);
 			*pdf /= lights.size();
@@ -47,7 +47,7 @@ namespace xitils {
 		}
 
 		float surfacePDF(const Vector3f& p, const Object* object, const Shape* shape, const TriangleIndexed* tri) const {
-			// TODO: ��L�𒼂����炱��������
+			// TODO: 上記を直したらこちらも直す
 
 			if (lights.empty()) { return 0.0f; }
 
