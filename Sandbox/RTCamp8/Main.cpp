@@ -21,15 +21,15 @@ using namespace ci::app;
 using namespace ci::geom;
 
 #define SCENE_DURATION 5.0f
-#define FRAME_PER_SECOND 20
+#define FRAME_PER_SECOND 4
 #define TOTAL_FRAME_COUNT (SCENE_DURATION * FRAME_PER_SECOND)
 
 #define ENABLE_DENOISE true
 #define SHOW_WINDOW true
 #define ENABLE_SAVE_IMAGE true
 
-#define IMAGE_WIDTH 1920/2
-#define IMAGE_HEIGHT 1080/2
+#define IMAGE_WIDTH 1920/4
+#define IMAGE_HEIGHT 1080/4
 
 class ImageSaveThread
 {
@@ -215,6 +215,12 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 #if !SHOW_WINDOW
 	getWindow()->hide();
 #endif
+
+	// fps の数値を fps.txt に書き込む
+	{
+		auto file = writeFile("fps.txt");
+		writeString(file, std::to_string(FRAME_PER_SECOND));
+	}
 }
 
 void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
