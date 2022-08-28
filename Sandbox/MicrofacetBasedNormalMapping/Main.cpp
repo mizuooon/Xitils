@@ -437,7 +437,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	frameData.sampleNum += sample;
 
 	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, Vector3f& color) {
-		auto ray = scene->camera->GenerateRay(pFilm, sampler);
+		auto ray = scene->camera->generateRay(pFilm, sampler);
 
 		color += pathTracer->eval(*scene, sampler, ray).color * 0.5f;
 
