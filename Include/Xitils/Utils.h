@@ -42,6 +42,7 @@ namespace xitils {
 	template <typename T> T clamp(const T& x, const T& minVal, const T& maxVal) { return max(minVal, min(maxVal, x)); }
 	template <typename T> T clamp01(const T& x) { return clamp(x, (T)0.0f, (T)1.0f); }
 	template <typename T> T clampPositive(const T& x) { return max(x, (T)0.0f); }
+	template <typename T> T heavisideStep(const T& x) { return (x > 0 ? 1: 0); }
 
 	inline bool inRange(float x, float minVal, float maxVal) { return minVal <= x && x <= maxVal; }
 	inline bool inRange01(float x) { return inRange(x, 0.0f, 1.0f); }

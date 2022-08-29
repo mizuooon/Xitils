@@ -272,6 +272,108 @@ namespace xitils {
 
 	};
 
+	class Metal : public Material
+	{
+	public:
+		float alpha;
+
+		Vector3f f0;
+
+		Metal(float roughness, const Vector3f& f0) :
+			alpha(roughness * roughness),
+			f0(f0)
+		{
+		}
+
+		Vector3f F_Reflection(const Vector3f& wo, const Vector3f& h) const
+		{
+			return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(wo, h), 5.0f);
+		}
+
+		float D_GGX(const Vector3f& n, const Vector3f& h) const
+		{
+			float alpha2 = alpha * alpha;
+			float cosThetaH2 = pow(dot(n, h), 2);
+			float cosThetaH4 = cosThetaH2 * cosThetaH2;
+			float tanThetaH2 = 1 / cosThetaH2 - 1;
+			//return alpha2 / (M_PI * pow(1 - (1 - alpha2) * nh2, 2));
+
+			return alpha2 * heavisideStep(dot(n, h)) / (M_PI* cosThetaH4  * pow(alpha2 + tanThetaH2, 2));
+		}
+
+		float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n, const Vector3f& h) const
+		{
+			float alpha2 = alpha * alpha;
+
+			//auto lambda = [&](const Vector3f& v)
+			//{
+			//	float c2 = pow(dot(v, n), 2);
+			//	float t2 = 1 / c2 - 1;
+			//	float a2 = 1 / (t2 * alpha2);
+			//	return (-1 + safeSqrt(1 + 1 / a2)) / 2;
+			//};
+
+			//return 1 / (1 + lambda(wi) + lambda(wo));
+
+
+			auto G1 = [&](const Vector3f& v)
+			{
+				float cosThetaV2 = pow(dot(n, v), 2);
+				float tanThetaV2 = 1 / cosThetaV2 - 1;
+				return heavisideStep(dot(v, h) / dot(v, n)) * 2 / (1 + safeSqrt(1 + alpha2 * tanThetaV2));
+			};
+			return G1(wi) * G1(wo);
+		}
+
+		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
+			const auto& wo = isect.wo;
+			const auto& n = isect.shading.n;
+			const auto h = (wi + wo).normalize();
+
+			Vector3f Fr = F_Reflection(wo, h);
+			float D = D_GGX(n, h);
+			float G = G_Smith(wi, wo, n, h);
+			return Fr * D * G / clampPositive(4 * dot(wo, n));
+		}
+
+		Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+			const auto& wo = isect.wo;
+			const auto& n = isect.shading.n;
+
+			// GGX からマイクロファセットをサンプル
+			float r0 = sampler.randf();
+			float r1 = sampler.randf();
+			float theta = atanf(alpha * safeSqrt(r0) / safeSqrt(1 - r0));
+			float phi = 2 * M_PI * r1;
+			const auto h = BasisVectors(n).toGlobal(anglesToVector(Vector2f(theta, phi)));
+
+			*wi = 2 * dot(wo, h) * h - wo;
+
+			Vector3f Fr = F_Reflection(wo, h);
+
+			float D = D_GGX(n, h);
+			float G = G_Smith(*wi, wo, n, h);
+
+			*pdf = fabs(dot(wo, h) * G / (dot(wo, n) * dot(h, n)));
+
+			return Fr * D * G / clampPositive(4 * dot(wo, n));
+		}
+
+		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+			const auto& wo = isect.wo;
+			const auto& n = isect.shading.n;
+			const auto h = (wi + wo).normalize();
+
+			float G = G_Smith(wi, wo, n, h);
+			return fabs(dot(wo, h) * G / (dot(wo, n) * dot(h, n)));
+		}
+
+		Vector3f getAlbedo() const override {
+			return f0;
+		}
+
+	};
+
 	class Emission : public Material {
 	public:
 		Vector3f power;
