@@ -33,7 +33,7 @@ namespace xitils {
 		Texture tex;
 	};
 
-	class SkySphereUniform : SkySphere {
+	class SkySphereUniform : public SkySphere {
 	public:
 		SkySphereUniform(const Vector3f& color) : color(color) {}
 

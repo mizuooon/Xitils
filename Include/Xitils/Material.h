@@ -285,44 +285,60 @@ namespace xitils {
 		{
 		}
 
-		Vector3f F_Reflection(const Vector3f& wo, const Vector3f& h) const
+		Vector3f F_Reflection(const Vector3f& eye, const Vector3f& h) const
 		{
-			return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(wo, h), 5.0f);
+		return Vector3f(1);
+			return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(eye, h), 5.0f);
 		}
 
-		float D_GGX(const Vector3f& n, const Vector3f& h) const
+		float D_GGX(const Vector3f& x, const Vector3f& n) const
 		{
 			float alpha2 = alpha * alpha;
-			float cosThetaH2 = pow(dot(n, h), 2);
+			float cosThetaH2 = pow(dot(n, x), 2);
 			float cosThetaH4 = cosThetaH2 * cosThetaH2;
 			float tanThetaH2 = 1 / cosThetaH2 - 1;
-			//return alpha2 / (M_PI * pow(1 - (1 - alpha2) * nh2, 2));
 
-			return alpha2 * heavisideStep(dot(n, h)) / (M_PI* cosThetaH4  * pow(alpha2 + tanThetaH2, 2));
+			return alpha2 * heavisideStep(dot(n, x)) / (M_PI* cosThetaH4  * pow(alpha2 + tanThetaH2, 2));
 		}
 
-		float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n, const Vector3f& h) const
+		float D_V_GGX(const Vector3f& x, const Vector3f& n,  const Vector3f& eye) const
+		{
+			return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(n, x) / dot(eye, n);
+		}
+
+		float G1_Smith(const Vector3f& x, const Vector3f& n) const
 		{
 			float alpha2 = alpha * alpha;
+			float cosThetaV2 = pow(dot(n, x), 2);
+			float lambda = (-1 + safeSqrt(1 + alpha2 / cosThetaV2)) / 2;
+			return 1 / (1 + lambda);
+		}
 
-			//auto lambda = [&](const Vector3f& v)
-			//{
-			//	float c2 = pow(dot(v, n), 2);
-			//	float t2 = 1 / c2 - 1;
-			//	float a2 = 1 / (t2 * alpha2);
-			//	return (-1 + safeSqrt(1 + 1 / a2)) / 2;
-			//};
+		float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n) const
+		{
+			return G1_Smith(wi, n) * G1_Smith(wo, n);
+		}
 
-			//return 1 / (1 + lambda(wi) + lambda(wo));
-
-
-			auto G1 = [&](const Vector3f& v)
-			{
-				float cosThetaV2 = pow(dot(n, v), 2);
-				float tanThetaV2 = 1 / cosThetaV2 - 1;
-				return heavisideStep(dot(v, h) / dot(v, n)) * 2 / (1 + safeSqrt(1 + alpha2 * tanThetaV2));
-			};
-			return G1(wi) * G1(wo);
+		Vector3f sampleGGXVNDF(const Vector3f& eye, const Vector3f& n,  Sampler& sampler) const
+		{
+			auto basis = BasisVectors(n);
+			Vector3f Ve = basis.fromGlobal(eye);
+			Vector3f Vh = Vector3f(Ve.x, alpha * Ve.y, alpha * Ve.z).normalize();
+			float lensq = Vh.y * Vh.y + Vh.z * Vh.z;
+			Vector3f T1 = lensq > 0 ? Vector3f(0, Vh.z, -Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
+			Vector3f T2 = cross(Vh, T1);
+			float U1 = sampler.randf();
+			float U2 = sampler.randf();
+			float r = sqrt(U1);
+			float phi = 2.0 * M_PI * U2;
+			float t1 = r * cos(phi);
+			float t2 = r * sin(phi);
+			float s = 0.5 * (1.0 + Vh.x);
+			t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
+			Vector3f Nh = t1 * T1 + t2 * T2 + safeSqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
+			Vector3f Ne = normalize(Vector3f(std::max<float>(0.0, Nh.x), alpha * Nh.y, alpha * Nh.z));
+			Vector3f h = basis.toGlobal(Ne);
+			return h;
 		}
 
 		Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
@@ -331,8 +347,8 @@ namespace xitils {
 			const auto h = (wi + wo).normalize();
 
 			Vector3f Fr = F_Reflection(wo, h);
-			float D = D_GGX(n, h);
-			float G = G_Smith(wi, wo, n, h);
+			float D = D_GGX(h, n);
+			float G = G_Smith(wi, wo, n);
 			return Fr * D * G / clampPositive(4 * dot(wo, n));
 		}
 
@@ -340,32 +356,22 @@ namespace xitils {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 
-			// GGX からマイクロファセットをサンプル
-			float r0 = sampler.randf();
-			float r1 = sampler.randf();
-			float theta = atanf(alpha * safeSqrt(r0) / safeSqrt(1 - r0));
-			float phi = 2 * M_PI * r1;
-			const auto h = BasisVectors(n).toGlobal(anglesToVector(Vector2f(theta, phi)));
-
+			auto h = sampleGGXVNDF(wo, n, sampler);
 			*wi = 2 * dot(wo, h) * h - wo;
 
-			Vector3f Fr = F_Reflection(wo, h);
+			//*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
 
-			float D = D_GGX(n, h);
-			float G = G_Smith(*wi, wo, n, h);
+			*pdf = getPDF(isect, *wi);
 
-			*pdf = fabs(dot(wo, h) * G / (dot(wo, n) * dot(h, n)));
-
-			return Fr * D * G / clampPositive(4 * dot(wo, n));
+			return bsdfCos(isect, sampler, *wi) / *pdf;
 		}
 
 		float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
 			const auto& wo = isect.wo;
 			const auto& n = isect.shading.n;
 			const auto h = (wi + wo).normalize();
-
-			float G = G_Smith(wi, wo, n, h);
-			return fabs(dot(wo, h) * G / (dot(wo, n) * dot(h, n)));
+			//return dot(wi, n) / M_PI;
+			return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 		}
 
 		Vector3f getAlbedo() const override {

@@ -45,19 +45,25 @@ public:
 	{
 	}
 
-	Vector3f F_Reflection(const Vector3f& wo, const Vector3f& h) const
+	Vector3f F_Reflection(const Vector3f& eye, const Vector3f& h) const
 	{
-		return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(wo, h), 5.0f);
+		return Vector3f(1);
+		//return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(eye, h), 5.0f);
 	}
 
-	float D_GGX(const Vector3f& n, const Vector3f& h) const
+	float D_GGX(const Vector3f& x, const Vector3f& n) const
 	{
 		float alpha2 = alpha * alpha;
-		float cosThetaH2 = pow(dot(n, h), 2);
+		float cosThetaH2 = pow(dot(n, x), 2);
 		float cosThetaH4 = cosThetaH2 * cosThetaH2;
 		float tanThetaH2 = 1 / cosThetaH2 - 1;
 
-		return alpha2 * heavisideStep(dot(n, h)) / (M_PI * cosThetaH4 * pow(alpha2 + tanThetaH2, 2));
+		return alpha2 * heavisideStep(dot(n, x)) / (M_PI * cosThetaH4 * pow(alpha2 + tanThetaH2, 2));
+	}
+
+	float D_V_GGX(const Vector3f& x, const Vector3f& n, const Vector3f& eye) const
+	{
+		return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(n, x) / dot(eye, n);
 	}
 
 	float G1_FullSphere(const Vector3f& v, const Vector3f& n, const Vector3f& h) const
@@ -76,17 +82,39 @@ public:
 		return G1_local * G1_dist;
 	}
 
-	float G1_Smith(const Vector3f& v, const Vector3f& n, const Vector3f& h) const
+	float G1_Smith(const Vector3f& x, const Vector3f& n) const
 	{
 		float alpha2 = alpha * alpha;
-		float cosThetaV2 = pow(dot(n, v), 2);
-		float tanThetaV2 = 1 / cosThetaV2 - 1;
-		return heavisideStep(dot(v, h) / dot(v, n)) * 2 / (1 + safeSqrt(1 + alpha2 * tanThetaV2));
+		float cosThetaV2 = pow(dot(n, x), 2);
+		float lambda = (-1 + safeSqrt(1 + alpha2 / cosThetaV2)) / 2;
+		return 1 / (1 + lambda);
 	}
 
-	float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n, const Vector3f& h) const
+	float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n) const
 	{
-		return G1_Smith(wi, n, h) * G1_Smith(wo, n, h);
+		return G1_Smith(wi, n) * G1_Smith(wo, n);
+	}
+
+	Vector3f sampleGGXVNDF(const Vector3f& eye, const Vector3f& n, Sampler& sampler) const
+	{
+		auto basis = BasisVectors(n);
+		Vector3f Ve = basis.fromGlobal(eye);
+		Vector3f Vh = Vector3f(Ve.x, alpha * Ve.y, alpha * Ve.z).normalize();
+		float lensq = Vh.y * Vh.y + Vh.z * Vh.z;
+		Vector3f T1 = lensq > 0 ? Vector3f(0, Vh.z, -Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
+		Vector3f T2 = cross(Vh, T1);
+		float U1 = sampler.randf();
+		float U2 = sampler.randf();
+		float r = sqrt(U1);
+		float phi = 2.0 * M_PI * U2;
+		float t1 = r * cos(phi);
+		float t2 = r * sin(phi);
+		float s = 0.5 * (1.0 + Vh.x);
+		t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
+		Vector3f Nh = t1 * T1 + t2 * T2 + safeSqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
+		Vector3f Ne = normalize(Vector3f(std::max<float>(0.0, Nh.x), alpha * Nh.y, alpha * Nh.z));
+		Vector3f h = basis.toGlobal(Ne);
+		return h;
 	}
 
 	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
@@ -97,7 +125,7 @@ public:
 		// BDPT も実装してない
 		// heig-uncorrelated のみ
 
-		const int sampleNum = 16;
+		const int sampleNum = 4;
 		Vector3f bsdfCos(0);
 
 		auto s = [&](int i, const Vector3f& d_i, const Vector3f& h_iminus1, const Vector3f& h_i, bool exit) {
@@ -139,7 +167,7 @@ public:
 					}
 					weight /= CONTINUE_PROBABILITY;
 				}
-				//if(i >= 3)
+				//if(i >= 5)
 				//{
 				//	break;
 				//}
@@ -152,34 +180,41 @@ public:
 					float s_iplus1 = s(i + 1, d_iplus1, h_i, Vector3f(0), true);
 
 					Vector3f Fr = F_Reflection(-d_i, h_i);
-					float D = D_GGX(n, h_i);
-					if (abs(dot(-d_i, n)) < 0.00001f) { continue; }
+					float D = D_GGX(h_i, n);
+					//if (abs(dot(-d_i, n)) < 0.00001f) { continue; }
 					Vector3f v_i = Fr * D / abs(4 * dot(-d_i, n));
+					v_i = Vector3f(1) / M_PI * clampPositive(dot(n, d_iplus1)); //*******************************************************
 
 					bsdfCos += weight * (s_i * v_i * s_iplus1) / pdf;
 					//printf("%f %f %f %f %f\n", weight.x, s_i, v_i.x, s_iplus1, pdf);
 				}
 
-				// GGX からマイクロファセットをサンプル
-				float r0 = sampler.randf();
-				float r1 = sampler.randf();
-				float theta = atanf(alpha * safeSqrt(r0) / safeSqrt(1 - r0));
-				float phi = 2 * M_PI * r1;
-				const auto h_i = BasisVectors(n).toGlobal(anglesToVector(Vector2f(theta, phi)));
+				//const auto h_i = sampleGGXVNDF(-d_i, n, sampler);
+				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
+				//pdf *= D_V_GGX(h_i, n, -d_i) / (4 * dot(-d_i, h_i));
+				//auto h_i = sampleGGXVNDF(wo, n, sampler);
+				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
+				//pdf *= D_V_GGX(h_i, n, wo) / (4 * dot(wo, h_i));
 
-				Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
 
-				float D = D_GGX(n, h_i);
-				float G = G_Smith(wi, wo, n, h_i);
-				pdf *= fabs(dot(wo, h_i) * G  / (dot(wo, n) * dot(h_i, n)));
-				if (pdf == 0) { break; }
+				Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
+				pdf *= dot(d_iplus1, n) / M_PI;
+				Vector3f h_i = (-d_i + d_iplus1).normalize();
+
+				//Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
+				//pdf *= dot(d_iplus1, n) / M_PI;
+				//Vector3f h_i = (-d_i + d_iplus1).normalize();
+
+				//if (pdf == 0) { break; }
 
 				float s_i = s(i, d_i, h_iminus1, h_i, false);
 
-				if (abs(dot(-d_i, n)) < 0.00001f) { break; }
+				//if (abs(dot(-d_i, n)) < 0.00001f) { break; }
 				Vector3f Fr = F_Reflection(-d_i, h_i);
+				float D = D_GGX(h_i, n);
 				Vector3f v_i = Fr * D / abs(4 * dot(-d_i, n));
-
+				//v_i = Vector3f(1)*M_PI * clampPositive(dot(h_i, d_iplus1)); //*******************************************************
+				
 				weight *= s_i * v_i;
 				if (weight == Vector3f(0)) { break; }
 
@@ -196,19 +231,15 @@ public:
 		const auto& wo = isect.wo;
 		const auto& n = isect.shading.n;
 
-		// GGX からマイクロファセットをサンプル
-		float r0 = sampler.randf();
-		float r1 = sampler.randf();
-		float theta = atanf(alpha * safeSqrt(r0) / safeSqrt(1 - r0));
-		float phi = 2 * M_PI * r1;
-		const auto h = BasisVectors(n).toGlobal(anglesToVector(Vector2f(theta, phi)));
 
-		*wi = 2 * dot(wo, h) * h - wo;
+		//auto h = sampleGGXVNDF(wo, n, sampler);
+		//*wi = 2 * dot(wo, h) * h - wo;
+		//*pdf = D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 
-		float G = G_Smith(*wi, wo, n, h);
-		*pdf = dot(wo, h) * G / (dot(wo, n) * dot(h, n));
+		*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
+		*pdf = dot(*wi, n) / M_PI;
 
-		return bsdfCos(isect, sampler, *wi);
+		return bsdfCos(isect, sampler, *wi) / *pdf;
 	}
 
 	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
@@ -216,8 +247,8 @@ public:
 		const auto& n = isect.shading.n;
 		const auto h = (wi + wo).normalize();
 
-		float G = G_Smith(wi, wo, n, h);
-		return fabs(dot(wo, h) * G / (dot(wo, n) * dot(h, n)));
+		return dot(wi, n) / M_PI;
+		//return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 	}
 
 	Vector3f getAlbedo() const override {
@@ -366,9 +397,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 4);
 	auto cube = std::make_shared<xitils::Cube>();
 	auto plane = std::make_shared<xitils::Plane>();
-	scene->addObject(
-		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
-	);
+	//scene->addObject(
+	//	std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
+	//);
 	//scene->addObject(
 	//	std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
 	//);
@@ -384,7 +415,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->addObject(
 	//	std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	//);
-	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
+	//scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
+	scene->skySphere = std::make_shared<SkySphereUniform>(Vector3f(0.5f));
 
 	// teapot 作成
 	const int subdivision = 10;
@@ -393,15 +425,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	teapotMesh->setGeometry(*teapotMeshData);
-	auto teapotMaterial = std::make_shared<Metal>(1.0f, Vector3f(0.955f, 0.638f, 0.652f));
+	auto teapotMaterial = std::make_shared<Metal>(0.8f, Vector3f(0.955f, 0.638f, 0.652f));
 	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
 
 	scene->buildAccelerationStructure();
 
-	pathTracer = std::make_shared<StandardPathTracer>();
-	//pathTracer = std::make_shared<NaivePathTracer>();
+
+	// ****************************************************************************************************************************************
+	//pathTracer = std::make_shared<StandardPathTracer>();
+	pathTracer = std::make_shared<NaivePathTracer>();
 
 	auto time_end = std::chrono::system_clock::now();
 
