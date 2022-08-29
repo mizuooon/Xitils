@@ -287,7 +287,7 @@ namespace xitils {
 
 		Vector3f F_Reflection(const Vector3f& eye, const Vector3f& h) const
 		{
-		return Vector3f(1);
+		//return Vector3f(1);
 			return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(eye, h), 5.0f);
 		}
 
@@ -321,22 +321,24 @@ namespace xitils {
 
 		Vector3f sampleGGXVNDF(const Vector3f& eye, const Vector3f& n,  Sampler& sampler) const
 		{
+			// Sampling the GGX Distribution of Visible Normals [Heitz 2018]
+
 			auto basis = BasisVectors(n);
 			Vector3f Ve = basis.fromGlobal(eye);
 			Vector3f Vh = Vector3f(Ve.x, alpha * Ve.y, alpha * Ve.z).normalize();
 			float lensq = Vh.y * Vh.y + Vh.z * Vh.z;
-			Vector3f T1 = lensq > 0 ? Vector3f(0, Vh.z, -Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
+			Vector3f T1 = lensq > 0 ? Vector3f(0, -Vh.z, Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
 			Vector3f T2 = cross(Vh, T1);
 			float U1 = sampler.randf();
 			float U2 = sampler.randf();
 			float r = sqrt(U1);
-			float phi = 2.0 * M_PI * U2;
+			float phi = 2.0f * M_PI * U2;
 			float t1 = r * cos(phi);
 			float t2 = r * sin(phi);
-			float s = 0.5 * (1.0 + Vh.x);
-			t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
-			Vector3f Nh = t1 * T1 + t2 * T2 + safeSqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
-			Vector3f Ne = normalize(Vector3f(std::max<float>(0.0, Nh.x), alpha * Nh.y, alpha * Nh.z));
+			float s = 0.5f * (1.0f + Vh.x);
+			t2 = (1.0f - s) * sqrt(1.0f - t1 * t1) + s * t2;
+			Vector3f Nh = t1 * T1 + t2 * T2 + safeSqrt(1.0f - t1 * t1 - t2 * t2) * Vh;
+			Vector3f Ne = Vector3f(clampPositive(Nh.x), alpha * Nh.y, alpha * Nh.z).normalize();
 			Vector3f h = basis.toGlobal(Ne);
 			return h;
 		}

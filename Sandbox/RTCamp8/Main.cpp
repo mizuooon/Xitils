@@ -47,8 +47,8 @@ public:
 
 	Vector3f F_Reflection(const Vector3f& eye, const Vector3f& h) const
 	{
-		return Vector3f(1);
-		//return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(eye, h), 5.0f);
+		//return Vector3f(1);
+		return f0 + (Vector3f(1.0f) - f0) * pow(1 - dot(eye, h), 5.0f);
 	}
 
 	float D_GGX(const Vector3f& x, const Vector3f& n) const
@@ -97,11 +97,13 @@ public:
 
 	Vector3f sampleGGXVNDF(const Vector3f& eye, const Vector3f& n, Sampler& sampler) const
 	{
+		// Sampling the GGX Distribution of Visible Normals [Heitz 2018]
+
 		auto basis = BasisVectors(n);
 		Vector3f Ve = basis.fromGlobal(eye);
 		Vector3f Vh = Vector3f(Ve.x, alpha * Ve.y, alpha * Ve.z).normalize();
 		float lensq = Vh.y * Vh.y + Vh.z * Vh.z;
-		Vector3f T1 = lensq > 0 ? Vector3f(0, Vh.z, -Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
+		Vector3f T1 = lensq > 0 ? Vector3f(0, -Vh.z, Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
 		Vector3f T2 = cross(Vh, T1);
 		float U1 = sampler.randf();
 		float U2 = sampler.randf();
@@ -183,23 +185,22 @@ public:
 					float D = D_GGX(h_i, n);
 					//if (abs(dot(-d_i, n)) < 0.00001f) { continue; }
 					Vector3f v_i = Fr * D / abs(4 * dot(-d_i, n));
-					v_i = Vector3f(1) / M_PI * clampPositive(dot(n, d_iplus1)); //*******************************************************
 
 					bsdfCos += weight * (s_i * v_i * s_iplus1) / pdf;
 					//printf("%f %f %f %f %f\n", weight.x, s_i, v_i.x, s_iplus1, pdf);
 				}
 
-				//const auto h_i = sampleGGXVNDF(-d_i, n, sampler);
-				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
-				//pdf *= D_V_GGX(h_i, n, -d_i) / (4 * dot(-d_i, h_i));
+				const auto h_i = sampleGGXVNDF(-d_i, n, sampler);
+				Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
+				pdf *= D_V_GGX(h_i, n, -d_i) / (4 * dot(-d_i, h_i));
 				//auto h_i = sampleGGXVNDF(wo, n, sampler);
 				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
 				//pdf *= D_V_GGX(h_i, n, wo) / (4 * dot(wo, h_i));
 
 
-				Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
-				pdf *= dot(d_iplus1, n) / M_PI;
-				Vector3f h_i = (-d_i + d_iplus1).normalize();
+				//Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
+				//pdf *= dot(d_iplus1, n) / M_PI;
+				//Vector3f h_i = (-d_i + d_iplus1).normalize();
 
 				//Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
 				//pdf *= dot(d_iplus1, n) / M_PI;
@@ -213,7 +214,6 @@ public:
 				Vector3f Fr = F_Reflection(-d_i, h_i);
 				float D = D_GGX(h_i, n);
 				Vector3f v_i = Fr * D / abs(4 * dot(-d_i, n));
-				//v_i = Vector3f(1)*M_PI * clampPositive(dot(h_i, d_iplus1)); //*******************************************************
 				
 				weight *= s_i * v_i;
 				if (weight == Vector3f(0)) { break; }
@@ -232,12 +232,12 @@ public:
 		const auto& n = isect.shading.n;
 
 
-		//auto h = sampleGGXVNDF(wo, n, sampler);
-		//*wi = 2 * dot(wo, h) * h - wo;
-		//*pdf = D_V_GGX(h, n, wo) / (4 * dot(wo, h));
+		auto h = sampleGGXVNDF(wo, n, sampler);
+		*wi = 2 * dot(wo, h) * h - wo;
 
-		*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
-		*pdf = dot(*wi, n) / M_PI;
+		//*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
+
+		*pdf = getPDF(isect, *wi);
 
 		return bsdfCos(isect, sampler, *wi) / *pdf;
 	}
@@ -247,8 +247,8 @@ public:
 		const auto& n = isect.shading.n;
 		const auto h = (wi + wo).normalize();
 
-		return dot(wi, n) / M_PI;
-		//return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
+		//return dot(wi, n) / M_PI;
+		return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 	}
 
 	Vector3f getAlbedo() const override {
@@ -397,9 +397,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 4);
 	auto cube = std::make_shared<xitils::Cube>();
 	auto plane = std::make_shared<xitils::Plane>();
-	//scene->addObject(
-	//	std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
-	//);
+	scene->addObject(
+		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
+	);
 	//scene->addObject(
 	//	std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
 	//);
@@ -415,8 +415,8 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->addObject(
 	//	std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	//);
-	//scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
-	scene->skySphere = std::make_shared<SkySphereUniform>(Vector3f(0.5f));
+	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
+	//scene->skySphere = std::make_shared<SkySphereUniform>(Vector3f(0.5f));
 
 	// teapot 作成
 	const int subdivision = 10;
@@ -425,9 +425,17 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	teapotMesh->setGeometry(*teapotMeshData);
-	auto teapotMaterial = std::make_shared<Metal>(0.8f, Vector3f(0.955f, 0.638f, 0.652f));
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial,
+	auto teapotMaterial1 = std::make_shared<MetalWithMultipleScattering>(0.1f, Vector3f(0.955f, 0.638f, 0.652f));
+	auto teapotMaterial2 = std::make_shared<MetalWithMultipleScattering>(0.5f, Vector3f(0.955f, 0.638f, 0.652f));
+	auto teapotMaterial3 = std::make_shared<MetalWithMultipleScattering>(1.0f, Vector3f(0.955f, 0.638f, 0.652f));
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial1,
+		transformTRS(Vector3f(-2.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial2,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
+	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial3,
+		transformTRS(Vector3f(2.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
 
 	scene->buildAccelerationStructure();
@@ -519,7 +527,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 		auto f = [](float v)
 		{
-			v = powf(v, 1.0f / 2.2f);
+			v = powf(v * 0.3f, 1.0f / 2.2f);
 			return xitils::clamp((int)(v * 255), 0, 255);
 		};
 
