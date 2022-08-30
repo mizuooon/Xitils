@@ -38,14 +38,14 @@ const int ShellMappingLayerNum = 16;
 
 //----------------------------------------------------------------------------------------------------------
 
-// �X�P�[�����O�֐��̎��O�v�Z�Ɏg�p���邽�߂́A�f�B�X�v���[�X�����g�}�b�s���O��K�p�������ʃ��b�V��
+// スケーリング関数の事前計算に使用するための、ディスプレースメントマッピングを適用した平面メッシュ
 class PlaneDisplaceMapped : public TriangleMesh {
 public:
 
 	PlaneDisplaceMapped(std::shared_ptr<const Texture> displacement, float displacementScale) {
 
-		// xy �� uv �̍��W����v���āA���� z ����������悤�ɕ��ʂ𐶐�
-		// (0,0) - (1,1) �̗̈�𒆐S�Ƃ��āAuv �������ꂼ�� 3 ���[�v�������Ă���
+		// xy と uv の座標が一致して、かつ z 方向を向くように平面を生成
+		// (0,0) - (1,1) の領域を中心として、uv 方向それぞれ 3 ループずつさせている
 
 		std::array<Vector3f, 4> positions;
 		for (int i = 0; i < 4; ++i) {
@@ -88,11 +88,11 @@ public:
 
 //----------------------------------------------------------------------------------------------------------
 
-// 2 �����̕����� 1 �����̃C���f�b�N�X�ɑΉ��t���邽�߂̃N���X
+// 2 次元の方向を 1 次元のインデックスに対応付けるためのクラス
 class AngularParam {
 public:
 
-	// theta �͋Ɋp�Aphi �͕��ʊp
+	// theta は極角、phi は方位角
 	AngularParam(int resolutionTheta, int resolutionPhi):
 		resolutionTheta(resolutionTheta),
 		resolutionPhi(resolutionPhi)
@@ -126,7 +126,7 @@ private:
 
 		float theta = asinf(n.z); // [0, PI/2]
 		float phi = atan2(n.y, n.x); // [-PI, PI];
-		if (phi < 0.0f) { phi += 2 * M_PI; } // [0, 2PI] -- x �������� phi=0
+		if (phi < 0.0f) { phi += 2 * M_PI; } // [0, 2PI] -- x 軸方向が phi=0
 
 		return Vector2f(theta, phi);
 	}
@@ -198,7 +198,7 @@ private:
 	}
 };
 
-// 2 �����̃e�N�X�`�����W�n��Ԃ� 1 �����̃C���f�b�N�X�ɑΉ��t���邽�߂̃N���X
+// 2 次元のテクスチャ座標系空間を 1 次元のインデックスに対応付けるためのクラス
 class SpatialParam {
 public:
 
@@ -252,11 +252,11 @@ private:
 	int resolutionV;
 };
 
-// 2 �� 2 �������� wi, wo ������Ƃ��� 4 �����֐���e�[�u��������N���X
+// 2 個の 2 次元方向 wi, wo を引数とする 4 次元関数をテーブル化するクラス
 class AngularTable {
 public:
 
-	// theta �͋Ɋp�Aphi �͕��ʊp
+	// theta は極角、phi は方位角
 	AngularTable(int resolutionTheta, int resolutionPhi):
 		paramWi(resolutionTheta, resolutionPhi),
 		paramWo(resolutionTheta, resolutionPhi)
@@ -266,15 +266,15 @@ public:
 
 	Vector3f& operator[](int i) { return data[i]; }
 
-	// �e�[�u���� bin �̎Q�Ƃ𓾂�
-	// �������ݗp
+	// テーブルの bin の参照を得る
+	// 書き込み用
 	Vector3f& at(const Vector3f& wi, const Vector3f& wo) {
 		return data[vectorToIndex(wi, wo)];
 	}
 
-	// �e�[�u����̒l�����Ԃ���ĐV�����l�𓾂�
-	// (������ł́A�m���I�� bin ��ǂ�ł��邾��)
-	// �ǂݏo���p
+	// テーブル上の値から補間をして新しく値を得る
+	// (実装上では、確率的に bin を読んでいるだけ)
+	// 読み出し用
 	Vector3f eval(const Vector3f& wi, const Vector3f& wo, Sampler& sampler) const {
 
 		std::vector<int> indicesWi(4);
@@ -310,7 +310,7 @@ private:
 	AngularParam paramWi, paramWo;
 };
 
-// 1 �� 2 �����e�N�X�`�����W�n���W p ������Ƃ��� 2 �����֐���e�[�u��������N���X
+// 1 個の 2 次元テクスチャ座標系座標 p を引数とする 2 次元関数をテーブル化するクラス
 class SpatialTable {
 public:
 
@@ -322,15 +322,15 @@ public:
 
 	Vector3f& operator[](int i) { return data[i]; }
 
-	// �e�[�u���� bin �̎Q�Ƃ𓾂�
-	// �������ݗp
+	// テーブルの bin の参照を得る
+	// 書き込み用
 	Vector3f& at(const Vector2f& p) {
 		return data[positionToIndex(p)];
 	}
 
-	// �e�[�u����̒l�����Ԃ�����l�𓾂�
-	// (������ł́A�m���I�� bin ��ǂ�ł��邾��)
-	// �ǂݏo���p
+	// テーブル上の値から補間をした値を得る
+	// (実装上では、確率的に bin を読んでいるだけ)
+	// 読み出し用
 	Vector3f eval(const Vector2f& p, Sampler &sampler) const {
 		std::vector<int> indices(4);
 		std::vector<float> weights(4);
@@ -357,7 +357,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------
 
-// 2 �����̃e�N�X�`�����W�n��Ԃŕω����� NDF ��\������N���X
+// 2 次元のテクスチャ座標系空間で変化する NDF を表現するクラス
 class SVNDF {
 public:
 	int resolutionU, resolutionV;
@@ -387,7 +387,7 @@ public:
 	}
 };
 
-// �f�B�X�v���[�X�����g�}�b�s���O��_�E���T���v�����O���A��𑜓x�e�N�X�`���� SVNDF �𐶐�����
+// ディスプレースメントマッピングをダウンサンプリングし、低解像度テクスチャと SVNDF を生成する
 std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> texOrig, float displacementScale, std::shared_ptr<SVNDF> svndf) {
 
 	std::vector<std::shared_ptr<Sampler>> samplers(omp_get_max_threads());
@@ -405,7 +405,7 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 	svndf->vmfs.clear();
 	svndf->vmfs.resize(texLow->getWidth() * texLow->getHeight());
 
-	// texLow �̏����l�͕��ʂ� texOrig ��_�E���T���v�����O�����l
+	// texLow の初期値は普通に texOrig をダウンサンプリングした値
 
 	std::vector<Vector2f> ave_slope_orig(texLow->getWidth() * texLow->getHeight());
 #pragma omp parallel for schedule(dynamic, 1)
@@ -463,12 +463,12 @@ std::shared_ptr<Texture> downsampleDisplacementTexture(std::shared_ptr<Texture> 
 		return (ave_slope - ave_slope_orig[py * texLow->getWidth() + px]).lengthSq() - w * powf(dhdu2 + dhdv2, 2.0f);
 	};
 
-	// TODO: �_�E���T���v�����O�̐��K���������
+	// TODO: ダウンサンプリングの正規化項入れる
 
 	return texLow;
 }
 
-// SVNDF �ƃx�[�X BRDF �̏�ݍ��݂�s�����}�e���A���B�V���h�[�C���O�E�}�X�L���O���ʂ�l�����Ȃ��B
+// SVNDF とベース BRDF の畳み込みを行ったマテリアル。シャドーイング・マスキング効果を考慮しない。
 class MultiLobeSVBRDF : public Material {
 public:
 	std::shared_ptr<Material> baseMaterial;
@@ -515,7 +515,7 @@ public:
 
 //----------------------------------------------------------------------------------------------------------
 
-// �X�P�[�����O�֐��ŃV���h�[�C���O�E�}�X�L���O���ʂ�⏞����}�e���A��
+// スケーリング関数でシャドーイング・マスキング効果を補償するマテリアル
 class PrefilteredDisplaceMapping : public Material {
 public:
 
@@ -701,13 +701,13 @@ private:
 	}
 
 	Vector3f estimateEffectiveBRDFLow(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneLow, Sampler& sampler) const {
-		// IR �͍l�����Ȃ�
+		// IR は考慮しない
 
 		Vector3f res;
 		const Vector3f wg(0, 0, 1);
 		Bounds2f patch = getPatch(texelPos);
 
-		//const int Sample = 100; // ����]������H
+		//const int Sample = 100; // 何回評価する？
 		const int Sample = 100;
 		const float RayOffset = 1e-6;
 		for (int s = 0; s < Sample; ++s) {
@@ -716,7 +716,7 @@ private:
 
 			Vector3f contrib(1.0f);
 
-			// patch ��̈ʒu��T���v��
+			// patch 内の位置をサンプル
 #ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
@@ -801,7 +801,7 @@ private:
 	}
 
 	Vector3f estimateEffectiveBRDFIROrig(const Vector2f& texelPos, const Vector3f& wi, const Vector3f& wo, const Scene& sceneOrig, Sampler& sampler) const {
-		// IR ��l������
+		// IR を考慮する
 
 		Vector3f res;
 		const Vector3f wg(0, 0, 1);
@@ -817,9 +817,9 @@ private:
 			Vector3f weight(1.0f);
 			int pathLength = 1;
 
-			// patch ��̈ʒu��T���v��
+			// patch 内の位置をサンプル
 #ifndef SAMPLE_P_WITH_EXPLICIT_RAYCAST
-			// texelPos ��܂ރp�b�`��Ŏn�_�ƂȂ�ʒu��T���v��
+			// texelPos を含むパッチ内で始点となる位置をサンプル
 			Vector2f p(sampler.randf(patch.min.u, patch.max.u), sampler.randf(patch.min.v, patch.max.v));
 			float prob_p = 1.0f / patch.area();
 			float kernel_p = 1.0f / patch.area();

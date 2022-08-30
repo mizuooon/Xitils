@@ -9,6 +9,7 @@
 #include <Xitils/TriangleMesh.h>
 #include <Xitils/RenderTarget.h>
 #include <CinderImGui.h>
+#include <cinder/ObjLoader.h>
 
 #include <OpenImageDenoise/oidn.hpp>
 
@@ -20,8 +21,8 @@ using namespace ci;
 using namespace ci::app;
 using namespace ci::geom;
 
-#define SCENE_DURATION 5.0f
-#define FRAME_PER_SECOND 10
+#define SCENE_DURATION 6.0f
+#define FRAME_PER_SECOND 5
 #define TOTAL_FRAME_COUNT (SCENE_DURATION * FRAME_PER_SECOND)
 
 #define ENABLE_DENOISE true
@@ -29,19 +30,27 @@ using namespace ci::geom;
 #define ENABLE_SAVE_IMAGE true
 
 #define IMAGE_WIDTH 1920/2
-#define IMAGE_HEIGHT 1920/2
+#define IMAGE_HEIGHT 1080/2
 
+static float g_time = 0.0f;
 
+// Position-free Multiple-bounce Computations for Smith Microfacet BSDFs [Wang et al. 2022]
 class MetalWithMultipleScattering : public Material
 {
 public:
-	float alpha;
+	float alpha() const
+	{
+		float roughness = lerp(0.25f, 1.0f, clamp01((g_time - 2.5f) / 2.0f));
+		return roughness * roughness;
+	}
 
 	Vector3f f0;
+	bool ssOnly = false;
 
-	MetalWithMultipleScattering(float roughness, const Vector3f& f0) :
-		alpha(roughness* roughness),
-		f0(f0)
+	MetalWithMultipleScattering(float roughness, const Vector3f& f0, bool ssOnly = false) :
+		//alpha(roughness* roughness),
+		f0(f0),
+		ssOnly(ssOnly)
 	{
 	}
 
@@ -53,46 +62,55 @@ public:
 
 	float D_GGX(const Vector3f& x, const Vector3f& n) const
 	{
-		float alpha2 = alpha * alpha;
-		float cosThetaH2 = pow(dot(n, x), 2);
-		float cosThetaH4 = cosThetaH2 * cosThetaH2;
-		float tanThetaH2 = 1 / cosThetaH2 - 1;
+		float alpha2 = alpha() * alpha();
+		float cosThetaX = dot(n, x);
+		float cosThetaX2 = cosThetaX * cosThetaX;
+		float cosThetaX4 = cosThetaX2 * cosThetaX2;
+		float tanThetaX2 = 1 / cosThetaX2 - 1;
 
-		return alpha2 * heavisideStep(dot(n, x)) / (M_PI * cosThetaH4 * pow(alpha2 + tanThetaH2, 2));
+		//return alpha2 * heavisideStep(dot(n, x)) / (M_PI * cosThetaH4 * pow(alpha2 + tanThetaH2, 2));
+
+		float sinThetaX2 = 1 - cosThetaX2;
+		return alpha2 / (M_PI * pow(sinThetaX2 + alpha2 * cosThetaX2, 2));
 	}
 
 	float D_V_GGX(const Vector3f& x, const Vector3f& n, const Vector3f& eye) const
 	{
-		return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(n, x) / dot(eye, n);
+		return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(x, n) / dot(eye, n);
 	}
 
-	float G1_FullSphere(const Vector3f& v, const Vector3f& n, const Vector3f& h) const
+	float lambda(const Vector3f& x, const Vector3f& n) const
 	{
-		float alpha2 = alpha * alpha;
-		auto lambda = [&](const Vector3f& v)
-		{
-			float c2 = pow(dot(v, n), 2);
-			float t2 = 1/c2 - 1;
-			float a2 = 1/(t2 * alpha2);
-			return (-1 + safeSqrt(1 + 1 / a2)) / 2;
-		};
+		float alpha2 = alpha() * alpha();
+		float cosThetaX = dot(n, x);
+		float cosThetaX2 = cosThetaX * cosThetaX;
+		float tanThetaX2 = 1 / cosThetaX2 - 1;
+		return (-1 + sign(cosThetaX) * safeSqrt(1 + alpha2 * tanThetaX2)) / 2;
 
-		float G1_local = heavisideStep(dot(v, h));
-		float G1_dist = abs(1 / (1 + lambda(v)));
+
+		//if (cosThetaX > 0.9999999f) { return 0; }
+		//if (cosThetaX < -0.9999999f) { return -1.0f; }
+
+		//float theta = acosf(cosThetaX);
+		//float a = 1.0f / tanf(theta) / alpha;
+
+		//return 0.5f * (-1.0f + sign(a) * safeSqrt(1 + 1 / (a * a)));
+	}
+
+	float G1_FullSphere(const Vector3f& x, const Vector3f& n, const Vector3f& h) const
+	{
+		float G1_local = heavisideStep(dot(x, h));
+		//if (G1_local == 0) { return 0; }
+
+		//if (lambda(x, n) < -0.5f) { return 0; }
+		float G1_dist = (1 / (1 + lambda(x, n))) * sign(dot(x,n));
+
 		return G1_local * G1_dist;
 	}
 
 	float G1_Smith(const Vector3f& x, const Vector3f& n) const
 	{
-		float alpha2 = alpha * alpha;
-		float cosThetaV2 = pow(dot(n, x), 2);
-		float lambda = (-1 + safeSqrt(1 + alpha2 / cosThetaV2)) / 2;
-		return 1 / (1 + lambda);
-	}
-
-	float G_Smith(const Vector3f& wi, const Vector3f& wo, const Vector3f& n) const
-	{
-		return G1_Smith(wi, n) * G1_Smith(wo, n);
+		return 1 / (1 + lambda(x, n)) * sign(dot(x, n));
 	}
 
 	Vector3f sampleGGXVNDF(const Vector3f& eye, const Vector3f& n, Sampler& sampler) const
@@ -101,7 +119,7 @@ public:
 
 		auto basis = BasisVectors(n);
 		Vector3f Ve = basis.fromGlobal(eye);
-		Vector3f Vh = Vector3f(Ve.x, alpha * Ve.y, alpha * Ve.z).normalize();
+		Vector3f Vh = Vector3f(Ve.x, alpha() * Ve.y, alpha() * Ve.z).normalize();
 		float lensq = Vh.y * Vh.y + Vh.z * Vh.z;
 		Vector3f T1 = lensq > 0 ? Vector3f(0, -Vh.z, Vh.y) / safeSqrt(lensq) : Vector3f(0, 0, 1);
 		Vector3f T2 = cross(Vh, T1);
@@ -114,7 +132,7 @@ public:
 		float s = 0.5 * (1.0 + Vh.x);
 		t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
 		Vector3f Nh = t1 * T1 + t2 * T2 + safeSqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
-		Vector3f Ne = normalize(Vector3f(std::max<float>(0.0, Nh.x), alpha * Nh.y, alpha * Nh.z));
+		Vector3f Ne = normalize(Vector3f(std::max<float>(0.0, Nh.x), alpha() * Nh.y, alpha() * Nh.z));
 		Vector3f h = basis.toGlobal(Ne);
 		return h;
 	}
@@ -169,10 +187,6 @@ public:
 					}
 					weight /= CONTINUE_PROBABILITY;
 				}
-				//if(i >= 5)
-				//{
-				//	break;
-				//}
 
 				{
 					// NEE
@@ -190,16 +204,26 @@ public:
 					//printf("%f %f %f %f %f\n", weight.x, s_i, v_i.x, s_iplus1, pdf);
 				}
 
+				if(ssOnly)
+				{
+					break;
+				}
+
 				const auto h_i = sampleGGXVNDF(-d_i, n, sampler);
 				Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
 				pdf *= D_V_GGX(h_i, n, -d_i) / (4 * dot(-d_i, h_i));
+
+				//const auto h_i = sampleGGXVNDF(n, n, sampler);
+				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
+				//pdf *= D_V_GGX(h_i, n, n) / (4 * dot(n, h_i));
+
 				//auto h_i = sampleGGXVNDF(wo, n, sampler);
 				//Vector3f d_iplus1 = 2 * dot(-d_i, h_i) * h_i - (-d_i);
 				//pdf *= D_V_GGX(h_i, n, wo) / (4 * dot(wo, h_i));
 
 
-				//Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
-				//pdf *= dot(d_iplus1, n) / M_PI;
+				//Vector3f d_iplus1 = sampleVectorFromHemiSphere(n, sampler);
+				//pdf *= 1 / (2 * M_PI);
 				//Vector3f h_i = (-d_i + d_iplus1).normalize();
 
 				//Vector3f d_iplus1 = sampleVectorFromCosinedHemiSphere(n, sampler);
@@ -216,7 +240,7 @@ public:
 				Vector3f v_i = Fr * D / abs(4 * dot(-d_i, n));
 				
 				weight *= s_i * v_i;
-				if (weight == Vector3f(0)) { break; }
+				if (weight.lengthSq() <= 0.0000001f) { break; }
 
 				d_i = d_iplus1;
 				h_iminus1 = h_i;
@@ -251,12 +275,46 @@ public:
 		return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 	}
 
-	Vector3f getAlbedo() const override {
+	Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
 		return f0;
 	}
 
 };
 
+class ChekerDiffuse : public Material {
+public:
+	Vector3f albedo;
+
+	Vector3f getChecker(const SurfaceIntersection& isect) const
+	{
+		const auto& p = isect.p;
+		return (int)(floorf(p.x) + floorf(p.y) + floorf(p.z)) % 2 ==0 ? Vector3f(1.0f) : Vector3f(0.1f);
+	}
+
+	ChekerDiffuse(const Vector3f& albedo) :
+		albedo(albedo)
+	{}
+
+	Vector3f bsdfCos(const SurfaceIntersection& isect, Sampler& sampler, const Vector3f& wi) const override {
+		return albedo / M_PI * getChecker(isect) * clampPositive(dot(isect.shading.n, wi));
+	}
+
+	Vector3f evalAndSample(const SurfaceIntersection& isect, Sampler& sampler, Vector3f* wi, float* pdf) const override {
+		const auto& n = isect.shading.n;
+		*wi = sampleVectorFromCosinedHemiSphere(n, sampler);
+		*pdf = dot(*wi, n) / M_PI;
+		return albedo * getChecker(isect);
+	}
+
+	float getPDF(const SurfaceIntersection& isect, const Vector3f& wi) const override {
+		const auto& n = isect.shading.n;
+		return clampPositive(dot(wi, n)) / M_PI;
+	}
+
+	Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
+		return albedo * getChecker(isect);
+	}
+};
 
 
 
@@ -309,7 +367,7 @@ private:
 
 			if(auto image = pop())
 			{
-				std::string seq = std::to_string(sequentialNum);
+				std::string seq = std::to_string(sequentialNum + 1); // ファイル名は 1 始まり
 				while (seq.length() < 3) { seq = "0" + seq; }
 				writeImage(seq + ".png", *image);
 				++sequentialNum;
@@ -380,27 +438,33 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	scene = std::make_shared<Scene>();
 
 	auto camera = std::make_shared<PinholeCamera>(
-		translate(0, 2.0f, -5), 60 * ToRad, (float)ImageSize.y / ImageSize.x
+		translate(-5, 1.0f, -5), 60 * ToRad, (float)ImageSize.y / ImageSize.x
 		);
 	scene->camera = camera;
 	camera->addKeyFrame(
-		5.0f,
-		translate(0, 2.0f, -10),
-		30 * ToRad
-		);
+		2.0f,
+		translate(5, 1.0f, -5), 60 * ToRad);
+	//camera->addKeyFrame(
+	//	2.001f,
+	//	transformTRS(Vector3f(0, 4.0f, -6), Vector3f(30,0,0), Vector3f(1))
+	//	, 60 * ToRad);
+	camera->addKeyFrame(
+		2.001f,
+		transformTRS(Vector3f(-2, 4.5f, -6), Vector3f(35, 10, 0), Vector3f(1))
+		, 70 * ToRad);
+	camera->addKeyFrame(
+		SCENE_DURATION,
+		transformTRS(Vector3f(2, 4.5f, -5), Vector3f(35, -15, 0), Vector3f(1))
+		, 70 * ToRad);
 
 
 	// cornell box
-	auto diffuse_white = std::make_shared<Diffuse>(Vector3f(0.8f));
-	auto diffuse_red = std::make_shared<Diffuse>(Vector3f(0.8f, 0.1f, 0.1f));
-	auto diffuse_green = std::make_shared<Diffuse>(Vector3f(0.1f, 0.8f, 0.1f));
-	auto emission = std::make_shared<Emission>(Vector3f(1.0f, 1.0f, 0.95f) * 4);
+	auto diffuse_white = std::make_shared<ChekerDiffuse>(Vector3f(0.8f));
 	auto cube = std::make_shared<xitils::Cube>();
-	auto plane = std::make_shared<xitils::Plane>();
 	scene->addObject(
-		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,0,0), Vector3f(), Vector3f(4, 0.01f, 4)))
+		std::make_shared<Object>( cube, diffuse_white, transformTRS(Vector3f(0,-5.0f,1.5f), Vector3f(), Vector3f(8, 10.0f, 8)))
 	);
-	//scene->addObject(
+	////scene->addObject(
 	//	std::make_shared<Object>(cube, diffuse_green, transformTRS(Vector3f(2, 2, 0), Vector3f(), Vector3f(0.01f, 4, 4)))
 	//);
 	//scene->addObject(
@@ -425,18 +489,62 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto teapotMeshData = std::make_shared<TriMesh>(*teapot);
 	auto teapotMesh = std::make_shared<TriangleMesh>();
 	teapotMesh->setGeometry(*teapotMeshData);
-	auto teapotMaterial1 = std::make_shared<MetalWithMultipleScattering>(0.1f, Vector3f(0.955f, 0.638f, 0.652f));
-	auto teapotMaterial2 = std::make_shared<MetalWithMultipleScattering>(0.5f, Vector3f(0.955f, 0.638f, 0.652f));
-	auto teapotMaterial3 = std::make_shared<MetalWithMultipleScattering>(1.0f, Vector3f(0.955f, 0.638f, 0.652f));
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial1,
+
+	auto meshR = std::make_shared<TriangleMesh>();
+	auto meshT = std::make_shared<TriangleMesh>();
+	auto mesh8 = std::make_shared<TriangleMesh>();
+	meshR->setGeometry(*std::make_shared<TriMesh>(TriMesh(ObjLoader(loadFile("R.obj")))));
+	meshT->setGeometry(TriMesh(ObjLoader(loadFile("T.obj"))));
+	mesh8->setGeometry(TriMesh(ObjLoader(loadFile("8.obj"))));
+
+
+	auto goldSS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(1.022f, 0.782f, 0.344f),true);
+	auto silverSS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.972f, 0.960f, 0.915f), true);
+	auto copperSS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.955f, 0.638f, 0.652f), true);
+	auto ironSS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.562f, 0.565f, 0.578f), true);
+	auto goldMS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(1.022f, 0.782f, 0.344f));
+	auto silverMS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.972f, 0.960f, 0.915f));
+	auto copperMS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.955f, 0.638f, 0.652f));
+	auto ironMS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(0.562f, 0.565f, 0.578f));
+
+	scene->addObject(std::make_shared<Object>(meshR, goldSS,
+		transformTRS(Vector3f(-2.0f, 0, 3.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
+	scene->addObject(std::make_shared<Object>(meshT, silverSS,
+		transformTRS(Vector3f(0.0f, 0, 3.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
+	scene->addObject(std::make_shared<Object>(mesh8, copperSS,
+		transformTRS(Vector3f(2.0f, 0, 3.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+		));
+	scene->addObject(std::make_shared<Object>(teapotMesh, ironSS,
+		transformTRS(Vector3f(0.0f, 0, 4.5f), Vector3f(0, 0, 0), Vector3f(1.0f))
+		));
+	scene->addObject(std::make_shared<Object>(meshR, goldMS,
 		transformTRS(Vector3f(-2.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial2,
+	scene->addObject(std::make_shared<Object>(meshT, silverMS,
 		transformTRS(Vector3f(0.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
-	scene->addObject(std::make_shared<Object>(teapotMesh, teapotMaterial3,
+	scene->addObject(std::make_shared<Object>(mesh8, copperMS,
 		transformTRS(Vector3f(2.0f, 0, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
 		));
+	scene->addObject(std::make_shared<Object>(teapotMesh, ironMS,
+		transformTRS(Vector3f(0.0f, 0, -1.5f), Vector3f(0, 0, 0), Vector3f(1.0f))
+		));
+	//auto sphere = std::make_shared<cinder::geom::Sphere>();
+	//sphere->subdivisions(100);
+	//auto sphereMeshData = std::make_shared<TriMesh>(*sphere);
+	//auto sphereMesh = std::make_shared<TriangleMesh>();
+	//sphereMesh->setGeometry(*sphereMeshData);
+	//scene->addObject(std::make_shared<Object>(sphereMesh, teapotMaterial1,
+	//	transformTRS(Vector3f(-4.0f, 2, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
+	//scene->addObject(std::make_shared<Object>(sphereMesh, teapotMaterial2,
+	//	transformTRS(Vector3f(0.0f, 2, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
+	//scene->addObject(std::make_shared<Object>(sphereMesh, teapotMaterial3,
+	//	transformTRS(Vector3f(4.0f, 2, 0.0f), Vector3f(0, 0, 0), Vector3f(1.5f))
+	//	));
 
 	scene->buildAccelerationStructure();
 
@@ -448,7 +556,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto time_end = std::chrono::system_clock::now();
 
 	frameData->initElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - init_time_start).count();
-	frameData->triNum = teapotMeshData->getNumTriangles();
+	//frameData->triNum = teapotMeshData->getNumTriangles();
 
 
 	device = oidn::newDevice();
@@ -476,7 +584,9 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	int sample = 1;
 
 	auto renderTarget = std::make_shared<DenoisableRenderTarget>(ImageSize.x, ImageSize.y);
-	scene->camera->setCurrentTime((float)frameData.frameCount / FRAME_PER_SECOND);
+	float time = (float)frameData.frameCount / FRAME_PER_SECOND;
+	g_time = time;
+	scene->camera->setCurrentTime(time);
 	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
 		auto ray = scene->camera->generateRay(pFilm, sampler);
 

@@ -75,7 +75,7 @@ namespace xitils {
 				if (scene.intersect(currentRay, &isect)) {
 					if(pathLength == 1)
 					{
-						albedo += isect.object->material->getAlbedo();
+						albedo += isect.object->material->getAlbedo(isect);
 						normal += isect.n;
 					}
 
@@ -135,7 +135,7 @@ namespace xitils {
 					radiance += weight * scene.skySphere->getRadiance(currentRay.d);
 				}
 			}else{
-				albedo += isect.object->material->getAlbedo();
+				albedo += isect.object->material->getAlbedo(isect);
 				normal += isect.n;
 
 				++pathLength;

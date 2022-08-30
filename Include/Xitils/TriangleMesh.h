@@ -26,8 +26,9 @@ namespace xitils {
 				normals[i] = Vector3f(tmpMesh->getNormals()[i]);
 			}
 			texCoords.resize(tmpMesh->getNumVertices());
+			bool hasTexCoords = tmpMesh->hasTexCoords0();
 			for (int i = 0; i < texCoords.size(); ++i) {
-				texCoords[i] = Vector2f(tmpMesh->getTexCoords0<2>()[i]);
+				texCoords[i] = hasTexCoords ? Vector2f(tmpMesh->getTexCoords0<2>()[i]) : Vector2f(0);
 			}
 
 			tmpMesh->recalculateTangents();

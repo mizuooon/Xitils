@@ -84,6 +84,7 @@ namespace xitils {
 
 	template <typename T> T id(T x) { return x; }
 
+	float sign(float x) { return x >= 0 ? 1 : -1; }
 
 	float safeSqrt(float x) { return sqrtf(clampPositive(x)); }
 

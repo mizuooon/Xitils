@@ -41,7 +41,7 @@ namespace xitils {
 
 		// アルベドを返す
 		// デノイザ用
-		virtual Vector3f getAlbedo() const
+		virtual Vector3f getAlbedo(const SurfaceIntersection& isect) const
 		{
 			return Vector3f();
 		}
@@ -80,8 +80,8 @@ namespace xitils {
 			return clampPositive(dot(wi, n)) / M_PI;
 		}
 
-		Vector3f getAlbedo() const override {
-			return albedo;
+		Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
+			return texture == nullptr ? albedo : albedo * texture->rgb(isect.texCoord);;
 		}
 	};
 
@@ -126,7 +126,7 @@ namespace xitils {
 			return (sharpness + 1) / (2 * M_PI) * powf(clampPositive(dot((isect.wo + wi).normalize(), n)), sharpness);
 		}
 
-		Vector3f getAlbedo() const override {
+		Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
 			return albedo;
 		}
 	};
@@ -165,8 +165,8 @@ namespace xitils {
 			return (1.0f - highlightRate) * base->getPDF(isect, wi) + highlightRate * highlight->getPDF(isect, wi);
 		}
 		
-		Vector3f getAlbedo() const override {
-			return base->getAlbedo();
+		Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
+			return base->getAlbedo(isect);
 		}
 
 	private:
@@ -303,14 +303,15 @@ namespace xitils {
 
 		float D_V_GGX(const Vector3f& x, const Vector3f& n,  const Vector3f& eye) const
 		{
-			return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(n, x) / dot(eye, n);
+			return G1_Smith(eye, n) * clampPositive(dot(eye, x)) * D_GGX(x, n) / dot(eye, n);
 		}
 
 		float G1_Smith(const Vector3f& x, const Vector3f& n) const
 		{
 			float alpha2 = alpha * alpha;
-			float cosThetaV2 = pow(dot(n, x), 2);
-			float lambda = (-1 + safeSqrt(1 + alpha2 / cosThetaV2)) / 2;
+			float cosThetaX2 = pow(dot(n, x), 2);
+			float tanThetaX2 = 1 / cosThetaX2 - 1;
+			float lambda = (-1 + safeSqrt(1 + alpha2 * tanThetaX2)) / 2;
 			return 1 / (1 + lambda);
 		}
 
@@ -376,7 +377,7 @@ namespace xitils {
 			return D_V_GGX(h, n, wo) / (4 * dot(wo, h));
 		}
 
-		Vector3f getAlbedo() const override {
+		Vector3f getAlbedo(const SurfaceIntersection& isect) const override {
 			return f0;
 		}
 
