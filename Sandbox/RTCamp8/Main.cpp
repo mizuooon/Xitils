@@ -22,15 +22,17 @@ using namespace ci::app;
 using namespace ci::geom;
 
 #define SCENE_DURATION 6.0f
-#define FRAME_PER_SECOND 5
+#define FRAME_PER_SECOND 20
 #define TOTAL_FRAME_COUNT (SCENE_DURATION * FRAME_PER_SECOND)
 
 #define ENABLE_DENOISE true
-#define SHOW_WINDOW true
+#define SHOW_WINDOW false
 #define ENABLE_SAVE_IMAGE true
 
-#define IMAGE_WIDTH 1920/2
-#define IMAGE_HEIGHT 1080/2
+#define IMAGE_WIDTH 1920
+#define IMAGE_HEIGHT 1080
+
+#define SAMPLER_PER_FRAME 2
 
 static float g_time = 0.0f;
 
@@ -288,7 +290,7 @@ public:
 	Vector3f getChecker(const SurfaceIntersection& isect) const
 	{
 		const auto& p = isect.p;
-		return (int)(floorf(p.x) + floorf(p.y) + floorf(p.z)) % 2 ==0 ? Vector3f(1.0f) : Vector3f(0.1f);
+		return (int)(floorf(p.x + 0.5f) + floorf(p.y + 0.5f) + floorf(p.z + 0.5f)) % 2 ==0 ? Vector3f(1.0f) : Vector3f(0.1f);
 	}
 
 	ChekerDiffuse(const Vector3f& albedo) :
@@ -388,6 +390,7 @@ private:
 
 struct MyFrameData {
 	float initElapsed;
+	std::chrono::time_point<std::chrono::system_clock> timeAppStart;
 	float frameElapsed;
 	int triNum;
 	int frameCount = 0;
@@ -423,6 +426,9 @@ private:
 void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	time_start = std::chrono::system_clock::now();
 	auto init_time_start = std::chrono::system_clock::now();
+
+
+	frameData->timeAppStart = std::chrono::system_clock::now();
 	
 	frameData->frameElapsed = 0.0f;
 	frameData->triNum = 0;
@@ -454,7 +460,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 		, 70 * ToRad);
 	camera->addKeyFrame(
 		SCENE_DURATION,
-		transformTRS(Vector3f(2, 4.5f, -5), Vector3f(35, -15, 0), Vector3f(1))
+		transformTRS(Vector3f(2, 4.5f, -5), Vector3f(35, -20, 0), Vector3f(1))
 		, 70 * ToRad);
 
 
@@ -578,16 +584,16 @@ void MyApp::onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 }
 
 void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
-	auto time_start = std::chrono::system_clock::now();
 
-	// update 1 フレームごとに計算するサンプル数
-	int sample = 1;
+	if (frameData.frameCount >= TOTAL_FRAME_COUNT) { return; }
+
+	auto time_start = std::chrono::system_clock::now();
 
 	auto renderTarget = std::make_shared<DenoisableRenderTarget>(ImageSize.x, ImageSize.y);
 	float time = (float)frameData.frameCount / FRAME_PER_SECOND;
 	g_time = time;
 	scene->camera->setCurrentTime(time);
-	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
+	renderTarget->render(*scene, SAMPLER_PER_FRAME, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
 		auto ray = scene->camera->generateRay(pFilm, sampler);
 
 		auto res = pathTracer->eval(*scene, sampler, ray);
@@ -598,7 +604,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	renderTarget->map([&](DenoisableRenderTargetPixel& pixel)
 	{
-		pixel /= sample;
+		pixel /= SAMPLER_PER_FRAME;
 		pixel.normal = clamp01(pixel.normal * 0.5f + Vector3f(1.0f));
 	});
 
@@ -658,6 +664,14 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 	++frameData.frameCount;
 
 	printf("frame %d : %f\n", frameData.frameCount, frameData.frameElapsed);
+
+	if(frameData.frameCount == TOTAL_FRAME_COUNT)
+	{
+		auto time_app_end = std::chrono::system_clock::now();
+		float elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_app_end - frameData.timeAppStart).count();
+		printf("totalTime : %f\n", elapsed);
+			
+	}
 
 	if(frameData.frameCount >= TOTAL_FRAME_COUNT)
 	{
