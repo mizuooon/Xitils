@@ -13,8 +13,16 @@
 
 #include <OpenImageDenoise/oidn.hpp>
 
-#include <queue>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#pragma warning(push)
+#pragma warning(disable : 4996)
+// cinder のと干渉するので無名空間で囲ってる
+namespace {
+#include <stb/stb_image_write.h>
+}
+#pragma warning(pop)
 
+#include <queue>
 
 using namespace xitils;
 using namespace ci;
@@ -22,7 +30,7 @@ using namespace ci::app;
 using namespace ci::geom;
 
 #define SCENE_DURATION 6.0f
-#define FRAME_PER_SECOND 20
+#define FRAME_PER_SECOND 30
 #define TOTAL_FRAME_COUNT (SCENE_DURATION * FRAME_PER_SECOND)
 
 #define ENABLE_DENOISE true
@@ -32,8 +40,6 @@ using namespace ci::geom;
 #define IMAGE_WIDTH 1920
 #define IMAGE_HEIGHT 1080
 
-#define SAMPLER_PER_FRAME 2
-
 static float g_time = 0.0f;
 
 // Position-free Multiple-bounce Computations for Smith Microfacet BSDFs [Wang et al. 2022]
@@ -42,7 +48,7 @@ class MetalWithMultipleScattering : public Material
 public:
 	float alpha() const
 	{
-		float roughness = lerp(0.25f, 1.0f, clamp01((g_time - 2.5f) / 2.0f));
+		float roughness = lerp(0.1f, 1.0f, clamp01((g_time - 2.5f) / 2.0f));
 		return roughness * roughness;
 	}
 
@@ -147,7 +153,9 @@ public:
 		// BDPT も実装してない
 		// heig-uncorrelated のみ
 
-		const int sampleNum = 4;
+		bool ommitMS = ssOnly || alpha() < 0.2 * 0.2f;
+
+		const int sampleNum = ommitMS ? 1 : 4;
 		Vector3f bsdfCos(0);
 
 		auto s = [&](int i, const Vector3f& d_i, const Vector3f& h_iminus1, const Vector3f& h_i, bool exit) {
@@ -180,7 +188,7 @@ public:
 			Vector3f h_iminus1(0);
 			for (int i = 0; true; i++)
 			{
-				const float CONTINUE_PROBABILITY = 0.8f;
+				const float CONTINUE_PROBABILITY = 0.5f;
 				if(i > 0)
 				{
 					if (sampler.randf() > CONTINUE_PROBABILITY)
@@ -206,7 +214,7 @@ public:
 					//printf("%f %f %f %f %f\n", weight.x, s_i, v_i.x, s_iplus1, pdf);
 				}
 
-				if(ssOnly)
+				if(ommitMS)
 				{
 					break;
 				}
@@ -371,7 +379,17 @@ private:
 			{
 				std::string seq = std::to_string(sequentialNum + 1); // ファイル名は 1 始まり
 				while (seq.length() < 3) { seq = "0" + seq; }
-				writeImage(seq + ".png", *image);
+				// HeadLess 起動だと何故か動かない。cinderのコンテキストに依存している？
+				//writeImage(seq + ".png", *image);
+
+				std::string filename = seq + ".png";
+				::stbi_write_png(filename.c_str(),
+					image->getWidth(),
+					image->getHeight(),
+					3,
+					image->getData(),
+					image->getWidth() * 3);
+
 				++sequentialNum;
 			}
 
@@ -401,12 +419,20 @@ struct MyUIFrameData {
 	Vector3f rot;
 };
 
-class MyApp : public xitils::app::XApp<MyFrameData, MyUIFrameData> {
+class MyApp :
+#if SHOW_WINDOW
+public xitils::app::XApp<MyFrameData, MyUIFrameData>
+#else
+	public xitils::app::XAppHeadless<MyFrameData, MyUIFrameData>
+#endif
+{
 public:
 	void onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onCleanup(MyFrameData* frameData, MyUIFrameData* uiFrameData) override;
 	void onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) override;
+#if SHOW_WINDOOW
 	void onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) override;
+#endif
 
 private:
 	ImageSaveThread	imageSaveThread;
@@ -433,13 +459,15 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	frameData->frameElapsed = 0.0f;
 	frameData->triNum = 0;
 
+#if SHOW_WINDOW
 	getWindow()->setTitle("Xitils");
 	setWindowSize(ImageSize);
 	setFrameRate(60);
+	ui::initialize();
+#endif
 
 	imageSaveThread.start();
 
-	ui::initialize();
 
 	scene = std::make_shared<Scene>();
 
@@ -485,7 +513,7 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	//scene->addObject(
 	//	std::make_shared<Object>(plane, emission, transformTRS(Vector3f(0, 4.0f -0.01f, 0), Vector3f(-90,0,0), Vector3f(2.0f)))
 	//);
-	scene->skySphere = std::make_shared<SkySphereFromImage>("rnl_probe.hdr");
+	scene->skySphere = std::make_shared<SkySphereFromImage>("data/rnl_probe.hdr");
 	//scene->skySphere = std::make_shared<SkySphereUniform>(Vector3f(0.5f));
 
 	// teapot 作成
@@ -499,9 +527,9 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	auto meshR = std::make_shared<TriangleMesh>();
 	auto meshT = std::make_shared<TriangleMesh>();
 	auto mesh8 = std::make_shared<TriangleMesh>();
-	meshR->setGeometry(*std::make_shared<TriMesh>(TriMesh(ObjLoader(loadFile("R.obj")))));
-	meshT->setGeometry(TriMesh(ObjLoader(loadFile("T.obj"))));
-	mesh8->setGeometry(TriMesh(ObjLoader(loadFile("8.obj"))));
+	meshR->setGeometry(*std::make_shared<TriMesh>(TriMesh(ObjLoader(loadFile("data/R.obj")))));
+	meshT->setGeometry(TriMesh(ObjLoader(loadFile("data/T.obj"))));
+	mesh8->setGeometry(TriMesh(ObjLoader(loadFile("data/8.obj"))));
 
 
 	auto goldSS = std::make_shared<MetalWithMultipleScattering>(0.25f, Vector3f(1.022f, 0.782f, 0.344f),true);
@@ -568,10 +596,6 @@ void MyApp::onSetup(MyFrameData* frameData, MyUIFrameData* uiFrameData) {
 	device = oidn::newDevice();
 	device.commit();
 
-#if !SHOW_WINDOW
-	getWindow()->hide();
-#endif
-
 	// fps の数値を fps.txt に書き込む
 	//{
 	//	auto file = writeFile("fps.txt");
@@ -589,11 +613,14 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	auto time_start = std::chrono::system_clock::now();
 
-	auto renderTarget = std::make_shared<DenoisableRenderTarget>(ImageSize.x, ImageSize.y);
 	float time = (float)frameData.frameCount / FRAME_PER_SECOND;
 	g_time = time;
+
+	int sample = time < 2.0f ? 2 : 8;
+
+	auto renderTarget = std::make_shared<DenoisableRenderTarget>(ImageSize.x, ImageSize.y);
 	scene->camera->setCurrentTime(time);
-	renderTarget->render(*scene, SAMPLER_PER_FRAME, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
+	renderTarget->render(*scene, sample, [&](const Vector2f& pFilm, Sampler& sampler, DenoisableRenderTargetPixel& pixel) {
 		auto ray = scene->camera->generateRay(pFilm, sampler);
 
 		auto res = pathTracer->eval(*scene, sampler, ray);
@@ -604,7 +631,7 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 	renderTarget->map([&](DenoisableRenderTargetPixel& pixel)
 	{
-		pixel /= SAMPLER_PER_FRAME;
+		pixel /= sample;
 		pixel.normal = clamp01(pixel.normal * 0.5f + Vector3f(1.0f));
 	});
 
@@ -680,8 +707,8 @@ void MyApp::onUpdate(MyFrameData& frameData, const MyUIFrameData& uiFrameData) {
 
 }
 
-void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 #if SHOW_WINDOW
+void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	if (!frameData.surface) { return; }
 
 	texture = gl::Texture::create(*frameData.surface);
@@ -692,7 +719,22 @@ void MyApp::onDraw(const MyFrameData& frameData, MyUIFrameData& uiFrameData) {
 	auto windowSize = getWindowSize();
 
 	gl::draw(texture, (windowSize - ImageSize) / 2);
-#endif
 }
+#endif
+
+#if SHOW_WINDOW
 
 XITILS_APP(MyApp)
+
+#else
+
+// TODO : きれいに
+//int __stdcall WinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nCmdShow*/)
+int main()
+{
+	MyApp app;
+	app.run();
+	return 0;
+}
+
+#endif

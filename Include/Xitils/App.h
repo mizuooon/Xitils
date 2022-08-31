@@ -9,12 +9,7 @@
 #include <memory>
 
 #define XITILS_APP(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ settings->setConsoleWindowEnabled(); })
-#define XITILS_APP_HEADLESS(x) CINDER_APP(x, RendererGl, [&](ci::app::App::Settings *settings){ \
-	Window::Format format;\
-	format.hide();\
-	settings->setDefaultWindowFormat(format);\
-	settings->setConsoleWindowEnabled();\
-})
+
 
 namespace xitils::app {
 
@@ -112,4 +107,37 @@ namespace xitils::app {
 		}
 	}
 
+	template<typename T, typename U> class XAppHeadless {
+	public:
+		void run() {
+			closing = false;
+			onSetup(&frameData, &uiFrameData);
+			while(true)
+			{
+				onUpdate(frameData, uiFrameDataBuffer);
+				if (closing) { break; }
+				std::this_thread::yield();
+			}
+			onCleanup(&frameData, &uiFrameData);
+		}
+
+	protected:
+		virtual void onSetup(T* frameData, U* uiFrameData) {}
+		virtual void onCleanup(T* frameData, U* uiFrameData) {}
+		virtual void onUpdate(T& frameData, const U& uiFrameData) {}
+
+		void close()
+		{
+			closing = true;
+		}
+
+	private:
+		T frameData;
+		//T frameDataBuffer;
+
+		U uiFrameData;
+		U uiFrameDataBuffer;
+
+		bool closing = false;
+	};
 }
