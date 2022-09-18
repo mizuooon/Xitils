@@ -2,7 +2,7 @@
 
 project(Xitils CXX)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
 set(XITILS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 set(XITILS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Src)
@@ -40,13 +40,13 @@ target_sources(Xitils PRIVATE
 	${XITILS_INCLUDE_DIR}/Xitils/VonMisesFisherDistribution.h
 	)
 target_include_directories(Xitils PUBLIC
-	${CMAKE_SOURCE_DIR}/ThirdParty
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
 	${XITILS_INCLUDE_DIR}
-	${CMAKE_SOURCE_DIR}/ThirdParty/Cinder/include
-	${CMAKE_SOURCE_DIR}/ThirdParty/Cinder-ImGui/include
-	${CMAKE_SOURCE_DIR}/ThirdParty/Cinder-ImGui/lib/imgui
-	${CMAKE_SOURCE_DIR}/ThirdParty/libsimdpp
-	${CMAKE_SOURCE_DIR}/ThirdParty/tinycolormap/include
+	${CMAKE_CURRENT_SOURCE_DIR/Cinder/include
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Cinder-ImGui/include
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Cinder-ImGui/lib/imgui
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/libsimdpp
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/tinycolormap/include
 	)
 
 add_subdirectory(ThirdParty)
