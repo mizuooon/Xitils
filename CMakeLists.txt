@@ -42,7 +42,7 @@ target_sources(Xitils PRIVATE
 target_include_directories(Xitils PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
 	${XITILS_INCLUDE_DIR}
-	${CMAKE_CURRENT_SOURCE_DIR}/Cinder/include
+	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Cinder/include
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Cinder-ImGui/include
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Cinder-ImGui/lib/imgui
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/libsimdpp
