@@ -29,7 +29,6 @@ add_subdirectory(PrefilteringForRenderingDisplacementMappedSurfaces)
 add_subdirectory(VisualizeError)
 add_subdirectory(VonMisesFisherDistribution)
 add_subdirectory(SphericalHarmonics)
-add_subdirectory(RTCamp8)
 
 add_subdirectory(_Experimental/RaycasterEmbree)
 #add_subdirectory(_Experimental/RaycasterOptix)
